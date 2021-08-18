@@ -72,6 +72,7 @@ sed -i 's/HAVE_GLOB=yes/!HAVE_GLOB=yes/g' config.h
 sed -i 's/HAVE_GMTIME_R 1/HAVE_GMTIME_R 0/g' config.h
 sed -i 's/HAVE_LOCALTIME_R 1/HAVE_LOCALTIME_R 0/g' config.h
 sed -i 's/HAVE_PTHREAD_CANCEL 1/HAVE_PTHREAD_CANCEL 0/g' config.h
+sed -i 's/HAVE_VALGRIND_VALGRIND_H 1/HAVE_VALGRIND_VALGRIND_H 0/g' config.h
 
 tmp_file=".tmpfile"
 ## remove invalid restrict define
