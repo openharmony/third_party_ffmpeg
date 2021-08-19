@@ -24,6 +24,7 @@ config("ffmpeg_config") {
         "-Wno-incompatible-pointer-types",
         "-Wno-sometimes-uninitialized",
         "-Wno-format",
+        "-Wno-tautological-constant-out-of-range-compare",
         "-DHAVE_AV_CONFIG_H",
         "-DCONFIG_H263_ENCODER",
         "-DCONFIG_AC3_DEMUXER",
