@@ -50,6 +50,7 @@ FF_CONFIG_OPTIONS="
     --enable-encoder=pcm_s24be,pcm_s24daud,pcm_s24le,pcm_s24le_planar,pcm_s32be,pcm_s32le,pcm_s32le_planar,pcm_s8,pcm_s8_planar,pcm_u16be,pcm_u16le,pcm_u24be,pcm_u24le,pcm_u32be,pcm_u32le,pcm_u8,pcm_s16le,pcm_s16le_planar,pcm_s64be,pcm_s64le,pcm_vidc,adpcm_g726,adpcm_g7261e,ssa,ass,srt,subrip,text
     --enable-decoder=mp1,mp1_at,mp1float,mp2,mp2float,mp2_at,mp3,mp3adu,mp3adufloat,mp3float,mp3on4,mp3on4float,mp3_at
     --enable-decoder=aac,aac_at,aac_fixed,libfdk_aac,aac_latm,alac,alac_at,als,amrnb,libopencore_amrnb,amr_nb_at,amrwb,libopencore_amrwb,ape,flac,vorbis,libvorbis,libopus,opus
+    --enable-encoder=aac,aac_at,aac_fixed,aac_latm
     --enable-decoder=adpcm_4xm,adpcm_adx,adpcm_afc,adpcm_aica,adpcm_ct,adpcm_dtk,adpcm_g722,adpcm_g726,adpcm_g726le
     --enable-decoder=adpcm_ima_amv,adpcm_ima_apc,adpcm_ima_iss,adpcm_ima_oki,adpcm_ima_rad
     --enable-decoder=adpcm_ima_wav,adpcm_psx,adpcm_sbpro_2,adpcm_sbpro_3,adpcm_sbpro_4,adpcm_thp,adpcm_thp_le,adpcm_xa,adpcm_yamaha
