@@ -65,6 +65,9 @@ Note:If the text contains special characters, please escape them according to th
             <filefilter name="defaultPolicyFilter" desc="Filters for compatibility，license header policies">
                 <filteritem type="filepath" name=".*" desc="The files involved in compilation are the LGPL protocol.They are used in dynamic link mode."/>
             </filefilter>
+            <filefilter name="binaryFileTypePolicyFilter" desc="Filters for binary file policies">
+                <filteritem type="filepath" name=".*" desc="Resource, config and certification binary."/>
+            </filefilter>
         </filefilterlist>
     </oatconfig>
 </configuration>
