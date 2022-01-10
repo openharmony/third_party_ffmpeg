@@ -1,0 +1,39 @@
+{
+    "name": "@ohos/ffmpeg",
+    "version": "",
+    "description": "FFmpeg is a collection of libraries and tools to process multimedia content such as audio, video, subtitles and related metadata.",
+    "homePage": "https://gitee.com/openharmony",
+    "license": "LGPL v2.1+,GPL v2+",
+    "repository": "https://gitee.com/openharmony/third_party_ffmpeg",
+    "domain": "os",
+    "language": "",
+    "publishAs": "code-segment",
+    "private": false,
+    "scripts": {},
+    "tags": [
+        "third_party"
+    ],
+    "keywords": [
+        "third-party",
+        "ffmpeg"
+    ],
+    "envs": [],
+    "dirs": [],
+    "segment": {
+        "destPath": "third_party/ffmpeg"
+    },
+    "component": {
+        "name": "thirdparty_ffmpeg",
+        "subsystem": "",
+        "syscap": [],
+        "features": [],
+        "adapted_system_type": [],
+        "rom": "",
+        "ram": "",
+        "build": {
+            "sub_component": [],
+            "inner_kits": [],
+            "test": []
+        }
+    }
+}
