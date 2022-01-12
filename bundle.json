@@ -17,8 +17,8 @@
         "third-party",
         "ffmpeg"
     ],
-    "envs": [],
-    "dirs": [],
+    "envs": {},
+    "dirs": {},
     "segment": {
         "destPath": "third_party/ffmpeg"
     },
