@@ -1,0 +1,31 @@
+{
+    "name": "@ohos/ffmpeg",
+    "description": "FFmpeg is the leading multimedia framework, able to decode, encode, transcode, mux, demux, stream, filter and play pretty much anything that humans and machines have created.",
+    "version": "3.1",
+    "license": "LGPL V2.1/LGPL V3.0/GPL V2.0/GPL V3.0",
+    "publishAs": "code-segment",
+    "segment": {
+        "destPath": "third_party/ffmpeg"
+    },
+    "dirs": {},
+    "scripts": {},
+    "licensePath": "COPYING.LGPLv2.1",
+    "component": {
+        "name": "thirdparty_ffmpeg",
+        "subsystem": "",
+        "syscap": [],
+        "features": [],
+        "adapted_system_type": [],
+        "rom": "",
+        "ram": "",
+        "deps": {
+            "components": [],
+            "third_party": []
+        },
+        "build": {
+            "sub_component": [],
+            "inner_kits": [],
+            "test": []
+        }
+    }
+}
