@@ -30,6 +30,8 @@ FF_CONFIG_OPTIONS="
     --disable-hwaccels
     --disable-protocols
     --disable-bzlib
+    --disable-vaapi
+    --disable-vdpau
     --enable-protocol=file,http,tcp,httpproxy,g726_16_dynamic,g726_24_dynamic,g726_32_dynamic,g726_40_dynamic,qt_rtp_aud,qt_rtp_vid,quicktime_rtp_aud,quicktime_rtp_vid
     --disable-muxers
     --disable-demuxers
