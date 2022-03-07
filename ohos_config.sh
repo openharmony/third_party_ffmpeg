@@ -22,6 +22,8 @@ FF_CONFIG_OPTIONS="
     --disable-zlib
     --disable-cuvid
     --disable-cuda
+    --disable-vaapi
+    --disable-vdpau
     --disable-libxcb
     --disable-libxcb_shape
     --disable-libxcb_shm
