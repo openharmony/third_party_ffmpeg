@@ -329,7 +329,6 @@ static void v4l2_m2m_destroy_context(void *opaque, uint8_t *context)
     sem_destroy(&s->refsync);
 
     close(s->fd);
-    av_packet_unref(&s->buf_pkt);
 
     av_free(s);
 }
@@ -339,10 +338,6 @@ int ff_v4l2_m2m_codec_end(V4L2m2mPriv *priv)
     V4L2m2mContext *s = priv->context;
     int ret;
 
-    if (!s)
-        return 0;
-
-    if (s->fd >= 0) {
     ret = ff_v4l2_context_set_status(&s->output, VIDIOC_STREAMOFF);
     if (ret)
         av_log(s->avctx, AV_LOG_ERROR, "VIDIOC_STREAMOFF %s\n", s->output.name);
@@ -350,7 +345,6 @@ int ff_v4l2_m2m_codec_end(V4L2m2mPriv *priv)
     ret = ff_v4l2_context_set_status(&s->capture, VIDIOC_STREAMOFF);
     if (ret)
         av_log(s->avctx, AV_LOG_ERROR, "VIDIOC_STREAMOFF %s\n", s->capture.name);
-    }
 
     ff_v4l2_context_release(&s->output);
 
