@@ -46,12 +46,12 @@ FF_CONFIG_OPTIONS="
     --disable-sdl2
     --disable-bzlib
     --disable-lzma
-    --enable-demuxer=mp3,aac,ogg
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov
     --enable-muxer=mp4,h264
     --enable-parser=h263,mpeg4video,vp8,vp9
     --enable-parser=mpegaudio,aac_latm
     --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
-    --enable-decoder=mp3,aac,aac_latm,ape,flac,vorbis,opus
+    --enable-decoder=mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus
     --enable-encoder=aac,aac_latm,opus
     --enable-encoder=mpeg4,h263
 "
