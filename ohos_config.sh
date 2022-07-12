@@ -8,7 +8,6 @@ FFMPEG_OUT_PATH=$2
 FF_CONFIG_OPTIONS="
     --disable-programs
     --disable-avdevice
-    --disable-swscale
     --disable-postproc
     --disable-avfilter
     --disable-avresample
@@ -46,7 +45,7 @@ FF_CONFIG_OPTIONS="
     --disable-sdl2
     --disable-bzlib
     --disable-lzma
-    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts
     --enable-muxer=mp4,h264
     --enable-parser=h263,mpeg4video,vp8,vp9
     --enable-parser=mpegaudio,aac_latm
