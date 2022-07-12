@@ -10,7 +10,6 @@ FF_CONFIG_OPTIONS="
     --disable-avdevice
     --disable-postproc
     --disable-avfilter
-    --disable-avresample
     --disable-network
     --disable-dwt
     --disable-lsp
