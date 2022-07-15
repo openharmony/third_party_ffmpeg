@@ -1529,6 +1529,6 @@ action("gen_config_header") {
 
 ohos_shared_library("libohosffmpeg") {
   deps = [ ":ffmpeg_dynamic" ]
-  part_name = "multimedia_media_standard"
+  part_name = "multimedia_player_framework"
   subsystem_name = "multimedia"
 }
