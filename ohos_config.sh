@@ -2,6 +2,7 @@
 
 #!/bin/bash
 
+set -ex
 FFMPEG_PATH=$1
 FFMPEG_OUT_PATH=$2
 
@@ -117,10 +118,15 @@ sed -i 's/HAVE_DOS_PATHS 0/HAVE_DOS_PATHS 1/g' config.h
 
 mv config.h ${FFMPEG_OUT_PATH}/config.h
 mv ./ffbuild/config.mak ${FFMPEG_OUT_PATH}/config.mak
+rm -rf ${FFMPEG_OUT_PATH}/libavcodec
 mv -f libavcodec ${FFMPEG_OUT_PATH}
+rm -rf ${FFMPEG_OUT_PATH}/libavformat
 mv -f libavformat ${FFMPEG_OUT_PATH}
+rm -rf ${FFMPEG_OUT_PATH}/libavutil
 mv -f libavutil ${FFMPEG_OUT_PATH}
+rm -rf ${FFMPEG_OUT_PATH}/libavdevice
 mv -f libavdevice ${FFMPEG_OUT_PATH}
+rm -rf ${FFMPEG_OUT_PATH}/libavfilter
 mv -f libavfilter ${FFMPEG_OUT_PATH}
 rm -rf ./ffbuild
 
