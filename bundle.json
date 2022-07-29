@@ -11,8 +11,8 @@
     "scripts": {},
     "licensePath": "COPYING.LGPLv2.1",
     "component": {
-        "name": "thirdparty_ffmpeg",
-        "subsystem": "",
+        "name": "ffmpeg",
+        "subsystem": "thirdparty",
         "syscap": [],
         "features": [],
         "adapted_system_type": [],
