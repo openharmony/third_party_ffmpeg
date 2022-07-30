@@ -52,10 +52,9 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/8bps.c",
     # "//third_party/ffmpeg/libavcodec/8svx.c",
     # "//third_party/ffmpeg/libavcodec/a64multienc.c",
-    # "//third_party/ffmpeg/libavcodec/aac_ac3_parser.c",
+    "//third_party/ffmpeg/libavcodec/aac_ac3_parser.c",
     "//third_party/ffmpeg/libavcodec/aac_adtstoasc_bsf.c",
-
-    # "//third_party/ffmpeg/libavcodec/aac_parser.c",
+    "//third_party/ffmpeg/libavcodec/aac_parser.c",
     "//third_party/ffmpeg/libavcodec/aaccoder.c",
     "//third_party/ffmpeg/libavcodec/aacdec.c",
 
@@ -1529,6 +1528,6 @@ action("gen_config_header") {
 
 ohos_shared_library("libohosffmpeg") {
   deps = [ ":ffmpeg_dynamic" ]
-  part_name = "multimedia_player_framework"
-  subsystem_name = "multimedia"
+  part_name = "ffmpeg"
+  subsystem_name = "thirdparty"
 }
