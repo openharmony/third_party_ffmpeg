@@ -39,6 +39,7 @@ config("ffmpeg_config") {
     "-DCONFIG_OPUS_DECODER",
     "-DCONFIG_OPUS_ENCODER",
     "-DCONFIG_OPUS_PARSER",
+    "-DCONFIG_AV3A_PARSER",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
@@ -149,6 +150,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/av1_metadata_bsf.c",
     # "//third_party/ffmpeg/libavcodec/av1_parse.c",
     # "//third_party/ffmpeg/libavcodec/av1_parser.c",
+    "//third_party/ffmpeg/libavcodec/av3a_parser.c",
     "//third_party/ffmpeg/libavcodec/avcodec.c",
     "//third_party/ffmpeg/libavcodec/avdct.c",
     "//third_party/ffmpeg/libavcodec/avfft.c",
