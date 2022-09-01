@@ -53,6 +53,7 @@ FF_CONFIG_OPTIONS="
     --enable-decoder=mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus
     --enable-encoder=aac,aac_latm,opus
     --enable-encoder=mpeg4,h263
+    --enable-bsf=h264_mp4toannexb
 "
 
 FF_CONFIG_OPTIONS=`echo $FF_CONFIG_OPTIONS`
