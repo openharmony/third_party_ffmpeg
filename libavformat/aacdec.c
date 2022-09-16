@@ -101,6 +101,7 @@ static int adts_aac_resync(AVFormatContext *s)
     return 0;
 }
 
+/* add for getting accurate duration in acc */
 static int adts_aac_get_frame_length(AVFormatContext *s, int64_t offset)
 {
     const int adts_header_length_no_crc = 7;
@@ -237,6 +238,7 @@ static void adts_aac_get_duration(AVFormatContext *s, AVStream *st)
     }
     avio_seek(s->pb, 0, SEEK_SET);
 }
+/* add end */
 
 static int adts_aac_read_header(AVFormatContext *s)
 {
@@ -263,7 +265,9 @@ static int adts_aac_read_header(AVFormatContext *s)
     if (ret < 0)
         return ret;
 
+    /* add for getting accurate duration in acc */
     adts_aac_get_duration(s, st);
+    /* add end */
 
     return 0;
 }
