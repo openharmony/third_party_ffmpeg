@@ -101,7 +101,15 @@ static int adts_aac_resync(AVFormatContext *s)
     return 0;
 }
 
-/* add for getting accurate duration in acc */
+#ifdef OHOS_OPT_COMPAT
+/**
+ * ohos.opt.compat.0001
+ * fix duration not accurate in aac.
+ * There is one packet for every 1024 samples,
+ * get the sample num in each frame and sample rate from adts
+ * to calculate duration of each frame, then the summation of 
+ * frame duration is the file duration.
+ */
 static int adts_aac_get_frame_length(AVFormatContext *s, int64_t offset)
 {
     const int adts_header_length_no_crc = 7;
@@ -238,7 +246,7 @@ static void adts_aac_get_duration(AVFormatContext *s, AVStream *st)
     }
     avio_seek(s->pb, 0, SEEK_SET);
 }
-/* add end */
+#endif
 
 static int adts_aac_read_header(AVFormatContext *s)
 {
@@ -265,9 +273,13 @@ static int adts_aac_read_header(AVFormatContext *s)
     if (ret < 0)
         return ret;
 
-    /* add for getting accurate duration in acc */
+#ifdef OHOS_OPT_COMPAT
+    // ohos.opt.compat.0001
     adts_aac_get_duration(s, st);
-    /* add end */
+#else
+    // LCM of all possible ADTS sample rates
+    avpriv_set_pts_info(st, 64, 1, 28224000);
+#endif
 
     return 0;
 }
