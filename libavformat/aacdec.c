@@ -101,6 +101,153 @@ static int adts_aac_resync(AVFormatContext *s)
     return 0;
 }
 
+#ifdef OHOS_OPT_COMPAT
+/**
+ * ohos.opt.compat.0001
+ * fix duration not accurate in aac.
+ * There is one packet for every 1024 samples,
+ * get the sample num in each frame and sample rate from adts
+ * to calculate duration of each frame, then the summation of 
+ * frame duration is the file duration.
+ */
+static int adts_aac_get_frame_length(AVFormatContext *s, int64_t offset)
+{
+    const int adts_header_length_no_crc = 7;
+    const int adts_header_length_with_crc = 9;
+    uint8_t syncword[2];
+
+    avio_seek(s->pb, offset, SEEK_SET);
+    // read syncword
+    if (avio_read(s->pb, &syncword, 2) != 2) {
+        return 0;
+    }
+    if ((syncword[0] != 0xff) || ((syncword[1] & 0xf6) != 0xf0)) {
+        return 0;
+    }
+
+    // read protection_absent
+    uint8_t protection_absent;
+    avio_seek(s->pb, offset + 1, SEEK_SET);
+    if (avio_read(s->pb, &protection_absent, 1) < 1) {
+        return 0;
+    }
+    protection_absent &= 0x1;
+
+    // get frame_size
+    uint8_t header[3];
+    avio_seek(s->pb, offset + 3, SEEK_SET);
+    if (avio_read(s->pb, &header, 3) < 3) {
+        return 0;
+    }
+    int frame_size = (header[0] & 0x3) << 11 | header[1] << 3 | header[2] >> 5;
+    // protection_absent is 0 if there is CRC
+    int head_size = protection_absent ? adts_header_length_no_crc : adts_header_length_with_crc;
+    if (head_size > frame_size) {
+        return 0;
+    }
+
+    // get adts_buffer_fullness
+    uint8_t head[2];
+    avio_seek(s->pb, offset + 5, SEEK_SET);
+    if (avio_read(s->pb, &head, 2) < 2) {
+        return 0;
+    }
+    uint16_t adts_buffer_fullness = (head[0] & 0x1F) << 6 | (head[1] >> 2);
+    if (adts_buffer_fullness != 0x7FF) { // not VBR
+        return 0;
+    }
+
+    return frame_size;
+}
+
+static int adts_aac_get_raw_data_block_num(AVFormatContext *s, int64_t offset)
+{
+    uint8_t raw_data_block_num = 0;
+    avio_seek(s->pb, offset + 6, SEEK_SET);
+    if (avio_read(s->pb, &raw_data_block_num, 1) < 1) {
+        return 0;
+    }
+    raw_data_block_num &= 0x3;
+
+    return raw_data_block_num;
+}
+
+// get sample rate by index
+static uint32_t get_sample_rate(const uint8_t sr_index)
+{
+    static const uint32_t sample_rates[] =
+    {
+        96000, 88200, 64000, 48000, 44100, 32000,
+        24000, 22050, 16000, 12000, 11025, 8000
+    };
+
+    if (sr_index < sizeof(sample_rates) / sizeof(sample_rates[0])) {
+        return sample_rates[sr_index];
+    }
+
+    return 0;
+}
+
+static void adts_aac_get_duration(AVFormatContext *s, AVStream *st)
+{
+    avio_seek(s->pb, 0, SEEK_SET);
+    uint8_t header[2];
+    avio_seek(s->pb, 2, SEEK_SET);
+    if (avio_read(s->pb, &header, 2) < 2) {
+        av_log(NULL, AV_LOG_ERROR, "avio_read header error!\n");
+        return;
+    }
+    int64_t offset = 0;
+    // get profile
+    uint8_t profile = (header[0] >> 6) & 0x3;
+    st->codecpar->profile = profile;
+
+    // get sample rate
+    uint8_t sr_index = (header[0] >> 2) & 0xf;
+    uint32_t sr = get_sample_rate(sr_index);
+    if (sr == 0) {
+        av_log(NULL, AV_LOG_ERROR, "adts_aac_read_header read sampletare error!\n");
+        return;
+    }
+
+    // get channel
+    uint8_t channel = (header[0] & 0x1) << 2 | (header[1] >> 6);
+    if(channel == 0) {
+        av_log(NULL, AV_LOG_ERROR, "adts_aac_read_header read channel error!\n");
+        return;
+    }
+
+    st->codecpar->channels = channel;
+    st->codecpar->sample_rate = sr;
+    avpriv_set_pts_info(st, 64, 1, st->codecpar->sample_rate);
+
+    int frame_size = 0;
+    int raw_data_block_num = 0;
+    int64_t frame_duration_us = 0;
+    int64_t duration = 0;
+    int64_t frame_num = 0;
+    int64_t stream_size = avio_size(s->pb);
+    if (stream_size > 0) {
+        while (offset < stream_size) {
+            if ((frame_size = adts_aac_get_frame_length(s, offset)) == 0) {
+                break;
+            }
+            raw_data_block_num = adts_aac_get_raw_data_block_num(s, offset);
+            offset += frame_size;
+            frame_num += (raw_data_block_num + 1);
+        }
+        // round up and get the duration
+        frame_duration_us = (1024 * 1000000ll + (sr - 1)) / sr;
+        duration = frame_num * frame_duration_us; // us
+        duration = av_rescale_q(duration, AV_TIME_BASE_Q, st->time_base);
+        if (duration != 0) {
+            st->duration = duration;
+        }
+    }
+    avio_seek(s->pb, 0, SEEK_SET);
+}
+#endif
+
 static int adts_aac_read_header(AVFormatContext *s)
 {
     AVStream *st;
@@ -126,8 +273,13 @@ static int adts_aac_read_header(AVFormatContext *s)
     if (ret < 0)
         return ret;
 
+#ifdef OHOS_OPT_COMPAT
+    // ohos.opt.compat.0001
+    adts_aac_get_duration(s, st);
+#else
     // LCM of all possible ADTS sample rates
     avpriv_set_pts_info(st, 64, 1, 28224000);
+#endif
 
     return 0;
 }
