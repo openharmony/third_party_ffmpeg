@@ -2390,6 +2390,39 @@ static int seek_frame_generic(AVFormatContext *s, int stream_index,
         timestamp < st->index_entries[0].timestamp)
         return -1;
 
+#ifdef OHOS_OPT_COMPAT
+/**
+ * ohos.opt.compat.0002
+ * When the audio file is very large, and st->index_entries has limited capacity.
+ * At this time, the function ff_reduce_index() will be called more than once and halved st->index_entries.
+ * The timestamp queried is far from the actual timestamp, and the st->index_entries needs to be refreshed.
+ */
+    int need_read_frame = 0;
+    if (index < 0 || index == st->nb_index_entries - 1) {
+        if (st->nb_index_entries) {
+            av_assert0(st->index_entries);
+            ie = &st->index_entries[st->nb_index_entries - 1];
+            need_read_frame = 1;
+        } else {
+            if ((ret = avio_seek(s->pb, s->internal->data_offset, SEEK_SET)) < 0)
+                return ret;
+        }
+    } else {
+        av_assert0(st->index_entries);
+        ie = &st->index_entries[index];
+        if (timestamp - ie->timestamp >= 10240) { // 1024 samples are recorded for each index, 10 samples are 10240
+            need_read_frame = 1;
+        }
+    }
+
+    if (need_read_frame > 0) {
+        if ((ret = avio_seek(s->pb, ie->pos, SEEK_SET)) < 0)
+            return ret;
+        ff_update_cur_dts(s, st, ie->timestamp);
+    
+        AVPacket *pkt = s->internal->pkt;
+        int nonkey = 0;
+#else
     if (index < 0 || index == st->nb_index_entries - 1) {
         AVPacket *pkt = s->internal->pkt;
         int nonkey = 0;
@@ -2404,6 +2437,7 @@ static int seek_frame_generic(AVFormatContext *s, int stream_index,
             if ((ret = avio_seek(s->pb, s->internal->data_offset, SEEK_SET)) < 0)
                 return ret;
         }
+#endif
         av_packet_unref(pkt);
         for (;;) {
             int read_status;
