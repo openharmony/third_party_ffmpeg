@@ -41,6 +41,8 @@ config("ffmpeg_config") {
     "-DCONFIG_OPUS_PARSER",
     "-DCONFIG_AV3A_PARSER",
     "-DOHOS_OPT_COMPAT",
+    "-Wno-array-parameter",
+    "-Wno-deprecated-pragma",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
@@ -1533,4 +1535,5 @@ ohos_shared_library("libohosffmpeg") {
   deps = [ ":ffmpeg_dynamic" ]
   part_name = "ffmpeg"
   subsystem_name = "thirdparty"
+  cflags = [ "-Wno-array-parameter" ]
 }
