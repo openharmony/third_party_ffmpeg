@@ -338,8 +338,8 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/flacdata.c",
     "//third_party/ffmpeg/libavcodec/flacdec.c",
     "//third_party/ffmpeg/libavcodec/flacdsp.c",
+    "//third_party/ffmpeg/libavcodec/flacenc.c",
 
-    # "//third_party/ffmpeg/libavcodec/flacenc.c",
     # "//third_party/ffmpeg/libavcodec/flicvideo.c",
     # "//third_party/ffmpeg/libavcodec/flvdec.c",
     # "//third_party/ffmpeg/libavcodec/flvenc.c",
