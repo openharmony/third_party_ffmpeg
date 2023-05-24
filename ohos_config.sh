@@ -46,7 +46,7 @@ FF_CONFIG_OPTIONS="
     --disable-bzlib
     --disable-lzma
     --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts
-    --enable-muxer=mp4,h264
+    --enable-muxer=mp4,h264,ipod
     --enable-parser=h263,mpeg4video,vp8,vp9
     --enable-parser=mpegaudio,aac,aac_latm,av3a
     --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
