@@ -1533,6 +1533,9 @@ action("gen_config_header") {
 }
 
 ohos_shared_library("libohosffmpeg") {
+  sanitize = {
+    integer_overflow = true
+  }
   deps = [ ":ffmpeg_dynamic" ]
   part_name = "ffmpeg"
   subsystem_name = "thirdparty"
