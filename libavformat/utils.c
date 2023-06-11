@@ -2402,24 +2402,26 @@ static int seek_frame_generic(AVFormatContext *s, int stream_index,
         if (st->nb_index_entries) {
             av_assert0(st->index_entries);
             ie = &st->index_entries[st->nb_index_entries - 1];
-            need_read_frame = 1;
+            if ((ret = avio_seek(s->pb, ie->pos, SEEK_SET)) < 0)
+                return ret;
+            ff_update_cur_dts(s, st, ie->timestamp);
         } else {
             if ((ret = avio_seek(s->pb, s->internal->data_offset, SEEK_SET)) < 0)
                 return ret;
         }
+        need_read_frame = 1;
     } else {
         av_assert0(st->index_entries);
         ie = &st->index_entries[index];
         if (timestamp - ie->timestamp >= 10240) { // 1024 samples are recorded for each index, 10 samples are 10240
             need_read_frame = 1;
+            if ((ret = avio_seek(s->pb, ie->pos, SEEK_SET)) < 0)
+                return ret;
+            ff_update_cur_dts(s, st, ie->timestamp);
         }
     }
 
     if (need_read_frame > 0) {
-        if ((ret = avio_seek(s->pb, ie->pos, SEEK_SET)) < 0)
-            return ret;
-        ff_update_cur_dts(s, st, ie->timestamp);
-    
         AVPacket *pkt = s->internal->pkt;
         int nonkey = 0;
 #else
