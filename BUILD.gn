@@ -585,8 +585,7 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/mpegvideo.c",
     "//third_party/ffmpeg/libavcodec/mpegvideo_enc.c",
     "//third_party/ffmpeg/libavcodec/mpegvideo_motion.c",
-
-    # "//third_party/ffmpeg/libavcodec/mpegvideo_parser.c",
+    "//third_party/ffmpeg/libavcodec/mpegvideo_parser.c",
     "//third_party/ffmpeg/libavcodec/mpegvideodata.c",
     "//third_party/ffmpeg/libavcodec/mpegvideodsp.c",
     "//third_party/ffmpeg/libavcodec/mpegvideoencdsp.c",
