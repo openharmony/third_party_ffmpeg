@@ -5,6 +5,79 @@
 set -ex
 FFMPEG_PATH=$1
 FFMPEG_OUT_PATH=$2
+FFMPEG_PLAT=$3
+
+if [ ${FFMPEG_PLAT} == "aarch64" ]; then
+
+FF_CONFIG_OPTIONS="
+    --arch=aarch64
+    --target-os=linux
+    --disable-programs
+    --disable-avdevice
+    --disable-postproc
+    --disable-avfilter
+    --disable-network
+    --disable-dwt
+    --disable-lsp
+    --disable-lzo
+    --disable-faan
+    --disable-pixelutils
+    --disable-bsfs
+    --disable-encoders
+    --disable-decoders
+    --disable-hwaccels
+    --disable-muxers
+    --disable-demuxers
+    --disable-parsers
+    --disable-protocols
+    --disable-devices
+    --disable-filters
+    --disable-doc
+    --disable-debug
+    --disable-iconv
+    --disable-stripping
+    --disable-vaapi
+    --disable-vdpau
+    --disable-zlib
+    --disable-xlib
+    --disable-cuvid
+    --disable-cuda
+    --disable-libxcb
+    --disable-libxcb_shm
+    --disable-libxcb_shape
+    --disable-libxcb_xfixes
+    --disable-sdl2
+    --disable-bzlib
+    --disable-lzma
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts
+    --enable-muxer=mp4,h264,ipod
+    --enable-parser=h263,mpeg4video,vp8,vp9,mpegvideo
+    --enable-parser=mpegaudio,aac,aac_latm,av3a
+    --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
+    --enable-decoder=mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus
+    --enable-encoder=aac,aac_latm,opus,flac
+    --enable-encoder=mpeg4,h263
+    --enable-bsf=h264_mp4toannexb
+    --enable-cross-compile
+    --enable-shared
+    --cc=${FFMPEG_PATH}/../../prebuilts/clang/ohos/linux-x86_64/llvm/bin/clang
+    --ld=${FFMPEG_PATH}/../../prebuilts/clang/ohos/linux-x86_64/llvm/bin/clang
+    --strip=${FFMPEG_PATH}/../../prebuilts/clang/ohos/linux-x86_64/llvm/bin/llvm-strip
+"
+EXTRA_CFLAGS="
+    --target=aarch64-linux-ohos
+    --sysroot=${FFMPEG_PATH}/../../prebuilts/gcc/linux-x86/aarch64/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc
+"
+EXTRA_LDFLAGS="
+    --target=aarch64-linux-ohos
+    --sysroot=${FFMPEG_PATH}/../../prebuilts/gcc/linux-x86/aarch64/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc
+"
+
+FF_CONFIG_OPTIONS=`echo $FF_CONFIG_OPTIONS`
+
+${FFMPEG_PATH}/configure ${FF_CONFIG_OPTIONS} --extra-cflags="${EXTRA_CFLAGS}" --extra-ldflags="${EXTRA_LDFLAGS}"
+
+else
 
 FF_CONFIG_OPTIONS="
     --disable-programs
@@ -59,6 +132,8 @@ FF_CONFIG_OPTIONS="
 FF_CONFIG_OPTIONS=`echo $FF_CONFIG_OPTIONS`
 
 ${FFMPEG_PATH}/configure ${FF_CONFIG_OPTIONS}
+
+fi
 
 sed -i 's/HAVE_SYSCTL 1/HAVE_SYSCTL 0/g' config.h
 sed -i 's/HAVE_SYSCTL=yes/!HAVE_SYSCTL=yes/g' ./ffbuild/config.mak

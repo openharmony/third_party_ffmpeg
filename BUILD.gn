@@ -2,6 +2,92 @@
 
 import("//build/ohos.gni")
 
+print("current_cpu = ${current_cpu}")
+print("current_os = ${current_os}")
+print("host_os = ${host_os}")
+print("is_mingw = ${is_mingw}")
+
+ffmpeg_selected_platform = ""
+if (current_cpu == "arm64" && current_os == "ohos") {
+  print("ffmpeg selected aarch64")
+  ffmpeg_selected_platform = "aarch64"
+} else {
+  print("ffmpeg selected cplatform")
+  ffmpeg_selected_platform = "cplat"
+}
+
+libffmpeg_media_aarch64_sources = [
+  "//third_party/ffmpeg/libavcodec/aarch64/aacpsdsp_init_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/aacpsdsp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/fft_init_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/fft_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/h264chroma_init_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/h264cmc_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/h264dsp_init_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/h264dsp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/h264idct_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/h264pred_init.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/h264pred_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/h264qpel_init_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/h264qpel_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/hpeldsp_init_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/hpeldsp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/idctdsp_init_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/mdct_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/mpegaudiodsp_init.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/mpegaudiodsp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/opusdsp_init.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/opusdsp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/pixblockdsp_init_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/pixblockdsp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/sbrdsp_init_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/sbrdsp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/simple_idct_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/videodsp.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/videodsp_init.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/vorbisdsp_init.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/vorbisdsp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp8dsp_init_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp8dsp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp9dsp_init_10bpp_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp9dsp_init_12bpp_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp9dsp_init_aarch64.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp9itxfm_16bpp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp9itxfm_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp9lpf_16bpp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp9lpf_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp9mc_16bpp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp9mc_aarch64.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/vp9mc_neon.S",
+  "//third_party/ffmpeg/libavcodec/neon/mpegvideo.c",
+  "//third_party/ffmpeg/libavutil/aarch64/cpu.c",
+  "//third_party/ffmpeg/libavutil/aarch64/float_dsp_init.c",
+  "//third_party/ffmpeg/libavutil/aarch64/float_dsp_neon.S",
+  "//third_party/ffmpeg/libswresample/aarch64/audio_convert_init.c",
+  "//third_party/ffmpeg/libswresample/aarch64/audio_convert_neon.S",
+  "//third_party/ffmpeg/libswresample/aarch64/resample.S",
+  "//third_party/ffmpeg/libswresample/aarch64/resample_init.c",
+  "//third_party/ffmpeg/libswscale/aarch64/hscale.S",
+  "//third_party/ffmpeg/libswscale/aarch64/output.S",
+  "//third_party/ffmpeg/libswscale/aarch64/rgb2rgb.c",
+  "//third_party/ffmpeg/libswscale/aarch64/rgb2rgb_neon.S",
+  "//third_party/ffmpeg/libswscale/aarch64/swscale.c",
+  "//third_party/ffmpeg/libswscale/aarch64/swscale_unscaled.c",
+  "//third_party/ffmpeg/libswscale/aarch64/yuv2rgb_neon.S",
+]
+
+# Assembly optimization
+libffmpeg_media_asm_sources = []
+ldflags_asm = []
+if (ffmpeg_selected_platform == "aarch64") {
+  libffmpeg_media_asm_sources += libffmpeg_media_aarch64_sources
+  ldflags_asm += [ "-Wl,-Bsymbolic" ]
+}
+
+unused_variables = []
+unused_variables += unused_variables
+unused_variables += libffmpeg_media_aarch64_sources
+
 config("ffmpeg_config") {
   cflags = [
     "-Wno-sign-compare",
@@ -394,7 +480,7 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/h264_mp4toannexb_bsf.c",
     "//third_party/ffmpeg/libavcodec/h264_parse.c",
 
-    # "//third_party/ffmpeg/libavcodec/h264_parser.c",
+    #"//third_party/ffmpeg/libavcodec/h264_parser.c",
     "//third_party/ffmpeg/libavcodec/h264_picture.c",
     "//third_party/ffmpeg/libavcodec/h264_ps.c",
 
@@ -1507,6 +1593,8 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libswscale/vscale.c",
     "//third_party/ffmpeg/libswscale/yuv2rgb.c",
   ]
+  sources += libffmpeg_media_asm_sources  # Assemble sources
+
   include_dirs = [
     "//third_party/ffmpeg/",
     "//third_party/ffmpeg/libavformat/",
@@ -1526,6 +1614,7 @@ action("gen_config_header") {
   args = [
     rebase_path("//third_party/ffmpeg", root_build_dir),
     rebase_path("${target_gen_dir}/include/", root_build_dir),
+    ffmpeg_selected_platform,
   ]
 
   outputs = [ "${target_gen_dir}/include/config.h" ]
@@ -1540,4 +1629,5 @@ ohos_shared_library("libohosffmpeg") {
   part_name = "ffmpeg"
   subsystem_name = "thirdparty"
   cflags = [ "-Wno-array-parameter" ]
+  ldflags = ldflags_asm
 }
