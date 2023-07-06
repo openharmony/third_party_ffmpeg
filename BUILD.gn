@@ -1518,6 +1518,8 @@ ohos_source_set("ffmpeg_dynamic") {
   ]
   deps = [ ":gen_config_header" ]
   configs = [ ":ffmpeg_config" ]
+  part_name = "ffmpeg"
+  subsystem_name = "thirdparty"
 }
 
 action("gen_config_header") {
