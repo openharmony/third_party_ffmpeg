@@ -54,6 +54,7 @@ FF_CONFIG_OPTIONS="
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
     --enable-bsf=h264_mp4toannexb
+    --enable-protocol=file
 "
 
 FF_CONFIG_OPTIONS=`echo $FF_CONFIG_OPTIONS`
