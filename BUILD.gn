@@ -1121,7 +1121,8 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/ffmetaenc.c",
     # "//third_party/ffmpeg/libavformat/fifo.c",
     # "//third_party/ffmpeg/libavformat/fifo_test.c",
-    # "//third_party/ffmpeg/libavformat/file.c",
+    "//third_party/ffmpeg/libavformat/file.c",
+
     # "//third_party/ffmpeg/libavformat/filmstripdec.c",
     # "//third_party/ffmpeg/libavformat/filmstripenc.c",
     # "//third_party/ffmpeg/libavformat/fitsdec.c",
