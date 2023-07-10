@@ -479,8 +479,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/h264_metadata_bsf.c",
     "//third_party/ffmpeg/libavcodec/h264_mp4toannexb_bsf.c",
     "//third_party/ffmpeg/libavcodec/h264_parse.c",
-
-    #"//third_party/ffmpeg/libavcodec/h264_parser.c",
+    "//third_party/ffmpeg/libavcodec/h264_parser.c",
     "//third_party/ffmpeg/libavcodec/h264_picture.c",
     "//third_party/ffmpeg/libavcodec/h264_ps.c",
 
