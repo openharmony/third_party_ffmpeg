@@ -7,7 +7,7 @@ FFMPEG_PATH=$1
 FFMPEG_OUT_PATH=$2
 FFMPEG_PLAT=$3
 
-if [ ${FFMPEG_PLAT} == "aarch64" ]; then
+if [ ${FFMPEG_PLAT} = "aarch64" ]; then
 
 FF_CONFIG_OPTIONS="
     --arch=aarch64
@@ -51,13 +51,14 @@ FF_CONFIG_OPTIONS="
     --disable-lzma
     --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts
     --enable-muxer=mp4,h264,ipod
-    --enable-parser=h263,mpeg4video,vp8,vp9,mpegvideo
+    --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo
     --enable-parser=mpegaudio,aac,aac_latm,av3a
     --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
     --enable-decoder=mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
     --enable-bsf=h264_mp4toannexb
+    --enable-protocol=file
     --enable-cross-compile
     --enable-shared
     --cc=${FFMPEG_PATH}/../../prebuilts/clang/ohos/linux-x86_64/llvm/bin/clang
@@ -120,7 +121,7 @@ FF_CONFIG_OPTIONS="
     --disable-lzma
     --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts
     --enable-muxer=mp4,h264,ipod
-    --enable-parser=h263,mpeg4video,vp8,vp9,mpegvideo
+    --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo
     --enable-parser=mpegaudio,aac,aac_latm,av3a
     --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
     --enable-decoder=mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus
