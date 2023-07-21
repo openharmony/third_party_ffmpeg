@@ -62,13 +62,34 @@ Note:If the text contains special characters, please escape them according to th
                 <policyitem type="compatibility" name="InvalidLicense" path=".*" rule="may" group="defaultGroup" desc="The files involved in compilation are the InvalidLicense protocol.They are used in dynamic link mode."/>
                 <policyitem type="compatibility" name="BSD-3-Clause" path=".*" rule="may" group="defaultGroup" desc="The files involved in compilation are the BSD protocol.They are used in dynamic link mode."/>
                 <policyitem type="compatibility" name="LGPL" path=".*" rule="may" group="defaultGroup" desc="The files involved in compilation are the LGPL protocol.They are used in dynamic link mode."/>
-                <policyitem type="compatibility" name="GPL" path=".*" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are used in dynamic link mode."/>
                 <policyitem type="compatibility" name="zlib-acknowledgement" path=".*" rule="may" group="defaultGroup" desc="The files involved in compilation are the zlib-acknowledgement protocol.They are used in dynamic link mode."/>
+                <policyitem type="compatibility" name="GPL" path="libavfilter/vf_.*" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+                <policyitem type="compatibility" name="GPL" path="libavfilter/x86/vf_.*" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+                <policyitem type="compatibility" name="GPL" path="libavfilter/vsrc_mptestsrc.c" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+                <policyitem type="compatibility" name="GPL" path="libavfilter/tinterlace.h" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+                <policyitem type="compatibility" name="GPL" path="libavfilter/signature.h" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+                <policyitem type="compatibility" name="GPL" path="libavfilter/signature_lookup.c" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+                <policyitem type="compatibility" name="GPL" path="libavfilter/phase_template.c*" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+                <policyitem type="compatibility" name="GPL" path="libavfilter/qp_table.c" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+                <policyitem type="compatibility" name="GPL" path="libavfilter/qp_table.h" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+                <policyitem type="compatibility" name="GPL" path="libavfilter/vsrc_mptestsrc.c" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+                <policyitem type="compatibility" name="GPL" path="libpostproc/.*" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+                <policyitem type="compatibility" name="GPL" path="libswresample/tests/swresample.c" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
             </policy>
         </policylist>
         <filefilterlist>
             <filefilter name="defaultPolicyFilter" desc="Filters for files not used">
                 <filteritem type="filepath" name="README.OpenSource" desc="README.OpenSource"/>
+                <filteritem type="filepath" name="tests/.*" desc="tests, not used"/>
+                <filteritem type="filename" name="RELEASE_NOTES" desc="RELEASE_NOTES, not used"/>
+                <filteritem type="filename" name="*.pl" desc="not used"/>
+                <filteritem type="filename" name="*.pm" desc="not used"/>
+                <filteritem type="filename" name="*.asm" desc="not linked"/>
+                <filteritem type="filepath" name="doc/.*" desc="doc, not used"/>
+                <filteritem type="filepath" name="COPYING.GPLv2" desc="COPYING.GPLv2, not used"/>
+                <filteritem type="filepath" name="COPYING.GPLv3" desc="COPYING.GPLv3, not used"/>
+                <filteritem type="filepath" name="configure" desc="configure, not linked"/>
+                <filteritem type="filepath" name="tools/.*" desc="tools, not linked"/>
             </filefilter>
             <filefilter name="binaryFileTypePolicyFilter" desc="Filters for binary file policies">
                 <filteritem type="filepath" name="compat/.*" desc="Resource, config and certification binary."/>
@@ -87,6 +108,7 @@ Note:If the text contains special characters, please escape them according to th
                 <filteritem type="filepath" name="presets/.*" desc="Resource, config and certification binary."/>
                 <filteritem type="filepath" name="tests/.*" desc="Resource, config and certification binary."/>
                 <filteritem type="filepath" name="tools/.*" desc="Resource, config and certification binary."/>
+                <filteritem type="filename" name="RELEASE_NOTES" desc="not linked"/>
             </filefilter>
         </filefilterlist>
     </oatconfig>
