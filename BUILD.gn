@@ -1,5 +1,6 @@
 # FFmpeg build
 
+import("//build/config/sysroot.gni")
 import("//build/ohos.gni")
 
 print("current_cpu = ${current_cpu}")
@@ -1617,6 +1618,8 @@ action("gen_config_header") {
     rebase_path("//third_party/ffmpeg", root_build_dir),
     rebase_path("${target_gen_dir}/include/", root_build_dir),
     ffmpeg_selected_platform,
+    rebase_path(default_clang_base_path, root_build_dir),
+    rebase_path(sysroot, root_build_dir),
   ]
 
   outputs = [ "${target_gen_dir}/include/config.h" ]

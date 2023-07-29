@@ -6,6 +6,8 @@ set -ex
 FFMPEG_PATH=$1
 FFMPEG_OUT_PATH=$2
 FFMPEG_PLAT=$3
+LLVM_PATH=$4
+SYSROOT_PATH=$5
 
 if [ ${FFMPEG_PLAT} = "aarch64" ]; then
 
@@ -61,17 +63,17 @@ FF_CONFIG_OPTIONS="
     --enable-protocol=file
     --enable-cross-compile
     --enable-shared
-    --cc=${FFMPEG_PATH}/../../prebuilts/clang/ohos/linux-x86_64/llvm/bin/clang
-    --ld=${FFMPEG_PATH}/../../prebuilts/clang/ohos/linux-x86_64/llvm/bin/clang
-    --strip=${FFMPEG_PATH}/../../prebuilts/clang/ohos/linux-x86_64/llvm/bin/llvm-strip
+    --cc=${LLVM_PATH}/bin/clang
+    --ld=${LLVM_PATH}/bin/clang
+    --strip=${LLVM_PATH}/bin/llvm-strip
 "
 EXTRA_CFLAGS="
     --target=aarch64-linux-ohos
-    --sysroot=${FFMPEG_PATH}/../../prebuilts/gcc/linux-x86/aarch64/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc
+    --sysroot=${SYSROOT_PATH}
 "
 EXTRA_LDFLAGS="
     --target=aarch64-linux-ohos
-    --sysroot=${FFMPEG_PATH}/../../prebuilts/gcc/linux-x86/aarch64/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc
+    --sysroot=${SYSROOT_PATH}
 "
 
 FF_CONFIG_OPTIONS=`echo $FF_CONFIG_OPTIONS`
