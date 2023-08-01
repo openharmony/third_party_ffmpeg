@@ -1614,6 +1614,9 @@ ohos_source_set("ffmpeg_dynamic") {
 action("gen_config_header") {
   script = "//third_party/ffmpeg/ohos_config.sh"
 
+  if (ffmpeg_selected_platform == "aarch64") {
+    deps = [ "//third_party/musl:musl_libs" ]
+  }
   args = [
     rebase_path("//third_party/ffmpeg", root_build_dir),
     rebase_path("${target_gen_dir}/include/", root_build_dir),
