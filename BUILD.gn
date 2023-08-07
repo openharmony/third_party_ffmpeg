@@ -1617,12 +1617,19 @@ action("gen_config_header") {
   if (ffmpeg_selected_platform == "aarch64") {
     deps = [ "//third_party/musl:musl_libs" ]
   }
+
+  ucc = "false"
+  if (use_clang_coverage) {
+    ucc = "true"
+  }
+
   args = [
     rebase_path("//third_party/ffmpeg", root_build_dir),
     rebase_path("${target_gen_dir}/include/", root_build_dir),
     ffmpeg_selected_platform,
     rebase_path(default_clang_base_path, root_build_dir),
     rebase_path(sysroot, root_build_dir),
+    ucc,
   ]
 
   outputs = [ "${target_gen_dir}/include/config.h" ]

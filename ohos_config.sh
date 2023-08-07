@@ -8,6 +8,7 @@ FFMPEG_OUT_PATH=$2
 FFMPEG_PLAT=$3
 LLVM_PATH=$4
 SYSROOT_PATH=$5
+USE_CLANG_COVERAGE=$6
 
 if [ ${FFMPEG_PLAT} = "aarch64" ]; then
 
@@ -75,6 +76,22 @@ EXTRA_LDFLAGS="
     --target=aarch64-linux-ohos
     --sysroot=${SYSROOT_PATH}
 "
+
+if [ ${USE_CLANG_COVERAGE} = "true" ]; then
+    EXTRA_CFLAGS="
+        --target=aarch64-linux-ohos
+        --sysroot=${SYSROOT_PATH}
+        --coverage
+        -mllvm
+        -limited-coverage-experimental=true
+    "
+    EXTRA_LDFLAGS="
+        --target=aarch64-linux-ohos
+        --sysroot=${SYSROOT_PATH}
+        --coverage
+        -fno-use-cxa-atexit
+    "
+fi
 
 FF_CONFIG_OPTIONS=`echo $FF_CONFIG_OPTIONS`
 
