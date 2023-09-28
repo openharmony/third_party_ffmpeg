@@ -150,6 +150,13 @@ typedef struct AVCodecParameters {
     enum AVChromaLocation              chroma_location;
 
     /**
+     * Video only. Additional cuvv configuration.
+     */
+    int cuva_version_map;
+    int terminal_provide_code;
+    int terminal_provide_oriented_code;
+
+    /**
      * Video only. Number of delayed frames.
      */
     int video_delay;
