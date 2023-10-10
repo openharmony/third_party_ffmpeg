@@ -2032,6 +2032,7 @@ static int mov_write_colr_tag(AVIOContext *pb, MOVTrack *track, int prefer_icc)
     return update_size(pb, pos);
 }
 
+#ifdef OHOS_HDR_VIVID
 static int mov_write_cuvv_tag(AVIOContext *pb, MOVTrack *track)
 {
     int64_t pos = avio_tell(pb);
@@ -2046,6 +2047,7 @@ static int mov_write_cuvv_tag(AVIOContext *pb, MOVTrack *track)
     avio_wb32(pb, 0); // reserved
     return update_size(pb, pos);
 }
+#endif
 
 static int mov_write_clli_tag(AVIOContext *pb, MOVTrack *track)
 {
@@ -2178,11 +2180,13 @@ static int mov_write_video_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContex
     avio_wb16(pb, 1); /* Frame count (= 1) */
 
     /* FIXME not sure, ISO 14496-1 draft where it shall be set to 0 */
+    find_compressor(compressor_name, 32, track);
+#ifdef OHOS_HDR_VIVID
     if (track->par->cuva_version_map > 0 && track->par->codec_id == AV_CODEC_ID_HEVC) {
+        memset(compressor_name, 0, 32);
         memcpy(compressor_name, "CUVA HDR Video", 14);
-    } else {
-        find_compressor(compressor_name, 32, track);
     }
+#endif
     avio_w8(pb, strlen(compressor_name));
     avio_write(pb, compressor_name, 31);
 
@@ -2315,9 +2319,11 @@ static int mov_write_video_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContex
         ff_mov_cenc_write_sinf_tag(track, pb, mov->encryption_kid);
     }
 
+#ifdef OHOS_HDR_VIVID
     if (track->par->cuva_version_map > 0 && track->par->codec_id == AV_CODEC_ID_HEVC) {
         mov_write_cuvv_tag(pb, track);
     }
+#endif
 
     if (track->mode == MODE_MP4 &&
             ((ret = mov_write_btrt_tag(pb, track)) < 0))
