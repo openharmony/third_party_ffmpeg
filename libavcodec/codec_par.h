@@ -149,6 +149,15 @@ typedef struct AVCodecParameters {
     enum AVColorSpace                  color_space;
     enum AVChromaLocation              chroma_location;
 
+#ifdef OHOS_HDR_VIVID
+    /**
+     * Video only. Additional cuvv configuration.
+     */
+    int cuva_version_map;
+    int terminal_provide_code;
+    int terminal_provide_oriented_code;
+#endif
+
     /**
      * Video only. Number of delayed frames.
      */
