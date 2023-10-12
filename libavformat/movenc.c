@@ -119,12 +119,11 @@ static const AVClass flavor ## _muxer_class = {\
 };
 
 #ifdef OHOS_HDR_VIVID
-/**
- * Video only. Additional cuvv configuration.
- */
-static int cuva_version_map = 0;
-static int terminal_provide_code = 0;
-static int terminal_provide_oriented_code = 0;
+typedef struct CuvaConfig {
+    int cuva_version_map;
+    int terminal_provide_code;
+    int terminal_provide_oriented_code;
+} CuvaConfig;
 #endif
 
 static int get_moov_size(AVFormatContext *s);
@@ -2042,14 +2041,14 @@ static int mov_write_colr_tag(AVIOContext *pb, MOVTrack *track, int prefer_icc)
 }
 
 #ifdef OHOS_HDR_VIVID
-static int mov_write_cuvv_tag(AVIOContext *pb, MOVTrack *track)
+static int mov_write_cuvv_tag(AVIOContext *pb, CuvaConfig *cuva)
 {
     int64_t pos = avio_tell(pb);
     avio_wb32(pb, 0); /* size */
     ffio_wfourcc(pb, "cuvv");
-    avio_wb16(pb, cuva_version_map);
-    avio_wb16(pb, terminal_provide_code);
-    avio_wb16(pb, terminal_provide_oriented_code);
+    avio_wb16(pb, cuva->cuva_version_map);
+    avio_wb16(pb, cuva->terminal_provide_code);
+    avio_wb16(pb, cuva->terminal_provide_oriented_code);
     avio_wb32(pb, 0); // reserved
     avio_wb32(pb, 0); // reserved
     avio_wb32(pb, 0); // reserved
@@ -2137,6 +2136,41 @@ static void find_compressor(char * compressor_name, int len, MOVTrack *track)
     }
 }
 
+#ifdef OHOS_HDR_VIVID
+static CuvaConfig mov_get_cuva_from_metadata(AVFormatContext *s, MOVMuxContext *mov, MOVTrack *track)
+{
+    CuvaConfig cuva;
+    cuva.cuva_version_map = 0;
+    cuva.terminal_provide_code = 0;
+    cuva.terminal_provide_oriented_code = 0;
+    if (s == NULL || mov == NULL || track == NULL) {
+        av_log(mov->fc, AV_LOG_WARNING, "Not cuva info. Parameters is NULL!\n");
+        return cuva;
+    }
+
+    int i = 0;
+    for (i = 0; i < mov->nb_streams; ++i) {
+        if (track == &mov->tracks[i]) {
+            break;
+        }
+    }
+    if (i == mov->nb_streams) {
+        av_log(mov->fc, AV_LOG_WARNING, "Not cuva info. The track is not in the mov!\n");
+        return cuva;
+    }
+    AVStream *st = i < s->nb_streams ? s->streams[i] : NULL;
+    if (st && st->metadata) {
+        AVDictionaryEntry *rot = av_dict_get(st->metadata, "hdr_type", NULL, 0);
+        if (rot && rot->value && strcmp(rot->value, "hdr_vivid") == 0) {
+            cuva.cuva_version_map = 1;
+            cuva.terminal_provide_code = 4;
+            cuva.terminal_provide_oriented_code = 5;
+        }
+    }
+    return cuva;
+}
+#endif
+
 static int mov_write_video_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext *mov, MOVTrack *track)
 {
     int ret = AVERROR_BUG;
@@ -2191,7 +2225,8 @@ static int mov_write_video_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContex
     /* FIXME not sure, ISO 14496-1 draft where it shall be set to 0 */
     find_compressor(compressor_name, 32, track);
 #ifdef OHOS_HDR_VIVID
-    if (cuva_version_map > 0 && track->par->codec_id == AV_CODEC_ID_HEVC) {
+    CuvaConfig cuva = mov_get_cuva_from_metadata(s, mov, track);
+    if (cuva.cuva_version_map > 0 && track->par->codec_id == AV_CODEC_ID_HEVC) {
         memset(compressor_name, 0, 32);
         memcpy(compressor_name, "CUVA HDR Video", 14);
     }
@@ -2329,8 +2364,8 @@ static int mov_write_video_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContex
     }
 
 #ifdef OHOS_HDR_VIVID
-    if (cuva_version_map > 0 && track->par->codec_id == AV_CODEC_ID_HEVC) {
-        mov_write_cuvv_tag(pb, track);
+    if (cuva.cuva_version_map > 0 && track->par->codec_id == AV_CODEC_ID_HEVC) {
+        mov_write_cuvv_tag(pb, &cuva);
     }
 #endif
 
@@ -3401,24 +3436,6 @@ static int mov_write_track_udta_tag(AVIOContext *pb, MOVMuxContext *mov,
     return 0;
 }
 
-#ifdef OHOS_HDR_VIVID
-static void mov_get_cuva_from_st(AVStream *st)
-{
-    cuva_version_map = 0;
-    terminal_provide_code = 0;
-    terminal_provide_oriented_code = 0;
-
-    if (st && st->metadata) {
-        AVDictionaryEntry *rot = av_dict_get(st->metadata, "hdr_type", NULL, 0);
-        if (rot && rot->value && strcmp(rot->value, "hdr_vivid") == 0) {
-            cuva_version_map = 1;
-            terminal_provide_code = 4;
-            terminal_provide_oriented_code = 5;
-        }
-    }
-}
-#endif
-
 static int mov_write_trak_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext *mov,
                               MOVTrack *track, AVStream *st)
 {
@@ -3448,10 +3465,6 @@ static int mov_write_trak_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext
 
     if (track->tref_tag)
         mov_write_tref_tag(pb, track);
-
-#ifdef OHOS_HDR_VIVID
-    mov_get_cuva_from_st(st);
-#endif
 
     if ((ret = mov_write_mdia_tag(s, pb, mov, track)) < 0)
         return ret;
