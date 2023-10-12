@@ -1177,6 +1177,15 @@ typedef struct AVCodecContext {
      */
     enum AVChromaLocation chroma_sample_location;
 
+#ifdef OHOS_HDR_VIVID
+    /**
+     * The cuvv configuration of HDR Vivid.
+     */
+    int cuva_version_map;
+    int terminal_provide_code;
+    int terminal_provide_oriented_code;
+#endif
+
     /**
      * Number of slices.
      * Indicates number of picture subdivisions. Used for parallelized
