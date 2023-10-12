@@ -129,7 +129,6 @@ config("ffmpeg_config") {
     "-DCONFIG_OPUS_PARSER",
     "-DCONFIG_AV3A_PARSER",
     "-DOHOS_OPT_COMPAT",
-    "-DOHOS_HDR_VIVID",
     "-Wno-array-parameter",
     "-Wno-deprecated-pragma",
   ]
