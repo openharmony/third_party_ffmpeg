@@ -41,6 +41,7 @@ typedef struct FFRawDemuxerContext {
 
 extern const AVOption ff_rawvideo_options[];
 extern const AVOption ff_raw_options[];
+extern const AVClass ff_raw_demuxer_class;
 
 int ff_raw_read_partial_packet(AVFormatContext *s, AVPacket *pkt);
 
