@@ -21,7 +21,6 @@ FF_CONFIG_OPTIONS="
     --disable-avfilter
     --disable-network
     --disable-dwt
-    --disable-lsp
     --disable-lzo
     --disable-faan
     --disable-pixelutils
@@ -52,18 +51,20 @@ FF_CONFIG_OPTIONS="
     --disable-sdl2
     --disable-bzlib
     --disable-lzma
-    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska
     --enable-muxer=mp4,h264,ipod
     --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo
-    --enable-parser=mpegaudio,aac,aac_latm,av3a
+    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr
     --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
-    --enable-decoder=mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus
+    --enable-decoder=mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb
+    --enable-decoder=png,mjpeg,bmp
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
     --enable-bsf=h264_mp4toannexb
     --enable-protocol=file
     --enable-cross-compile
     --enable-shared
+    --enable-lsp
     --cc=${LLVM_PATH}/bin/clang
     --ld=${LLVM_PATH}/bin/clang
     --strip=${LLVM_PATH}/bin/llvm-strip
@@ -106,7 +107,6 @@ FF_CONFIG_OPTIONS="
     --disable-avfilter
     --disable-network
     --disable-dwt
-    --disable-lsp
     --disable-lzo
     --disable-faan
     --disable-pixelutils
@@ -138,16 +138,18 @@ FF_CONFIG_OPTIONS="
     --disable-sdl2
     --disable-bzlib
     --disable-lzma
-    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska
     --enable-muxer=mp4,h264,ipod
     --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo
-    --enable-parser=mpegaudio,aac,aac_latm,av3a
+    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr
     --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
-    --enable-decoder=mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus
+    --enable-decoder=mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb
+    --enable-decoder=png,mjpeg,bmp
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
     --enable-bsf=h264_mp4toannexb
     --enable-protocol=file
+    --enable-lsp
 "
 
 FF_CONFIG_OPTIONS=`echo $FF_CONFIG_OPTIONS`

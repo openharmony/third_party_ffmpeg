@@ -1637,7 +1637,9 @@ static int matroska_decode_buffer(uint8_t **buf, int *buf_size,
     uint8_t av_unused *newpktdata;
     int pkt_size = isize;
     int result = 0;
+#if CONFIG_LZO
     int olen;
+#endif
 
     if (pkt_size >= 10000000U)
         return AVERROR_INVALIDDATA;
