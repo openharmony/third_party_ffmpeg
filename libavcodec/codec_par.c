@@ -115,11 +115,6 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
         par->chroma_location     = codec->chroma_sample_location;
         par->sample_aspect_ratio = codec->sample_aspect_ratio;
         par->video_delay         = codec->has_b_frames;
-#ifdef OHOS_HDR_VIVID
-        par->cuva_version_map               = codec->cuva_version_map;
-        par->terminal_provide_code          = codec->terminal_provide_code;
-        par->terminal_provide_oriented_code = codec->terminal_provide_oriented_code;
-#endif
         break;
     case AVMEDIA_TYPE_AUDIO:
         par->format           = codec->sample_fmt;
@@ -175,11 +170,6 @@ int avcodec_parameters_to_context(AVCodecContext *codec,
         codec->chroma_sample_location = par->chroma_location;
         codec->sample_aspect_ratio    = par->sample_aspect_ratio;
         codec->has_b_frames           = par->video_delay;
-#ifdef OHOS_HDR_VIVID
-        codec->cuva_version_map               = par->cuva_version_map;
-        codec->terminal_provide_code          = par->terminal_provide_code;
-        codec->terminal_provide_oriented_code = par->terminal_provide_oriented_code;
-#endif
         break;
     case AVMEDIA_TYPE_AUDIO:
         codec->sample_fmt       = par->format;
