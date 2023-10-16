@@ -128,6 +128,8 @@ config("ffmpeg_config") {
     "-DCONFIG_OPUS_ENCODER",
     "-DCONFIG_OPUS_PARSER",
     "-DCONFIG_AV3A_PARSER",
+    "-DCONFIG_AMRNB_DECODER",
+    "-DCONFIG_AMRWB_DECODER",
     "-DOHOS_OPT_COMPAT",
     "-Wno-array-parameter",
     "-Wno-deprecated-pragma",
