@@ -133,7 +133,6 @@ config("ffmpeg_config") {
     "-DCONFIG_MKV_DEMUXER",
     "-DCONFIG_RAW_DEMUXER",
     "-DOHOS_OPT_COMPAT",
-    "-DOHOS_SUPPORT_AVS3DA",
     "-Wno-array-parameter",
     "-Wno-deprecated-pragma",
   ]

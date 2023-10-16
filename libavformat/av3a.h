@@ -17,7 +17,7 @@
  * License along with FFmpeg; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
-#ifdef OHOS_SUPPORT_AVS3DA
+#ifdef CONFIG_AV3A_PARSER
 #ifndef AVFORMAT_AV3A_H
 #define AVFORMAT_AV3A_H
 
@@ -43,4 +43,4 @@ extern int av3a_get_sampling_rate(const int sr_idx);
 extern AV3AChannelLayout av3a_get_channel_layout(const int ch_idx);
 
 #endif /* AVFORMAT_AV3A_H */
-#endif /* OHOS_SUPPORT_AVS3DA */
+#endif /* CONFIG_AV3A_PARSER */

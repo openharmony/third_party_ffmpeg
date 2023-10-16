@@ -65,7 +65,7 @@
 #include <zlib.h>
 #endif
 
-#ifdef OHOS_SUPPORT_AVS3DA
+#ifdef CONFIG_AV3A_PARSER
 #include "av3a.h"
 #endif
 
@@ -6913,7 +6913,7 @@ static int mov_read_dvcc_dvvc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     return 0;
 }
 
-#ifdef OHOS_SUPPORT_AVS3DA
+#ifdef CONFIG_AV3A_PARSER
 static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
     /* N3311 AVS3-P6 WD 1.0: CA3SpecificBox extends Box('dca3') */
@@ -7108,7 +7108,7 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('c','l','l','i'), mov_read_clli },
 { MKTAG('d','v','c','C'), mov_read_dvcc_dvvc },
 { MKTAG('d','v','v','C'), mov_read_dvcc_dvvc },
-#ifdef OHOS_SUPPORT_AVS3DA
+#ifdef CONFIG_AV3A_PARSER
 { MKTAG('d','c','a','3'), mov_read_dca3 },
 #endif
 { 0, NULL }
