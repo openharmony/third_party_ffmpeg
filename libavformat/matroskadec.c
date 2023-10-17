@@ -1637,11 +1637,7 @@ static int matroska_decode_buffer(uint8_t **buf, int *buf_size,
     uint8_t av_unused *newpktdata;
     int pkt_size = isize;
     int result = 0;
-#ifdef CONFIG_MKV_DEMUXER
 #if CONFIG_LZO
-    int olen;
-#endif
-#else
     int olen;
 #endif
 
