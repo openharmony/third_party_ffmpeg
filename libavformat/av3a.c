@@ -35,7 +35,7 @@ const AV3AChannelLayout av3a_channel_layout_table[AV3A_CHANNEL_LAYOUT] = {
         {"5.1.4",   10, 0},
         {"7.1.2",   10, 0},
         {"7.1.4",   12, 0},
-        {"Unknown", 1,  0},
+        {"Unknown", 0,  0},
 };
 
 int av3a_get_sampling_rate(const int sr_idx){
