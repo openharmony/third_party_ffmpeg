@@ -667,6 +667,14 @@ break_loop:
 
     set_spdif(s, wav);
 
+#ifdef OHOS_OPT_COMPAT
+    if (s->internal->id3v2_meta && s->metadata) {
+        av_log(s, AV_LOG_WARNING, "Discarding fmt metadata because ID3 tag is found.\n");
+        av_dict_free(&s->metadata);
+        s->metadata = NULL;
+    }
+#endif
+
     return 0;
 }
 
