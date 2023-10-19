@@ -65,10 +65,6 @@
 #include <zlib.h>
 #endif
 
-#ifdef CONFIG_AV3A_PARSER
-#include "av3a.h"
-#endif
-
 #include "qtpalette.h"
 
 /* those functions parse an atom */
@@ -6913,104 +6909,6 @@ static int mov_read_dvcc_dvvc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     return 0;
 }
 
-#ifdef CONFIG_AV3A_PARSER
-static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
-{
-    /* N3311 AVS3-P6 WD 1.0: CA3SpecificBox extends Box('dca3') */
-    AVStream *st;
-    uint8_t buff[7];
-    uint8_t codec_id, sr_idx, nn_type, content_type, ch_idx, num_objects;
-    uint8_t reserved;
-    uint8_t hoa_order;
-    uint16_t brt_kbps;
-    uint8_t resolution, resolution_idx;
-    uint8_t res_map[] = {8, 16, 24};
-    AV3AChannelLayout chan_map;
-    int ret = 0;
-
-    GetBitContext gb;
-    init_get_bits8(&gb, buff, sizeof(buff));
-
-    if (c->fc->nb_streams < 1)
-        return 0;
-    st = c->fc->streams[c->fc->nb_streams - 1];
-    st->codecpar->frame_size = 1024;
-
-    ret = avio_read(pb, buff, sizeof(buff));
-    if (ret < 0)
-        return ret;
-
-    codec_id = get_bits(&gb, 4); /* audio codec id */
-    if (codec_id != 2) {
-        av_log(c->fc, AV_LOG_ERROR, "Not support codec id value %d\n", codec_id);
-        return AVERROR_INVALIDDATA;
-    }
-
-    sr_idx = get_bits(&gb, 4);      /* sampling_frequenct_index*/
-    nn_type = get_bits(&gb, 3);     /* nn_type*/
-    reserved = get_bits(&gb, 1);    /* reserved */
-    content_type = get_bits(&gb, 4); /* content_type*/
-
-    if (content_type == 0) {
-        ch_idx = get_bits(&gb, 7);
-        reserved = get_bits(&gb, 1);
-    } else if (content_type == 1) {
-        num_objects = get_bits(&gb, 7);
-        reserved = get_bits(&gb, 1);
-    } else if (content_type == 2) {
-        ch_idx = get_bits(&gb, 7);
-        reserved = get_bits(&gb, 1);
-        num_objects = get_bits(&gb, 7);
-        reserved = get_bits(&gb, 1);
-    } else if (content_type == 3) {
-        hoa_order = get_bits(&gb, 4);
-    } else {
-        av_log(c->fc, AV_LOG_ERROR, "Not support content type value %d\n", content_type);
-        return AVERROR_INVALIDDATA;
-    }
-
-    brt_kbps = get_bits(&gb, 16);
-    resolution_idx = get_bits(&gb, 2);
-
-    /* initial configuration */
-    resolution = res_map[resolution_idx];
-    st->codecpar->frame_size = 1024; // fixed frame size
-    st->codecpar->sample_rate = av3a_get_sampling_rate((int)(sr_idx));
-    st->codecpar->bit_rate = brt_kbps * 1000;
-
-    switch (content_type) {
-        case 0:
-            chan_map = av3a_get_channel_layout((int)(ch_idx));
-            av_log(c->fc, AV_LOG_INFO,
-                   "Output Stream AVS3P3/Audio Vivid: %d Hz, nn type(%d), %s(%d channels), s%d, %d kbps \n",
-                   st->codecpar->sample_rate, nn_type, chan_map.tag, chan_map.channels, resolution, brt_kbps);
-            break;
-        case 1:
-            av_log(c->fc, AV_LOG_INFO,
-                   "Output Stream AVS3P3/Audio Vivid: %d Hz, nn type(%d), %d objects, s%d, %d kbps \n",
-                   st->codecpar->sample_rate, nn_type, num_objects, resolution, brt_kbps);
-            break;
-        case 2:
-            chan_map = av3a_get_channel_layout((int)(ch_idx));
-            av_log(c->fc, AV_LOG_INFO,
-                   "Output Stream AVS3P3/Audio Vivid: %d Hz, nn type(%d), "
-                   "%s + %d objects (%d channels), s%d, %d kbps \n",
-                   st->codecpar->sample_rate, nn_type, chan_map.tag, num_objects, chan_map.channels + num_objects,
-                   resolution, brt_kbps);
-            break;
-        case 3:
-            av_log(c->fc, AV_LOG_INFO,
-                   "Output Stream AVS3P3/Audio Vivid: %d Hz, nn type(%d), "
-                   "%drd order Ambisonics (%d channels), s%d, %d kbps \n",
-                   st->codecpar->sample_rate, nn_type, hoa_order, (hoa_order + 1) * (hoa_order + 1), resolution,
-                   brt_kbps);
-            break;
-    }
-
-    return 0;
-}
-#endif
-
 static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('A','C','L','R'), mov_read_aclr },
 { MKTAG('A','P','R','G'), mov_read_avid },
@@ -7108,9 +7006,6 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('c','l','l','i'), mov_read_clli },
 { MKTAG('d','v','c','C'), mov_read_dvcc_dvvc },
 { MKTAG('d','v','v','C'), mov_read_dvcc_dvvc },
-#ifdef CONFIG_AV3A_PARSER
-{ MKTAG('d','c','a','3'), mov_read_dca3 },
-#endif
 { 0, NULL }
 };
 
