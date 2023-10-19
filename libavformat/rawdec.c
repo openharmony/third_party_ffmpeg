@@ -130,12 +130,14 @@ const AVOption ff_raw_options[] = {
     { NULL },
 };
 
+#ifdef CONFIG_RAW_DEMUXER
 const AVClass ff_raw_demuxer_class = {
     .class_name = "generic raw demuxer",
     .item_name  = av_default_item_name,
     .option     = ff_raw_options,
     .version    = LIBAVUTIL_VERSION_INT,
 };
+#endif
 
 #if CONFIG_DATA_DEMUXER
 FF_RAW_DEMUXER_CLASS(raw_data)
