@@ -118,6 +118,14 @@ static const AVClass flavor ## _muxer_class = {\
     .version    = LIBAVUTIL_VERSION_INT,\
 };
 
+#ifdef OHOS_HDR_VIVID
+typedef struct CuvaConfig {
+    int cuva_version_map;
+    int terminal_provide_code;
+    int terminal_provide_oriented_code;
+} CuvaConfig;
+#endif
+
 static int get_moov_size(AVFormatContext *s);
 
 static int utf8len(const uint8_t *b)
@@ -2032,6 +2040,23 @@ static int mov_write_colr_tag(AVIOContext *pb, MOVTrack *track, int prefer_icc)
     return update_size(pb, pos);
 }
 
+#ifdef OHOS_HDR_VIVID
+static int mov_write_cuvv_tag(AVIOContext *pb, CuvaConfig *cuva)
+{
+    int64_t pos = avio_tell(pb);
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "cuvv");
+    avio_wb16(pb, cuva->cuva_version_map);
+    avio_wb16(pb, cuva->terminal_provide_code);
+    avio_wb16(pb, cuva->terminal_provide_oriented_code);
+    avio_wb32(pb, 0); // reserved
+    avio_wb32(pb, 0); // reserved
+    avio_wb32(pb, 0); // reserved
+    avio_wb32(pb, 0); // reserved
+    return update_size(pb, pos);
+}
+#endif
+
 static int mov_write_clli_tag(AVIOContext *pb, MOVTrack *track)
 {
     const uint8_t *side_data;
@@ -2111,6 +2136,41 @@ static void find_compressor(char * compressor_name, int len, MOVTrack *track)
     }
 }
 
+#ifdef OHOS_HDR_VIVID
+static CuvaConfig mov_get_cuva_from_metadata(AVFormatContext *s, MOVMuxContext *mov, MOVTrack *track)
+{
+    CuvaConfig cuva;
+    cuva.cuva_version_map = 0;
+    cuva.terminal_provide_code = 0;
+    cuva.terminal_provide_oriented_code = 0;
+    if (s == NULL || mov == NULL || track == NULL) {
+        av_log(mov->fc, AV_LOG_WARNING, "Not cuva info. Parameters is NULL!\n");
+        return cuva;
+    }
+
+    int i = 0;
+    for (i = 0; i < mov->nb_streams; ++i) {
+        if (track == &mov->tracks[i]) {
+            break;
+        }
+    }
+    if (i == mov->nb_streams) {
+        av_log(mov->fc, AV_LOG_WARNING, "Not cuva info. The track is not in the mov!\n");
+        return cuva;
+    }
+    AVStream *st = i < s->nb_streams ? s->streams[i] : NULL;
+    if (st && st->metadata) {
+        AVDictionaryEntry *rot = av_dict_get(st->metadata, "hdr_type", NULL, 0);
+        if (rot && rot->value && strcmp(rot->value, "hdr_vivid") == 0) {
+            cuva.cuva_version_map = 1;
+            cuva.terminal_provide_code = 4;
+            cuva.terminal_provide_oriented_code = 5;
+        }
+    }
+    return cuva;
+}
+#endif
+
 static int mov_write_video_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext *mov, MOVTrack *track)
 {
     int ret = AVERROR_BUG;
@@ -2164,6 +2224,13 @@ static int mov_write_video_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContex
 
     /* FIXME not sure, ISO 14496-1 draft where it shall be set to 0 */
     find_compressor(compressor_name, 32, track);
+#ifdef OHOS_HDR_VIVID
+    CuvaConfig cuva = mov_get_cuva_from_metadata(s, mov, track);
+    if (cuva.cuva_version_map > 0 && track->par->codec_id == AV_CODEC_ID_HEVC) {
+        memset(compressor_name, 0, 32);
+        memcpy(compressor_name, "CUVA HDR Video", 14);
+    }
+#endif
     avio_w8(pb, strlen(compressor_name));
     avio_write(pb, compressor_name, 31);
 
@@ -2295,6 +2362,12 @@ static int mov_write_video_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContex
     if (mov->encryption_scheme != MOV_ENC_NONE) {
         ff_mov_cenc_write_sinf_tag(track, pb, mov->encryption_kid);
     }
+
+#ifdef OHOS_HDR_VIVID
+    if (cuva.cuva_version_map > 0 && track->par->codec_id == AV_CODEC_ID_HEVC) {
+        mov_write_cuvv_tag(pb, &cuva);
+    }
+#endif
 
     if (track->mode == MODE_MP4 &&
             ((ret = mov_write_btrt_tag(pb, track)) < 0))
