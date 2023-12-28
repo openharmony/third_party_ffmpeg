@@ -30,6 +30,7 @@
 #include "libavutil/opt.h"
 #include "libavutil/avassert.h"
 #include "libavutil/dovi_meta.h"
+#include "libavutil/thread.h"
 #include "libavcodec/bytestream.h"
 #include "libavcodec/get_bits.h"
 #include "libavcodec/opus.h"
@@ -50,6 +51,89 @@
 #define MAX_PES_PAYLOAD 200 * 1024
 
 #define MAX_MP4_DESCR_COUNT 16
+
+#define DRM_KEY_ID_SIZE                    16
+#define DRM_IV_SIZE                        16
+#define DRM_USER_DATA_REGISTERED_UUID_SIZE 16
+#define DRM_VIDEO_FRAME_ARR_LEN            3
+#define DRM_MAX_SUB_SAMPLE_NUM             64
+#define DRM_H265_PAYLOAD_TYPE_OFFSET       5
+#define DRM_LEGACY_LEN                     3
+#define DRM_MAX_DRM_PSSH_LEN               2048
+#define DRM_MAX_DRM_UUID_LEN               16
+#define DRM_AMBIGUITY_ARR_LEN              3
+#define DRM_AMBIGUITY_START_NUM            (0x00)
+#define DRM_AMBIGUITY_END_NUM              (0x03)
+#define DRM_MIN_DRM_INFO_LEN               (2)
+#define DRM_UUID_OFFSET                    (12)
+#define DRM_TS_FLAG_CRYPT_BYTE_BLOCK       (2)
+#define DRM_CRYPT_BYTE_BLOCK               (1 + 2) // 2: DRM_TS_FLAG_CRYPT_BYTE_BLOCK
+#define DRM_SKIP_BYTE_BLOCK                (9)
+#define DRM_SHIFT_LEFT_NUM                 (1)
+#define DRM_H264_VIDEO_NAL_TYPE_UMASK_NUM  (0x1f)
+#define DRM_H265_VIDEO_NAL_TYPE_UMASK_NUM  (0x3f)
+#define DRM_H264_VIDEO_START_NAL_TYPE      (1)
+#define DRM_H264_VIDEO_END_NAL_TYPE        (5)
+#define DRM_H265_VIDEO_END_NAL_TYPE        (31)
+#define DRM_AVS_FLAG                       (0xb5)
+#define DRM_USER_DATA_UNREGISTERED_TAG     (0x05)
+#define DRM_INVALID_START_POS              (0xffffffff)
+
+static AVMutex g_mpegts_mutex = AV_MUTEX_INITIALIZER;
+
+static const uint8_t g_video_frame_arr[DRM_VIDEO_FRAME_ARR_LEN] = { 0x00, 0x00, 0x01 };
+static const uint8_t g_ambiguity_arr[DRM_AMBIGUITY_ARR_LEN] = { 0x00, 0x00, 0x03 };
+static const uint8_t g_user_registered_uuid[DRM_USER_DATA_REGISTERED_UUID_SIZE] = {
+    0x70, 0xc1, 0xdb, 0x9f, 0x66, 0xae, 0x41, 0x27, 0xbf, 0xc0, 0xbb, 0x19, 0x81, 0x69, 0x4b, 0x66
+};
+
+typedef enum {
+    DRM_ALG_CENC_UNENCRYPTED = 0x0,
+    DRM_ALG_CENC_AES_CTR = 0x1,
+    DRM_ALG_CENC_AES_WV = 0x2,
+    DRM_ALG_CENC_AES_CBC = 0x3,
+    DRM_ALG_CENC_SM4_CBC = 0x4,
+    DRM_ALG_CENC_SM4_CTR,
+} DRM_CencAlgorithm;
+
+typedef enum {
+    DRM_ARR_SUBSCRIPT_ZERO = 0,
+    DRM_ARR_SUBSCRIPT_ONE,
+    DRM_ARR_SUBSCRIPT_TWO,
+    DRM_ARR_SUBSCRIPT_THREE,
+} DRM_ArrSubscriptCollection;
+
+struct _DRM_SubSample {
+    uint32_t clear_header_len;
+    uint32_t pay_load_len;
+};
+typedef struct _DRM_SubSample DRM_SubSample;
+
+struct _DRMCencInfo {
+    DRM_CencAlgorithm algo;
+    uint8_t key_id[DRM_KEY_ID_SIZE];
+    uint32_t key_id_len;
+    uint8_t iv[DRM_IV_SIZE];
+    uint32_t iv_len;
+    uint32_t is_ambiguity;
+    uint32_t encrypt_blocks;
+    uint32_t skip_blocks;
+    uint32_t first_encrypt_offset;
+    DRM_SubSample sub_sample[DRM_MAX_SUB_SAMPLE_NUM];
+    uint32_t sub_sample_num;
+};
+typedef struct _DRMCencInfo DRMCencInfo;
+
+struct _DrmInfo {
+    DRM_CencAlgorithm algo;
+    uint32_t encrypt_blocks;
+    uint32_t skip_blocks;
+    uint32_t uuid_len;
+    uint8_t uuid[DRM_MAX_DRM_UUID_LEN];
+    uint32_t pssh_len;
+    uint8_t pssh[DRM_MAX_DRM_PSSH_LEN];
+};
+typedef struct _DrmInfo DrmInfo;
 
 #define MOD_UNLIKELY(modulus, dividend, divisor, prev_dividend)                \
     do {                                                                       \
@@ -267,6 +351,486 @@ typedef struct PESContext {
 } PESContext;
 
 extern AVInputFormat ff_mpegts_demuxer;
+
+static void mpegts_set_drm_algo_and_blocks(uint8_t algo, DrmInfo *drm_info)
+{
+    if (algo == 0x1) { // 0x1:SM4-SAMPL SM4S
+        drm_info->algo = DRM_ALG_CENC_SM4_CBC;
+        drm_info->encrypt_blocks = DRM_CRYPT_BYTE_BLOCK;
+        drm_info->skip_blocks = DRM_SKIP_BYTE_BLOCK;
+    } else if (algo == 0x2) { // 0x2:AES CBCS
+        drm_info->algo = DRM_ALG_CENC_AES_CBC;
+        drm_info->encrypt_blocks = DRM_CRYPT_BYTE_BLOCK;
+        drm_info->skip_blocks = DRM_SKIP_BYTE_BLOCK;
+    } else if (algo == 0x5) { // 0x5:AES CBC1
+        drm_info->algo = DRM_ALG_CENC_AES_CBC;
+        drm_info->encrypt_blocks = DRM_TS_FLAG_CRYPT_BYTE_BLOCK;
+        drm_info->skip_blocks = 0;
+    } else if (algo == 0x3) { // 0x3:SM4-CBC SM4C
+        drm_info->algo = DRM_ALG_CENC_SM4_CBC;
+        drm_info->encrypt_blocks = DRM_TS_FLAG_CRYPT_BYTE_BLOCK;
+        drm_info->skip_blocks = 0;
+    } else if (algo == 0x0) { // 0x0:NONE
+        drm_info->algo = DRM_ALG_CENC_UNENCRYPTED;
+        drm_info->encrypt_blocks = DRM_TS_FLAG_CRYPT_BYTE_BLOCK;
+        drm_info->skip_blocks = 0;
+    }
+    return;
+}
+
+static int mpegts_get_drm_info(const uint8_t *src, uint32_t src_len, DrmInfo *drm_info)
+{
+    uint32_t offset = 0;
+    if (src_len <= DRM_MIN_DRM_INFO_LEN) {
+        av_log(NULL, AV_LOG_ERROR, "algo not found");
+        return -1;
+    }
+    uint8_t video_algo = src[offset] & 0x0f; // video algo offset
+    mpegts_set_drm_algo_and_blocks(video_algo, drm_info);
+    offset++;
+    uint8_t audio_algo = src[offset] & 0x0f; // audio algo offset
+    av_log(NULL, AV_LOG_DEBUG, "audio_algo:%d\n", audio_algo);
+    offset++;
+
+    if (src_len - offset <= DRM_MAX_DRM_PSSH_LEN) {
+        memcpy(drm_info->pssh, src + offset, src_len - offset);
+        drm_info->pssh_len = src_len - offset;
+    } else {
+        av_log(NULL, AV_LOG_ERROR, "pssh not found");
+        return -1;
+    }
+    if (src_len >= offset + DRM_UUID_OFFSET + DRM_MAX_DRM_UUID_LEN) {
+        memcpy(drm_info->uuid, src + offset + DRM_UUID_OFFSET, DRM_MAX_DRM_UUID_LEN);
+        drm_info->uuid_len = (uint32_t)DRM_MAX_DRM_UUID_LEN;
+    } else {
+        av_log(NULL, AV_LOG_ERROR, "uuid not found");
+        return -1;
+    }
+    return 0;
+}
+
+static void mpegts_avstream_drm_info_copy(DrmInfo *dest, DrmInfo *src)
+{
+    dest->algo = src->algo;
+    dest->encrypt_blocks = src->encrypt_blocks;
+    dest->skip_blocks = src->skip_blocks;
+    dest->pssh_len = src->pssh_len;
+    memcpy(dest->pssh, src->pssh, src->pssh_len);
+    dest->uuid_len = src->uuid_len;
+    memcpy(dest->uuid, src->uuid, src->uuid_len);
+}
+
+static void mpegts_avstream_set_drm_info(AVStream *avstream, DrmInfo *info)
+{
+    ff_mutex_lock(&g_mpegts_mutex);
+    DrmInfo *drm_info = (DrmInfo *)av_stream_new_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INIT_INFO,
+        (buffer_size_t)(sizeof(DrmInfo)));
+    if (drm_info != NULL) {
+        mpegts_avstream_drm_info_copy(drm_info, info);
+    }
+    ff_mutex_unlock(&g_mpegts_mutex);
+    return;
+}
+
+static void mpegts_drm_get_sync_header_index(uint8_t *data, uint32_t data_size, uint32_t *pos_index)
+{
+    uint32_t i;
+    for (i = *pos_index; (i + (uint32_t)DRM_LEGACY_LEN) < data_size; i++) {
+        if ((data[i] != g_video_frame_arr[DRM_ARR_SUBSCRIPT_ZERO]) ||
+            (data[i + DRM_ARR_SUBSCRIPT_ONE] != g_video_frame_arr[DRM_ARR_SUBSCRIPT_ONE]) ||
+            (data[i + DRM_ARR_SUBSCRIPT_TWO] != g_video_frame_arr[DRM_ARR_SUBSCRIPT_TWO])) {
+            continue;
+        }
+        *pos_index = i;
+        return;
+    }
+    *pos_index = data_size;
+    return;
+}
+
+static int mpegts_drm_find_avs_cei_nal_unit(uint8_t *data, uint32_t data_size, uint32_t *cei_start_pos,
+    uint32_t index)
+{
+    uint32_t i = index;
+    /*
+     * only squence_header allowed, cei is in first extension_and_user_data after squence_header.
+     * data[i + DRM_LEGACY_LEN] is the nal unit header(00~b8),
+     * 0xb0 means Squence header, 0xb5 means video extension, 0xb1 undefined, others are frames
+     */
+    if (((data[i + DRM_LEGACY_LEN] > 0) && (data[i + DRM_LEGACY_LEN] < 0xb8)) &&
+        (data[i + DRM_LEGACY_LEN] != 0xb0) && (data[i + DRM_LEGACY_LEN] != 0xb5) &&
+        (data[i + DRM_LEGACY_LEN] != 0xb1)) {
+        av_log(NULL, AV_LOG_DEBUG, "avs frame found\n");
+        return 0;
+    }
+    if ((data[i + DRM_LEGACY_LEN] == 0xb5) && (i + DRM_LEGACY_LEN + 1 < data_size)) {
+        /* extension_and_user_data found, 0xd0: extension user data tag, 0xf0: the higher 4 bits */
+        if ((data[i + DRM_LEGACY_LEN + 1] & 0xf0) == 0xd0) {
+            *cei_start_pos = i;
+            av_log(NULL, AV_LOG_DEBUG, "cei found, packet start pos:%d\n", *cei_start_pos);
+        } else {
+            av_log(NULL, AV_LOG_ERROR, "cei not found, type=0x%x\n", (data[i + DRM_LEGACY_LEN + 1] & 0xf0));
+        }
+    }
+    return -1;
+}
+
+static int mpegts_drm_find_hevc_cei_nal_unit(uint8_t *data, uint32_t data_size, uint32_t *cei_start_pos,
+    uint32_t index)
+{
+    uint32_t i = index;
+    uint8_t nal_type = (data[i + DRM_LEGACY_LEN] >> DRM_SHIFT_LEFT_NUM) & DRM_H265_VIDEO_NAL_TYPE_UMASK_NUM;
+    av_log(NULL, AV_LOG_DEBUG, "nal type=%x\n", nal_type);
+    if (nal_type <= DRM_H265_VIDEO_END_NAL_TYPE) { // nal type: 0 ~ 31 are slice nal units and reserved units
+        /* sei is not after frame data. */
+        av_log(NULL, AV_LOG_DEBUG, "h265 frame found\n");
+        return 0;
+    } else if (nal_type == 39) { // 39: SEI nal unit
+        if (data[i + DRM_H265_PAYLOAD_TYPE_OFFSET] == DRM_USER_DATA_UNREGISTERED_TAG) {
+            *cei_start_pos = i;
+        }
+    }
+    if (*cei_start_pos != DRM_INVALID_START_POS) {
+        uint32_t start_pos = i + DRM_H265_PAYLOAD_TYPE_OFFSET;
+        uint32_t end_pos = i + DRM_H265_PAYLOAD_TYPE_OFFSET;
+        *cei_start_pos = DRM_INVALID_START_POS;
+        mpegts_drm_get_sync_header_index(data, data_size, &end_pos);
+        for (; (start_pos + (uint32_t)DRM_USER_DATA_REGISTERED_UUID_SIZE < end_pos); start_pos++) {
+            if (memcmp(data + start_pos, g_user_registered_uuid,
+                (uint32_t)DRM_USER_DATA_REGISTERED_UUID_SIZE) == 0) {
+                *cei_start_pos = i;
+                av_log(NULL, AV_LOG_DEBUG, "cei found, packet start pos:%d\n", *cei_start_pos);
+                break;
+            }
+        }
+    }
+    return -1;
+}
+
+static int mpegts_drm_find_h264_cei_nal_unit(uint8_t *data, uint32_t data_size, uint32_t *cei_start_pos,
+    uint32_t index)
+{
+    uint32_t i = index;
+    uint8_t nal_type = data[i + DRM_LEGACY_LEN] & DRM_H264_VIDEO_NAL_TYPE_UMASK_NUM;
+    av_log(NULL, AV_LOG_DEBUG, "nal type=%x\n", nal_type);
+    if ((nal_type >= DRM_H264_VIDEO_START_NAL_TYPE) && (nal_type <= DRM_H264_VIDEO_END_NAL_TYPE)) {
+        /* sei is not after frame data. */
+        av_log(NULL, AV_LOG_DEBUG, "h264 frame found\n");
+        return 0;
+    } else if ((nal_type == 39) || (nal_type == 6)) { // 39 or 6 is SEI nal unit tag
+        if ((i + DRM_LEGACY_LEN + 1 < data_size) &&
+            (data[i + DRM_LEGACY_LEN + 1] == DRM_USER_DATA_UNREGISTERED_TAG)) {
+            *cei_start_pos = i;
+        }
+    }
+    if (*cei_start_pos != DRM_INVALID_START_POS) {
+        uint32_t start_pos = i + DRM_LEGACY_LEN + 1;
+        uint32_t end_pos = i + DRM_LEGACY_LEN + 1;
+        *cei_start_pos = DRM_INVALID_START_POS;
+        mpegts_drm_get_sync_header_index(data, data_size, &end_pos);
+        for (; (start_pos + (uint32_t)DRM_USER_DATA_REGISTERED_UUID_SIZE < end_pos); start_pos++) {
+            if (memcmp(data + start_pos, g_user_registered_uuid,
+                (uint32_t)DRM_USER_DATA_REGISTERED_UUID_SIZE) == 0) {
+                *cei_start_pos = i;
+                av_log(NULL, AV_LOG_DEBUG, "cei found, packet start pos:%d\n", *cei_start_pos);
+                break;
+            }
+        }
+    }
+    return -1;
+}
+
+static int mpegts_drm_find_cei_nal_unit(enum AVCodecID codec_id, uint8_t *data, uint32_t data_size,
+    uint32_t *cei_start_pos, uint32_t index)
+{
+    int ret = 0;
+    if (codec_id == AV_CODEC_ID_AVS2 || codec_id == AV_CODEC_ID_AVS3) {
+        ret = mpegts_drm_find_avs_cei_nal_unit(data, data_size, cei_start_pos, index);
+    } else if (codec_id == AV_CODEC_ID_HEVC) {
+        ret = mpegts_drm_find_hevc_cei_nal_unit(data, data_size, cei_start_pos, index);
+    } else if (codec_id == AV_CODEC_ID_H264) {
+        ret = mpegts_drm_find_h264_cei_nal_unit(data, data_size, cei_start_pos, index);
+    }
+    return -1;
+}
+
+static int mpegts_drm_find_cei_pos(enum AVCodecID codec_id, uint8_t *data, uint32_t data_size,
+    uint32_t *cei_start_pos, uint32_t *cei_end_pos)
+{
+    uint32_t i;
+    for (i = 0; (i + (uint32_t)DRM_LEGACY_LEN) < data_size; i++) {
+        /*the start code prefix is 0x000001*/
+        if ((data[i] == g_video_frame_arr[DRM_ARR_SUBSCRIPT_ZERO]) &&
+            (data[i + DRM_ARR_SUBSCRIPT_ONE] == g_video_frame_arr[DRM_ARR_SUBSCRIPT_ONE]) &&
+            (data[i + DRM_ARR_SUBSCRIPT_TWO] == g_video_frame_arr[DRM_ARR_SUBSCRIPT_TWO])) {
+            if (*cei_start_pos != (uint32_t)DRM_INVALID_START_POS) {
+                *cei_end_pos = i;
+                av_log(NULL, AV_LOG_DEBUG, "cei found, start pos:%x end pos:%x\n", *cei_start_pos, *cei_end_pos);
+                break;
+            }
+            /* found a nal unit, process nal to find the cei.*/
+            if (!mpegts_drm_find_cei_nal_unit(codec_id, data, data_size, cei_start_pos, i)) {
+                break;
+            }
+            *cei_end_pos = (uint32_t)DRM_INVALID_START_POS;
+            i += (uint32_t)DRM_LEGACY_LEN;
+        }
+    }
+    if ((*cei_start_pos != (uint32_t)DRM_INVALID_START_POS) && (*cei_end_pos != (uint32_t)DRM_INVALID_START_POS)) {
+        return 1; // 1 true
+    }
+    return 0;
+}
+
+static void mpegts_drm_remove_ambiguity_bytes(uint8_t *data, uint32_t *data_size, uint32_t offset)
+{
+    uint32_t len = *data_size;
+    uint32_t i;
+    for (i = offset; (i + (uint32_t)DRM_LEGACY_LEN) < len; i++) {
+        if ((data[i] == g_ambiguity_arr[DRM_ARR_SUBSCRIPT_ZERO]) &&
+            (data[i + DRM_ARR_SUBSCRIPT_ONE] == g_ambiguity_arr[DRM_ARR_SUBSCRIPT_ONE]) &&
+            (data[i + DRM_ARR_SUBSCRIPT_TWO] == g_ambiguity_arr[DRM_ARR_SUBSCRIPT_TWO])) {
+            if (data[i + DRM_ARR_SUBSCRIPT_THREE] >= DRM_AMBIGUITY_START_NUM &&
+                data[i + DRM_ARR_SUBSCRIPT_THREE] <= DRM_AMBIGUITY_END_NUM) {
+                memmove(data + i + DRM_ARR_SUBSCRIPT_TWO, data + i + DRM_ARR_SUBSCRIPT_THREE,
+                    len - (i + DRM_ARR_SUBSCRIPT_THREE));
+                len -= 1;
+                i++;
+            }
+        }
+    }
+    *data_size = len;
+    return;
+}
+
+static int mpegts_drm_get_key_id(uint8_t *data, uint32_t *data_size, uint32_t *pos, uint8_t *drm_descriptor_flag,
+    DRMCencInfo *cenc_info)
+{
+    uint32_t offset = *pos;
+    if (offset >= *data_size) {
+        av_log(NULL, AV_LOG_ERROR, "cei data too short\n");
+        return -1;
+    }
+    uint8_t encryption_flag = (data[offset] & 0x80) >> 7; // 0x80 get encryption_flag & 7 get bits
+    uint8_t next_key_id_flag = (data[offset] & 0x40) >> 6; // 0x40 get next_key_id_flag & 6 get bits
+    uint8_t drm_not_ambiguity_flag = (data[offset] & 0x10) >> 4; // 0x10 get drm_not_ambiguity_flag & 4 get bits
+    *drm_descriptor_flag = (data[offset] & 0x20) >> 5; // 0x20 get drm_descriptor_flag & 5 get bits
+    offset += 1; // 1 skip flag
+    mpegts_drm_remove_ambiguity_bytes(data, data_size, offset);
+    if (drm_not_ambiguity_flag == 1) {
+        cenc_info->is_ambiguity = 0;
+    } else {
+        cenc_info->is_ambiguity = 1;  // 1:exist ambiguity
+    }
+
+    if (encryption_flag != 0) {
+        if ((offset + (uint32_t)DRM_KEY_ID_SIZE) > *data_size) {
+            av_log(NULL, AV_LOG_ERROR, "cei data too short\n");
+            return -1;
+        }
+        memcpy(cenc_info->key_id, data + offset, DRM_KEY_ID_SIZE);
+        cenc_info->key_id_len = (uint32_t)DRM_KEY_ID_SIZE;
+        offset += (uint32_t)DRM_KEY_ID_SIZE;
+    } else {
+        cenc_info->algo = DRM_ALG_CENC_UNENCRYPTED;
+    }
+    if (next_key_id_flag == 1) {
+        offset += (uint32_t)DRM_KEY_ID_SIZE;
+    }
+    *pos = offset;
+    return 0;
+}
+
+static int mpegts_drm_get_iv(uint8_t *data, uint32_t data_size, uint32_t *pos, DRMCencInfo *cenc_info)
+{
+    uint32_t offset = *pos;
+    if (offset >= data_size) {
+        av_log(NULL, AV_LOG_ERROR, "cei data too short\n");
+        return -1;
+    }
+    uint32_t iv_len = (uint32_t)(data[offset]);
+    offset += 1; // 1 skip iv len
+    if (offset + iv_len > data_size) {
+        av_log(NULL, AV_LOG_ERROR, "cei data too short\n");
+        return -1;
+    } else {
+        memcpy(cenc_info->iv, data + offset, iv_len);
+        cenc_info->iv_len = iv_len;
+        offset += iv_len;
+    }
+    *pos = offset;
+    return 0;
+}
+
+static int mpegts_drm_parse_drm_descriptor(uint8_t *data, uint32_t data_size, uint32_t *pos,
+    uint8_t drm_descriptor_flag, DRMCencInfo *cenc_info)
+{
+    uint32_t offset = *pos;
+    DrmInfo drm_info;
+    if (drm_descriptor_flag == 0) {
+        return 0;
+    }
+    if (offset + DRM_MIN_DRM_INFO_LEN >= data_size) {
+        av_log(NULL, AV_LOG_ERROR, "cei data too short\n");
+        return -1;
+    }
+    uint8_t video_algo = data[offset + DRM_MIN_DRM_INFO_LEN] & 0x0f; // video algo offset
+    mpegts_set_drm_algo_and_blocks(video_algo, &drm_info);
+    cenc_info->algo = drm_info.algo;
+    offset = offset + DRM_MIN_DRM_INFO_LEN;
+    *pos = offset;
+    return 0;
+}
+
+static int mpegts_drm_set_key_info(uint8_t *data, uint32_t data_size, uint32_t cei_start_pos, DRMCencInfo *cenc_info)
+{
+    uint32_t total_size = data_size;
+    uint32_t pos = cei_start_pos;
+    uint8_t *cei_buf = NULL;
+    uint8_t drm_descriptor_flag = 0;
+
+    cei_buf = (uint8_t *)malloc(data_size);
+    if (cei_buf == NULL) {
+        av_log(NULL, AV_LOG_ERROR, "malloc cei data failed\n");
+        return 0;
+    }
+    memcpy(cei_buf, data, data_size);
+
+    if (pos + DRM_LEGACY_LEN >= total_size) {
+        av_log(NULL, AV_LOG_ERROR, "cei data too short\n");
+        free(cei_buf);
+        return 0;
+    }
+    if (cei_buf[pos + DRM_LEGACY_LEN] == (uint8_t)DRM_AVS_FLAG) {
+        pos += DRM_LEGACY_LEN; //skip 0x00 0x00 0x01
+        pos += 2; // 2 skip this flag
+    } else {
+        for (; (pos + (uint32_t)DRM_USER_DATA_REGISTERED_UUID_SIZE < total_size); pos++) {
+            if (memcmp(cei_buf + pos, g_user_registered_uuid, (uint32_t)DRM_USER_DATA_REGISTERED_UUID_SIZE) == 0) {
+                pos += (uint32_t)DRM_USER_DATA_REGISTERED_UUID_SIZE;
+                break;
+            }
+        }
+    }
+    int ret = mpegts_drm_get_key_id(cei_buf, &total_size, &pos, &drm_descriptor_flag, cenc_info);
+    if (ret != 0) {
+        free(cei_buf);
+        return 0; // 0 key_id not found
+    }
+    ret = mpegts_drm_get_iv(cei_buf, total_size, &pos, cenc_info);
+    if (ret != 0) {
+        free(cei_buf);
+        return 0; // 0 iv not found
+    }
+    ret = mpegts_drm_parse_drm_descriptor(cei_buf, total_size, &pos, drm_descriptor_flag, cenc_info);
+    if (ret != 0) {
+        free(cei_buf);
+        return 0; // 0 drm descriptor not found
+    }
+    free(cei_buf);
+    return 1; // 1 true
+}
+
+static void mpegts_drm_cenc_info_copy(DRMCencInfo *dest, DRMCencInfo *src, uint32_t flag)
+{
+    dest->algo = src->algo;
+    dest->key_id_len = src->key_id_len;
+    memcpy(dest->key_id, src->key_id, src->key_id_len);
+    dest->iv_len = src->iv_len;
+    memcpy(dest->iv, src->iv, src->iv_len);
+    dest->is_ambiguity = src->is_ambiguity;
+    dest->encrypt_blocks = src->encrypt_blocks;
+    dest->skip_blocks = src->skip_blocks;
+    dest->first_encrypt_offset = src->first_encrypt_offset;
+    if (flag == 1) { // 1:true
+        dest->sub_sample_num = src->sub_sample_num;
+        for (uint32_t i = 0; i < dest->sub_sample_num; i++) {
+            dest->sub_sample[i].clear_header_len = src->sub_sample[i].clear_header_len;
+            dest->sub_sample[i].pay_load_len = src->sub_sample[i].pay_load_len;
+        }
+    }
+}
+
+static void mpegts_avstream_set_cenc_info(AVStream *avstream, DRMCencInfo *info)
+{
+    DRMCencInfo *cenc_info = (DRMCencInfo *)av_stream_new_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INFO,
+        (buffer_size_t)(sizeof(DRMCencInfo)));
+    if (cenc_info != NULL) {
+        mpegts_drm_cenc_info_copy(cenc_info, info, 1); // 1:true
+    }
+    return;
+}
+
+static void mpegts_packet_set_cenc_info(AVPacket *pkt, DRMCencInfo *info)
+{
+    DRMCencInfo *cenc_info = (DRMCencInfo *)av_packet_new_side_data(pkt, AV_PKT_DATA_ENCRYPTION_INFO,
+        (buffer_size_t)(sizeof(DRMCencInfo)));
+    if (cenc_info != NULL) {
+        mpegts_drm_cenc_info_copy(cenc_info, info, 1); // 1:true
+    }
+    return;
+}
+
+static int mpegts_drm_get_cenc_info(AVStream *avstream, enum AVCodecID codec_id, uint8_t *data, uint32_t data_size,
+    DRMCencInfo *cenc_info)
+{
+    int ret;
+    uint32_t cei_start_pos = (uint32_t)DRM_INVALID_START_POS;
+    uint32_t cei_end_pos = (uint32_t)DRM_INVALID_START_POS;
+
+    ret = mpegts_drm_find_cei_pos(codec_id, data, data_size, &cei_start_pos, &cei_end_pos);
+    if (ret) {
+        buffer_size_t drm_info_size = 0;
+        DrmInfo *drm_info = NULL;
+        ff_mutex_lock(&g_mpegts_mutex);
+        drm_info = (DrmInfo *)av_stream_get_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INIT_INFO,
+            &drm_info_size);
+        if ((drm_info != NULL) && (drm_info_size != 0)) {
+            cenc_info->algo = drm_info->algo;
+            cenc_info->encrypt_blocks = drm_info->encrypt_blocks;
+            cenc_info->skip_blocks = drm_info->skip_blocks;
+        }
+        ff_mutex_unlock(&g_mpegts_mutex);
+        ret = mpegts_drm_set_key_info(data, cei_end_pos, cei_start_pos, cenc_info);
+        return ret;
+    } else {
+        buffer_size_t cenc_info_size = 0;
+        DRMCencInfo *cenc_info_store = NULL;
+        cenc_info_store = (DRMCencInfo *)av_stream_get_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INFO,
+            &cenc_info_size);
+        if ((cenc_info_store != NULL) && (cenc_info_size != 0)) {
+            mpegts_drm_cenc_info_copy(cenc_info, cenc_info_store, 0);
+            return 1; // 1 true
+        }
+    }
+    return 0;
+}
+
+static void mpegts_packet_add_cenc_info(AVFormatContext *s, AVPacket *pkt)
+{
+    DRMCencInfo cenc_info;
+    enum AVCodecID codec_id = s->streams[pkt->stream_index]->codecpar->codec_id;
+
+    memset(&cenc_info, 0, sizeof(DRMCencInfo));
+
+    if ((codec_id != AV_CODEC_ID_AVS2) && (codec_id != AV_CODEC_ID_HEVC) && (codec_id != AV_CODEC_ID_H264) &&
+        (codec_id != AV_CODEC_ID_AVS3)) {
+        return;
+    }
+
+    cenc_info.sub_sample[0].clear_header_len = pkt->size;
+    cenc_info.sub_sample[0].pay_load_len = 0;
+    cenc_info.sub_sample_num = 1;
+    cenc_info.algo = DRM_ALG_CENC_UNENCRYPTED;
+    cenc_info.is_ambiguity = 1;
+
+    int ret = mpegts_drm_get_cenc_info(s->streams[pkt->stream_index], codec_id, pkt->data, pkt->size, &cenc_info);
+    if (ret) {
+        mpegts_packet_set_cenc_info(pkt, &cenc_info);
+        mpegts_avstream_set_cenc_info(s->streams[pkt->stream_index], &cenc_info);
+    }
+    return;
+}
 
 static struct Program * get_program(MpegTSContext *ts, unsigned int programid)
 {
@@ -2106,6 +2670,16 @@ int ff_parse_mpeg2_descriptor(AVFormatContext *fc, AVStream *st, int stream_type
             }
         }
         break;
+    case DRM_DESCRIPTOR:
+        {
+            int ret;
+            DrmInfo drm_info;
+            ret = mpegts_get_drm_info(*pp, desc_len, &drm_info);
+            if (ret == 0) {
+                mpegts_avstream_set_drm_info(st, &drm_info);
+            }
+        }
+        break;
     case 0xfd: /* ARIB data coding type descriptor */
         // STD-B24, fascicle 3, chapter 4 defines private_stream_1
         // for captions
@@ -2287,6 +2861,7 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
     uint32_t prog_reg_desc = 0; /* registration descriptor */
     int stream_identifier = -1;
     struct Program *prg;
+    DrmInfo drm_info;
 
     int mp4_descr_count = 0;
     Mp4Descr mp4_descr[MAX_MP4_DESCR_COUNT] = { { 0 } };
@@ -2294,6 +2869,8 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
 
     av_log(ts->stream, AV_LOG_TRACE, "PMT: len %i\n", section_len);
     hex_dump_debug(ts->stream, section, section_len);
+
+    memset(&drm_info, 0, sizeof(DrmInfo));
 
     p_end = section + section_len - 4;
     p = section;
@@ -2358,6 +2935,13 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
         } else if (tag == REGISTRATION_DESCRIPTOR && len >= 4) {
             prog_reg_desc = bytestream_get_le32(&p);
             len -= 4;
+        } else if ((tag == DRM_DESCRIPTOR) && (len > DRM_MIN_DRM_INFO_LEN)) {
+            int ret = mpegts_get_drm_info(p, (uint32_t)len, &drm_info);
+            if (ret != 0) {
+                memset(&drm_info, 0, sizeof(DrmInfo));
+                drm_info.pssh_len = 0;
+                drm_info.uuid_len = 0;
+            }
         }
         p += len;
     }
@@ -2446,6 +3030,10 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
 
         if (!st)
             goto out;
+
+        if ((drm_info.pssh_len != 0) && (drm_info.uuid_len != 0)) {
+            mpegts_avstream_set_drm_info(st, &drm_info);
+        }
 
         if (pes && !pes->stream_type)
             mpegts_set_stream_info(st, pes, stream_type, prog_reg_desc);
@@ -3237,8 +3825,11 @@ static int mpegts_read_packet(AVFormatContext *s, AVPacket *pkt)
             }
     }
 
-    if (!ret && pkt->size < 0)
+    if (!ret && pkt->size < 0) {
         ret = AVERROR_INVALIDDATA;
+        return ret;
+    }
+    mpegts_packet_add_cenc_info(s, pkt);
     return ret;
 }
 
