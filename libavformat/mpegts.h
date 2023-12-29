@@ -153,6 +153,7 @@
 #define FMC_DESCRIPTOR               0x1f
 #define METADATA_DESCRIPTOR          0x26
 #define METADATA_STD_DESCRIPTOR      0x27
+#define DRM_DESCRIPTOR               0xc0
 
 typedef struct MpegTSContext MpegTSContext;
 
