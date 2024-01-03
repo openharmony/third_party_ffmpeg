@@ -809,6 +809,15 @@ static int mpegts_drm_get_cenc_info(AVStream *avstream, enum AVCodecID codec_id,
 static void mpegts_packet_add_cenc_info(AVFormatContext *s, AVPacket *pkt)
 {
     DRMCencInfo cenc_info;
+    if (pkt == NULL || pkt->data == NULL || pkt->size == 0) {
+        av_log(NULL, AV_LOG_ERROR, "pkt parameter err\n");
+        return;
+    }
+    if ((s == NULL) || (s->streams == NULL) || (pkt->stream_index >= s->nb_streams) ||
+        (s->streams[pkt->stream_index] == NULL) || (s->streams[pkt->stream_index]->codecpar == NULL)) {
+        av_log(NULL, AV_LOG_ERROR, "s parameter err\n");
+        return;
+    }
     enum AVCodecID codec_id = s->streams[pkt->stream_index]->codecpar->codec_id;
 
     memset(&cenc_info, 0, sizeof(DRMCencInfo));
