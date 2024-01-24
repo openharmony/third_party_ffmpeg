@@ -134,6 +134,9 @@ static av_cold int init(AVFilterContext *ctx)
     s-> next_cache= av_malloc_array(s->cache_allocated, sizeof(*s-> next_cache));
     s-> zyklus    = av_malloc_array(s->maxiter + 16, sizeof(*s->zyklus));
 
+    if (!s->point_cache || !s->next_cache || !s->zyklus)
+        return AVERROR(ENOMEM);
+
     return 0;
 }
 
@@ -144,19 +147,6 @@ static av_cold void uninit(AVFilterContext *ctx)
     av_freep(&s->point_cache);
     av_freep(&s-> next_cache);
     av_freep(&s->zyklus);
-}
-
-static int query_formats(AVFilterContext *ctx)
-{
-    static const enum AVPixelFormat pix_fmts[] = {
-        AV_PIX_FMT_0BGR32,
-        AV_PIX_FMT_NONE
-    };
-
-    AVFilterFormats *fmts_list = ff_make_format_list(pix_fmts);
-    if (!fmts_list)
-        return AVERROR(ENOMEM);
-    return ff_set_common_formats(ctx, fmts_list);
 }
 
 static int config_props(AVFilterLink *inlink)
@@ -416,17 +406,16 @@ static const AVFilterPad mandelbrot_outputs[] = {
         .request_frame = request_frame,
         .config_props  = config_props,
     },
-    { NULL }
 };
 
-AVFilter ff_vsrc_mandelbrot = {
+const AVFilter ff_vsrc_mandelbrot = {
     .name          = "mandelbrot",
     .description   = NULL_IF_CONFIG_SMALL("Render a Mandelbrot fractal."),
     .priv_size     = sizeof(MBContext),
     .priv_class    = &mandelbrot_class,
     .init          = init,
     .uninit        = uninit,
-    .query_formats = query_formats,
     .inputs        = NULL,
-    .outputs       = mandelbrot_outputs,
+    FILTER_OUTPUTS(mandelbrot_outputs),
+    FILTER_SINGLE_PIXFMT(AV_PIX_FMT_0BGR32),
 };

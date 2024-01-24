@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "libavutil/channel_layout.h"
 #include "libavutil/intreadwrite.h"
 #include "libavcodec/internal.h"
 #include "avformat.h"
@@ -67,6 +68,9 @@ static int genh_read_header(AVFormatContext *s)
         return AVERROR_INVALIDDATA;
     st->codecpar->block_align = align * st->codecpar->channels;
     st->codecpar->sample_rate = avio_rl32(s->pb);
+    if (st->codecpar->sample_rate < 0)
+        return AVERROR_INVALIDDATA;
+
     avio_skip(s->pb, 4);
     st->duration = avio_rl32(s->pb);
 
@@ -189,7 +193,7 @@ static int genh_read_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-AVInputFormat ff_genh_demuxer = {
+const AVInputFormat ff_genh_demuxer = {
     .name           = "genh",
     .long_name      = NULL_IF_CONFIG_SMALL("GENeric Header"),
     .priv_data_size = sizeof(GENHDemuxContext),

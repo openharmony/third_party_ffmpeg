@@ -250,7 +250,7 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/avdct.c",
     "//third_party/ffmpeg/libavcodec/avfft.c",
     "//third_party/ffmpeg/libavcodec/avpacket.c",
-    "//third_party/ffmpeg/libavcodec/avpicture.c",
+    #"//third_party/ffmpeg/libavcodec/avpicture.c",
 
     # "//third_party/ffmpeg/libavcodec/avrndec.c",
     # "//third_party/ffmpeg/libavcodec/avs.c",
@@ -266,7 +266,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/bintext.c",
     # "//third_party/ffmpeg/libavcodec/bitpacked.c",
     "//third_party/ffmpeg/libavcodec/bitstream.c",
-    "//third_party/ffmpeg/libavcodec/bitstream_filter.c",
+    #"//third_party/ffmpeg/libavcodec/bitstream_filter.c",
     "//third_party/ffmpeg/libavcodec/bitstream_filters.c",
     "//third_party/ffmpeg/libavcodec/blockdsp.c",
     "//third_party/ffmpeg/libavcodec/bmp.c",
@@ -484,6 +484,7 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/h264_mb.c",
 
     # "//third_party/ffmpeg/libavcodec/h264_metadata_bsf.c",
+    "//third_party/ffmpeg/libavcodec/h274.c",
     "//third_party/ffmpeg/libavcodec/h264_mp4toannexb_bsf.c",
     "//third_party/ffmpeg/libavcodec/h264_parse.c",
     "//third_party/ffmpeg/libavcodec/h264_parser.c",
@@ -732,6 +733,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/pafaudio.c",
     # "//third_party/ffmpeg/libavcodec/pafvideo.c",
     # "//third_party/ffmpeg/libavcodec/pamenc.c",
+    "//third_party/ffmpeg/libavcodec/amr_parser.c",
     "//third_party/ffmpeg/libavcodec/parser.c",
     "//third_party/ffmpeg/libavcodec/parsers.c",
 
@@ -1238,6 +1240,8 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/mms.c",
     # "//third_party/ffmpeg/libavformat/mmsh.c",
     # "//third_party/ffmpeg/libavformat/mmst.c",
+    "//third_party/ffmpeg/libavformat/dovi_isom.c",
+    "//third_party/ffmpeg/libavformat/movenc_ttml.c",
     "//third_party/ffmpeg/libavformat/mov.c",
     "//third_party/ffmpeg/libavformat/mov_chan.c",
     "//third_party/ffmpeg/libavformat/mov_esds.c",
@@ -1461,7 +1465,9 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavformat/url.c",
 
     # "//third_party/ffmpeg/libavformat/urldecode.c",
+    "//third_party/ffmpeg/libavformat/demux.c",
     "//third_party/ffmpeg/libavformat/utils.c",
+    "//third_party/ffmpeg/libavformat/seek.c",
 
     # "//third_party/ffmpeg/libavformat/v210.c",
     # "//third_party/ffmpeg/libavformat/vag.c",
