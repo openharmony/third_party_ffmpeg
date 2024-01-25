@@ -140,6 +140,19 @@ config("ffmpeg_config") {
   }
 }
 
+config("libohosffmpeg_public_config"){
+  visibility = [":*"]
+
+  include_dirs = [
+    "//third_party/ffmpeg",
+    "//third_party/ffmpeg/libavformat/",
+    "//third_party/ffmpeg/libavcodec/",
+    "//third_party/ffmpeg/libswresample/",
+    "//third_party/ffmpeg/libswscale/",
+    "//third_party/ffmpeg/libavfilter/",
+  ]
+}
+
 ohos_source_set("ffmpeg_dynamic") {
   sources = [
     # "//third_party/ffmpeg/libavcodec/012v.c",
@@ -1652,6 +1665,7 @@ ohos_shared_library("libohosffmpeg") {
     boundary_sanitize = true
   }
   deps = [ ":ffmpeg_dynamic" ]
+  public_configs = [ ":libohosffmpeg_public_config" ]
   part_name = "ffmpeg"
   subsystem_name = "thirdparty"
   cflags = [ "-Wno-array-parameter" ]
