@@ -140,7 +140,7 @@ config("ffmpeg_config") {
   }
 }
 
-config("libohosffmpeg_public_config"){
+config("libohosffmpeg_public_config") {
   visibility = [ ":*" ]
 
   include_dirs = [
