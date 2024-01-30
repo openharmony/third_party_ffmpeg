@@ -144,11 +144,7 @@ config("libohosffmpeg_public_config") {
   visibility = [ ":*" ]
 
   include_dirs = [
-    "//third_party/ffmpeg/libavformat",
-    "//third_party/ffmpeg/libavcodec",
-    "//third_party/ffmpeg/libswresample",
-    "//third_party/ffmpeg/libswscale",
-    "//third_party/ffmpeg/libavfilter",
+    "//third_party/ffmpeg",
   ]
 }
 
