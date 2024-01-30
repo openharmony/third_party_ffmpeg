@@ -143,9 +143,7 @@ config("ffmpeg_config") {
 config("libohosffmpeg_public_config") {
   visibility = [ ":*" ]
 
-  include_dirs = [
-    "//third_party/ffmpeg",
-  ]
+  include_dirs = [ "//third_party/ffmpeg" ]
 }
 
 ohos_source_set("ffmpeg_dynamic") {
