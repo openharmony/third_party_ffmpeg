@@ -74,7 +74,9 @@ Note:If the text contains special characters, please escape them according to th
                 <policyitem type="compatibility" name="GPL" path="libavfilter/qp_table.h" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
                 <policyitem type="compatibility" name="GPL" path="libavfilter/vsrc_mptestsrc.c" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
                 <policyitem type="compatibility" name="GPL" path="libpostproc/.*" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
-                <policyitem type="compatibility" name="GPL" path="libswresample/tests/swresample.c" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+		<policyitem type="compatibility" name="GPL" path="libswresample/tests/swresample.c" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+		<policyitem type="compatibility" name="GPL" path="libavutil/macos_kperf.c" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
+		<policyitem type="compatibility" name="GPL" path="libavutil/macos_kperf.h" rule="may" group="defaultGroup" desc="The files involved in compilation are the GPL protocol.They are not used."/>
             </policy>
         </policylist>
         <filefilterlist>
@@ -112,4 +114,4 @@ Note:If the text contains special characters, please escape them according to th
             </filefilter>
         </filefilterlist>
     </oatconfig>
-</configuration>
+
