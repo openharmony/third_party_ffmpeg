@@ -26,6 +26,7 @@
  */
 
 #include "libavutil/thread.h"
+#include "libavutil/imgutils.h"
 
 #include "avcodec.h"
 #include "bytestream.h"
@@ -124,10 +125,10 @@ static av_cold void mss4_init_vlcs(void)
     for (unsigned i = 0, offset = 0; i < 2; i++) {
         mss4_init_vlc(&dc_vlc[i], &offset, mss4_dc_vlc_lens[i], NULL);
         mss4_init_vlc(&ac_vlc[i], &offset,
-                      i ? avpriv_mjpeg_bits_ac_chrominance + 1
-                        : avpriv_mjpeg_bits_ac_luminance   + 1,
-                      i ? avpriv_mjpeg_val_ac_chrominance
-                        : avpriv_mjpeg_val_ac_luminance);
+                      i ? ff_mjpeg_bits_ac_chrominance + 1
+                        : ff_mjpeg_bits_ac_luminance   + 1,
+                      i ? ff_mjpeg_val_ac_chrominance
+                        : ff_mjpeg_val_ac_luminance);
         mss4_init_vlc(&vec_entry_vlc[i], &offset, mss4_vec_entry_vlc_lens[i],
                       mss4_vec_entry_vlc_syms[i]);
     }
@@ -476,6 +477,9 @@ static int mss4_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
                width, height);
         return AVERROR_INVALIDDATA;
     }
+    if (av_image_check_size2(width, height, avctx->max_pixels, AV_PIX_FMT_NONE, 0, avctx) < 0)
+        return AVERROR_INVALIDDATA;
+
     if (quality < 1 || quality > 100) {
         av_log(avctx, AV_LOG_ERROR, "Invalid quality setting %d\n", quality);
         return AVERROR_INVALIDDATA;
@@ -604,7 +608,7 @@ static av_cold int mss4_decode_init(AVCodecContext *avctx)
     return 0;
 }
 
-AVCodec ff_mts2_decoder = {
+const AVCodec ff_mts2_decoder = {
     .name           = "mts2",
     .long_name      = NULL_IF_CONFIG_SMALL("MS Expression Encoder Screen"),
     .type           = AVMEDIA_TYPE_VIDEO,

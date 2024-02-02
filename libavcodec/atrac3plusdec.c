@@ -47,6 +47,17 @@
 #include "atrac.h"
 #include "atrac3plus.h"
 
+static const uint8_t channel_map[8][8] = {
+    { 0, },
+    { 0, 1, },
+    { 0, 1, 2, },
+    { 0, 1, 2, 3, },
+    { 0, },
+    { 0, 1, 2, 4, 5, 3, },
+    { 0, 1, 2, 4, 5, 6, 3, },
+    { 0, 1, 2, 4, 5, 6, 7, 3, },
+};
+
 typedef struct ATRAC3PContext {
     GetBitContext gb;
     AVFloatDSPContext *fdsp;
@@ -65,6 +76,7 @@ typedef struct ATRAC3PContext {
     int num_channel_blocks;     ///< number of channel blocks
     uint8_t channel_blocks[5];  ///< channel configuration descriptor
     uint64_t my_channel_layout; ///< current channel layout
+    const uint8_t *channel_map; ///< channel layout map
 } ATRAC3PContext;
 
 static av_cold int atrac3p_decode_close(AVCodecContext *avctx)
@@ -143,6 +155,8 @@ static av_cold int set_channel_params(ATRAC3PContext *ctx,
         return AVERROR_INVALIDDATA;
     }
 
+    ctx->channel_map = channel_map[avctx->channels - 1];
+
     return 0;
 }
 
@@ -175,7 +189,7 @@ static av_cold int atrac3p_decode_init(AVCodecContext *avctx)
 
     ctx->my_channel_layout = avctx->channel_layout;
 
-    ctx->ch_units = av_mallocz_array(ctx->num_channel_blocks, sizeof(*ctx->ch_units));
+    ctx->ch_units = av_calloc(ctx->num_channel_blocks, sizeof(*ctx->ch_units));
     ctx->fdsp = avpriv_float_dsp_alloc(avctx->flags & AV_CODEC_FLAG_BITEXACT);
 
     if (!ctx->ch_units || !ctx->fdsp) {
@@ -381,7 +395,7 @@ static int atrac3p_decode_frame(AVCodecContext *avctx, void *data,
                           channels_to_process, avctx);
 
         for (i = 0; i < channels_to_process; i++)
-            memcpy(samples_p[out_ch_index + i], ctx->outp_buf[i],
+            memcpy(samples_p[ctx->channel_map[out_ch_index + i]], ctx->outp_buf[i],
                    ATRAC3P_FRAME_SAMPLES * sizeof(**samples_p));
 
         ch_block++;
@@ -393,7 +407,7 @@ static int atrac3p_decode_frame(AVCodecContext *avctx, void *data,
     return avctx->codec_id == AV_CODEC_ID_ATRAC3P ? FFMIN(avctx->block_align, avpkt->size) : avpkt->size;
 }
 
-AVCodec ff_atrac3p_decoder = {
+const AVCodec ff_atrac3p_decoder = {
     .name           = "atrac3plus",
     .long_name      = NULL_IF_CONFIG_SMALL("ATRAC3+ (Adaptive TRansform Acoustic Coding 3+)"),
     .type           = AVMEDIA_TYPE_AUDIO,
@@ -406,7 +420,7 @@ AVCodec ff_atrac3p_decoder = {
     .decode         = atrac3p_decode_frame,
 };
 
-AVCodec ff_atrac3pal_decoder = {
+const AVCodec ff_atrac3pal_decoder = {
     .name           = "atrac3plusal",
     .long_name      = NULL_IF_CONFIG_SMALL("ATRAC3+ AL (Adaptive TRansform Acoustic Coding 3+ Advanced Lossless)"),
     .type           = AVMEDIA_TYPE_AUDIO,
