@@ -50,6 +50,7 @@ FF_CONFIG_OPTIONS="
     --disable-libxcb_xfixes
     --disable-sdl2
     --disable-bzlib
+    --disable-vulkan
     --disable-lzma
     --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska
     --enable-muxer=mp4,h264,ipod
