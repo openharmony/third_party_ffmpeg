@@ -104,7 +104,7 @@ static int ace_read_packet(AVFormatContext *s, AVPacket *pkt)
     return av_get_packet(s->pb, pkt, par->block_align);
 }
 
-const AVInputFormat ff_ace_demuxer = {
+AVInputFormat ff_ace_demuxer = {
     .name           = "ace",
     .long_name      = NULL_IF_CONFIG_SMALL("tri-Ace Audio Container"),
     .read_probe     = ace_probe,

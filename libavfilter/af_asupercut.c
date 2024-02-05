@@ -49,9 +49,35 @@ typedef struct ASuperCutContext {
     int (*filter_channels)(AVFilterContext *ctx, void *arg, int jobnr, int nb_jobs);
 } ASuperCutContext;
 
-static const enum AVSampleFormat sample_fmts[] = {
-    AV_SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_DBLP, AV_SAMPLE_FMT_NONE
-};
+static int query_formats(AVFilterContext *ctx)
+{
+    AVFilterFormats *formats = NULL;
+    AVFilterChannelLayouts *layouts = NULL;
+    static const enum AVSampleFormat sample_fmts[] = {
+        AV_SAMPLE_FMT_FLTP,
+        AV_SAMPLE_FMT_DBLP,
+        AV_SAMPLE_FMT_NONE
+    };
+    int ret;
+
+    formats = ff_make_format_list(sample_fmts);
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ret = ff_set_common_formats(ctx, formats);
+    if (ret < 0)
+        return ret;
+
+    layouts = ff_all_channel_counts();
+    if (!layouts)
+        return AVERROR(ENOMEM);
+
+    ret = ff_set_common_channel_layouts(ctx, layouts);
+    if (ret < 0)
+        return ret;
+
+    formats = ff_all_samplerates();
+    return ff_set_common_samplerates(ctx, formats);
+}
 
 static void calc_q_factors(int n, double *q)
 {
@@ -285,8 +311,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     }
 
     td.in = in; td.out = out;
-    ff_filter_execute(ctx, s->filter_channels, &td, NULL,
-                      FFMIN(inlink->channels, ff_filter_get_nb_threads(ctx)));
+    ctx->internal->execute(ctx, s->filter_channels, &td, NULL, FFMIN(inlink->channels,
+                                                               ff_filter_get_nb_threads(ctx)));
 
     if (out != in)
         av_frame_free(&in);
@@ -331,6 +357,7 @@ static const AVFilterPad inputs[] = {
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
+    { NULL }
 };
 
 static const AVFilterPad outputs[] = {
@@ -338,17 +365,18 @@ static const AVFilterPad outputs[] = {
         .name = "default",
         .type = AVMEDIA_TYPE_AUDIO,
     },
+    { NULL }
 };
 
-const AVFilter ff_af_asupercut = {
+AVFilter ff_af_asupercut = {
     .name            = "asupercut",
     .description     = NULL_IF_CONFIG_SMALL("Cut super frequencies."),
+    .query_formats   = query_formats,
     .priv_size       = sizeof(ASuperCutContext),
     .priv_class      = &asupercut_class,
     .uninit          = uninit,
-    FILTER_INPUTS(inputs),
-    FILTER_OUTPUTS(outputs),
-    FILTER_SAMPLEFMTS_ARRAY(sample_fmts),
+    .inputs          = inputs,
+    .outputs         = outputs,
     .process_command = process_command,
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                        AVFILTER_FLAG_SLICE_THREADS,
@@ -363,15 +391,15 @@ static const AVOption asubcut_options[] = {
 
 AVFILTER_DEFINE_CLASS(asubcut);
 
-const AVFilter ff_af_asubcut = {
+AVFilter ff_af_asubcut = {
     .name            = "asubcut",
     .description     = NULL_IF_CONFIG_SMALL("Cut subwoofer frequencies."),
+    .query_formats   = query_formats,
     .priv_size       = sizeof(ASuperCutContext),
     .priv_class      = &asubcut_class,
     .uninit          = uninit,
-    FILTER_INPUTS(inputs),
-    FILTER_OUTPUTS(outputs),
-    FILTER_SAMPLEFMTS_ARRAY(sample_fmts),
+    .inputs          = inputs,
+    .outputs         = outputs,
     .process_command = process_command,
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                        AVFILTER_FLAG_SLICE_THREADS,
@@ -385,32 +413,35 @@ static const AVOption asuperpass_asuperstop_options[] = {
     { NULL }
 };
 
-AVFILTER_DEFINE_CLASS_EXT(asuperpass_asuperstop, "asuperpass/asuperstop",
-                          asuperpass_asuperstop_options);
+#define asuperpass_options asuperpass_asuperstop_options
+AVFILTER_DEFINE_CLASS(asuperpass);
 
-const AVFilter ff_af_asuperpass = {
+AVFilter ff_af_asuperpass = {
     .name            = "asuperpass",
     .description     = NULL_IF_CONFIG_SMALL("Apply high order Butterworth band-pass filter."),
-    .priv_class      = &asuperpass_asuperstop_class,
+    .query_formats   = query_formats,
     .priv_size       = sizeof(ASuperCutContext),
+    .priv_class      = &asuperpass_class,
     .uninit          = uninit,
-    FILTER_INPUTS(inputs),
-    FILTER_OUTPUTS(outputs),
-    FILTER_SAMPLEFMTS_ARRAY(sample_fmts),
+    .inputs          = inputs,
+    .outputs         = outputs,
     .process_command = process_command,
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                        AVFILTER_FLAG_SLICE_THREADS,
 };
 
-const AVFilter ff_af_asuperstop = {
+#define asuperstop_options asuperpass_asuperstop_options
+AVFILTER_DEFINE_CLASS(asuperstop);
+
+AVFilter ff_af_asuperstop = {
     .name            = "asuperstop",
     .description     = NULL_IF_CONFIG_SMALL("Apply high order Butterworth band-stop filter."),
-    .priv_class      = &asuperpass_asuperstop_class,
+    .query_formats   = query_formats,
     .priv_size       = sizeof(ASuperCutContext),
+    .priv_class      = &asuperstop_class,
     .uninit          = uninit,
-    FILTER_INPUTS(inputs),
-    FILTER_OUTPUTS(outputs),
-    FILTER_SAMPLEFMTS_ARRAY(sample_fmts),
+    .inputs          = inputs,
+    .outputs         = outputs,
     .process_command = process_command,
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                        AVFILTER_FLAG_SLICE_THREADS,

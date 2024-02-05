@@ -103,7 +103,7 @@ static int frm_read_packet(AVFormatContext *avctx, AVPacket *pkt)
     return 0;
 }
 
-const AVInputFormat ff_frm_demuxer = {
+AVInputFormat ff_frm_demuxer = {
     .name           = "frm",
     .priv_data_size = sizeof(FrmContext),
     .long_name      = NULL_IF_CONFIG_SMALL("Megalux Frame"),

@@ -108,6 +108,8 @@ typedef struct TiffContext {
     int deinvert_buf_size;
     uint8_t *yuv_line;
     unsigned int yuv_line_size;
+    uint8_t *fax_buffer;
+    unsigned int fax_buffer_size;
 
     int geotag_count;
     TiffGeoTag *geotags;
@@ -613,15 +615,27 @@ static int tiff_unpack_lzma(TiffContext *s, AVFrame *p, uint8_t *dst, int stride
 static int tiff_unpack_fax(TiffContext *s, uint8_t *dst, int stride,
                            const uint8_t *src, int size, int width, int lines)
 {
+    int i, ret = 0;
     int line;
-    int ret;
+    uint8_t *src2;
 
-    if (s->fill_order) {
-        if ((ret = deinvert_buffer(s, src, size)) < 0)
-            return ret;
-        src = s->deinvert_buf;
+    av_fast_padded_malloc(&s->fax_buffer, &s->fax_buffer_size, size);
+    src2 = s->fax_buffer;
+
+    if (!src2) {
+        av_log(s->avctx, AV_LOG_ERROR,
+               "Error allocating temporary buffer\n");
+        return AVERROR(ENOMEM);
     }
-    ret = ff_ccitt_unpack(s->avctx, src, size, dst, lines, stride,
+
+    if (!s->fill_order) {
+        memcpy(src2, src, size);
+    } else {
+        for (i = 0; i < size; i++)
+            src2[i] = ff_reverse[src[i]];
+    }
+    memset(src2 + size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+    ret = ff_ccitt_unpack(s->avctx, src2, size, dst, lines, stride,
                           s->compr, s->fax_opts);
     if (s->bpp < 8 && s->avctx->pix_fmt == AV_PIX_FMT_PAL8)
         for (line = 0; line < lines; line++) {
@@ -721,6 +735,19 @@ static int dng_decode_jpeg(AVCodecContext *avctx, AVFrame *frame,
     return 0;
 }
 
+static int dng_decode_strip(AVCodecContext *avctx, AVFrame *frame)
+{
+    TiffContext *s = avctx->priv_data;
+
+    s->jpgframe->width  = s->width;
+    s->jpgframe->height = s->height;
+
+    s->avctx_mjpeg->width = s->width;
+    s->avctx_mjpeg->height = s->height;
+
+    return dng_decode_jpeg(avctx, frame, s->stripsize, 0, 0, s->width, s->height);
+}
+
 static int tiff_unpack_strip(TiffContext *s, AVFrame *p, uint8_t *dst, int stride,
                              const uint8_t *src, int size, int strip_start, int lines)
 {
@@ -759,7 +786,6 @@ static int tiff_unpack_strip(TiffContext *s, AVFrame *p, uint8_t *dst, int strid
     if (s->is_bayer) {
         av_assert0(width == (s->bpp * s->width + 7) >> 3);
     }
-    av_assert0(!(s->is_bayer && is_yuv));
     if (p->format == AV_PIX_FMT_GRAY12) {
         av_fast_padded_malloc(&s->yuv_line, &s->yuv_line_size, width);
         if (s->yuv_line == NULL) {
@@ -843,9 +869,7 @@ static int tiff_unpack_strip(TiffContext *s, AVFrame *p, uint8_t *dst, int strid
             av_log(s->avctx, AV_LOG_ERROR, "More than one DNG JPEG strips unsupported\n");
             return AVERROR_PATCHWELCOME;
         }
-        if (!s->is_bayer)
-            return AVERROR_PATCHWELCOME;
-        if ((ret = dng_decode_jpeg(s->avctx, p, s->stripsize, 0, 0, s->width, s->height)) < 0)
+        if ((ret = dng_decode_strip(s->avctx, p)) < 0)
             return ret;
         return 0;
     }
@@ -963,8 +987,11 @@ static int dng_decode_tiles(AVCodecContext *avctx, AVFrame *frame,
     int pos_x = 0, pos_y = 0;
     int ret;
 
-    if (s->tile_width <= 0 || s->tile_length <= 0)
-        return AVERROR_INVALIDDATA;
+    s->jpgframe->width  = s->tile_width;
+    s->jpgframe->height = s->tile_length;
+
+    s->avctx_mjpeg->width = s->tile_width;
+    s->avctx_mjpeg->height = s->tile_length;
 
     has_width_leftover = (s->width % s->tile_width != 0);
     has_height_leftover = (s->height % s->tile_length != 0);
@@ -1575,7 +1602,7 @@ static int tiff_decode_tag(TiffContext *s, AVFrame *frame)
             s->geotag_count = 0;
             return -1;
         }
-        s->geotags = av_calloc(s->geotag_count, sizeof(*s->geotags));
+        s->geotags = av_mallocz_array(s->geotag_count, sizeof(TiffGeoTag));
         if (!s->geotags) {
             av_log(s->avctx, AV_LOG_ERROR, "Error allocating temporary buffer\n");
             s->geotag_count = 0;
@@ -1750,7 +1777,7 @@ static int decode_frame(AVCodecContext *avctx,
     TiffContext *const s = avctx->priv_data;
     AVFrame *const p = data;
     ThreadFrame frame = { .f = data };
-    unsigned off, last_off = 0;
+    unsigned off, last_off;
     int le, ret, plane, planes;
     int i, j, entries, stride;
     unsigned soff, ssize;
@@ -1815,6 +1842,7 @@ again:
     /** whether we should process this multi-page IFD's next page */
     retry_for_page = s->get_page && s->cur_page + 1 < s->get_page;  // get_page is 1-indexed
 
+    last_off = off;
     if (retry_for_page) {
         // set offset to the next IFD
         off = ff_tget_long(&s->gb, le);
@@ -1832,7 +1860,6 @@ again:
             avpriv_request_sample(s->avctx, "non increasing IFD offset");
             return AVERROR_INVALIDDATA;
         }
-        last_off = off;
         if (off >= UINT_MAX - 14 || avpkt->size < off + 14) {
             av_log(avctx, AV_LOG_ERROR, "IFD offset is greater than image size\n");
             return AVERROR_INVALIDDATA;
@@ -2142,7 +2169,6 @@ static av_cold int tiff_init(AVCodecContext *avctx)
     s->avctx_mjpeg->flags2 = avctx->flags2;
     s->avctx_mjpeg->dct_algo = avctx->dct_algo;
     s->avctx_mjpeg->idct_algo = avctx->idct_algo;
-    s->avctx_mjpeg->max_pixels = avctx->max_pixels;
     ret = avcodec_open2(s->avctx_mjpeg, codec, NULL);
     if (ret < 0) {
         return ret;
@@ -2162,6 +2188,8 @@ static av_cold int tiff_end(AVCodecContext *avctx)
     s->deinvert_buf_size = 0;
     av_freep(&s->yuv_line);
     s->yuv_line_size = 0;
+    av_freep(&s->fax_buffer);
+    s->fax_buffer_size = 0;
     av_frame_free(&s->jpgframe);
     av_packet_free(&s->jpkt);
     avcodec_free_context(&s->avctx_mjpeg);
@@ -2183,7 +2211,7 @@ static const AVClass tiff_decoder_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const AVCodec ff_tiff_decoder = {
+AVCodec ff_tiff_decoder = {
     .name           = "tiff",
     .long_name      = NULL_IF_CONFIG_SMALL("TIFF image"),
     .type           = AVMEDIA_TYPE_VIDEO,

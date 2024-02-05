@@ -171,6 +171,7 @@ static const AVFilterPad cudaupload_inputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .filter_frame = cudaupload_filter_frame,
     },
+    { NULL }
 };
 
 static const AVFilterPad cudaupload_outputs[] = {
@@ -179,22 +180,23 @@ static const AVFilterPad cudaupload_outputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .config_props = cudaupload_config_output,
     },
+    { NULL }
 };
 
-const AVFilter ff_vf_hwupload_cuda = {
+AVFilter ff_vf_hwupload_cuda = {
     .name        = "hwupload_cuda",
     .description = NULL_IF_CONFIG_SMALL("Upload a system memory frame to a CUDA device."),
 
     .init      = cudaupload_init,
     .uninit    = cudaupload_uninit,
 
+    .query_formats = cudaupload_query_formats,
+
     .priv_size  = sizeof(CudaUploadContext),
     .priv_class = &cudaupload_class,
 
-    FILTER_INPUTS(cudaupload_inputs),
-    FILTER_OUTPUTS(cudaupload_outputs),
-
-    FILTER_QUERY_FUNC(cudaupload_query_formats),
+    .inputs    = cudaupload_inputs,
+    .outputs   = cudaupload_outputs,
 
     .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 };

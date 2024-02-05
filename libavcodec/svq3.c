@@ -92,11 +92,13 @@ typedef struct SVQ3Context {
     GetBitContext gb;
     GetBitContext gb_slice;
     uint8_t *slice_buf;
-    unsigned slice_buf_size;
+    int slice_size;
     int halfpel_flag;
     int thirdpel_flag;
     int has_watermark;
     uint32_t watermark_key;
+    uint8_t *buf;
+    int buf_size;
     int adaptive_quant;
     int next_p_frame_damaged;
     int h_edge_pos;
@@ -1033,7 +1035,7 @@ static int svq3_decode_slice_header(AVCodecContext *avctx)
 
         skip_bits(&s->gb, 8);
 
-        av_fast_padded_malloc(&s->slice_buf, &s->slice_buf_size, slice_bytes);
+        av_fast_malloc(&s->slice_buf, &s->slice_size, slice_bytes + AV_INPUT_BUFFER_PADDING_SIZE);
         if (!s->slice_buf)
             return AVERROR(ENOMEM);
 
@@ -1319,7 +1321,7 @@ static av_cold int svq3_decode_init(AVCodecContext *avctx)
     return 0;
 }
 
-static void free_picture(SVQ3Frame *pic)
+static void free_picture(AVCodecContext *avctx, SVQ3Frame *pic)
 {
     int i;
     for (i = 0; i < 2; i++) {
@@ -1364,14 +1366,14 @@ static int get_buffer(AVCodecContext *avctx, SVQ3Frame *pic)
         goto fail;
 
     if (!s->edge_emu_buffer) {
-        s->edge_emu_buffer = av_calloc(pic->f->linesize[0], 17);
+        s->edge_emu_buffer = av_mallocz_array(pic->f->linesize[0], 17);
         if (!s->edge_emu_buffer)
             return AVERROR(ENOMEM);
     }
 
     return 0;
 fail:
-    free_picture(pic);
+    free_picture(avctx, pic);
     return ret;
 }
 
@@ -1381,6 +1383,7 @@ static int svq3_decode_frame(AVCodecContext *avctx, void *data,
     SVQ3Context *s     = avctx->priv_data;
     int buf_size       = avpkt->size;
     int left;
+    uint8_t *buf;
     int ret, m, i;
 
     /* special case for last picture */
@@ -1397,7 +1400,17 @@ static int svq3_decode_frame(AVCodecContext *avctx, void *data,
 
     s->mb_x = s->mb_y = s->mb_xy = 0;
 
-    ret = init_get_bits8(&s->gb, avpkt->data, avpkt->size);
+    if (s->watermark_key) {
+        av_fast_padded_malloc(&s->buf, &s->buf_size, buf_size);
+        if (!s->buf)
+            return AVERROR(ENOMEM);
+        memcpy(s->buf, avpkt->data, buf_size);
+        buf = s->buf;
+    } else {
+        buf = avpkt->data;
+    }
+
+    ret = init_get_bits(&s->gb, buf, 8 * buf_size);
     if (ret < 0)
         return ret;
 
@@ -1587,19 +1600,25 @@ static av_cold int svq3_decode_end(AVCodecContext *avctx)
 {
     SVQ3Context *s = avctx->priv_data;
 
-    for (int i = 0; i < FF_ARRAY_ELEMS(s->frames); i++) {
-        free_picture(&s->frames[i]);
-        av_frame_free(&s->frames[i].f);
-    }
+    free_picture(avctx, s->cur_pic);
+    free_picture(avctx, s->next_pic);
+    free_picture(avctx, s->last_pic);
+    av_frame_free(&s->cur_pic->f);
+    av_frame_free(&s->next_pic->f);
+    av_frame_free(&s->last_pic->f);
     av_freep(&s->slice_buf);
     av_freep(&s->intra4x4_pred_mode);
     av_freep(&s->edge_emu_buffer);
     av_freep(&s->mb2br_xy);
 
+
+    av_freep(&s->buf);
+    s->buf_size = 0;
+
     return 0;
 }
 
-const AVCodec ff_svq3_decoder = {
+AVCodec ff_svq3_decoder = {
     .name           = "svq3",
     .long_name      = NULL_IF_CONFIG_SMALL("Sorenson Vector Quantizer 3 / Sorenson Video 3 / SVQ3"),
     .type           = AVMEDIA_TYPE_VIDEO,

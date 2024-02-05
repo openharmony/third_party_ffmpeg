@@ -26,7 +26,6 @@
 #include <float.h>
 
 #include "libavutil/avstring.h"
-#include "libavutil/channel_layout.h"
 #include "libavutil/common.h"
 #include "libavutil/float_dsp.h"
 #include "libavutil/intreadwrite.h"
@@ -225,8 +224,8 @@ static int fir_frame(AudioFIRContext *s, AVFrame *in, AVFilterLink *outlink)
     if (s->pts == AV_NOPTS_VALUE)
         s->pts = in->pts;
     s->in = in;
-    ff_filter_execute(ctx, fir_channels, out, NULL,
-                      FFMIN(outlink->channels, ff_filter_get_nb_threads(ctx)));
+    ctx->internal->execute(ctx, fir_channels, out, NULL, FFMIN(outlink->channels,
+                                                               ff_filter_get_nb_threads(ctx)));
 
     out->pts = s->pts;
     if (s->pts != AV_NOPTS_VALUE)
@@ -715,6 +714,8 @@ static int activate(AVFilterContext *ctx)
 static int query_formats(AVFilterContext *ctx)
 {
     AudioFIRContext *s = ctx->priv;
+    AVFilterFormats *formats;
+    AVFilterChannelLayouts *layouts;
     static const enum AVSampleFormat sample_fmts[] = {
         AV_SAMPLE_FMT_FLTP,
         AV_SAMPLE_FMT_NONE
@@ -727,18 +728,21 @@ static int query_formats(AVFilterContext *ctx)
 
     if (s->response) {
         AVFilterLink *videolink = ctx->outputs[1];
-        AVFilterFormats *formats = ff_make_format_list(pix_fmts);
+        formats = ff_make_format_list(pix_fmts);
         if ((ret = ff_formats_ref(formats, &videolink->incfg.formats)) < 0)
             return ret;
     }
 
+    layouts = ff_all_channel_counts();
+    if (!layouts)
+        return AVERROR(ENOMEM);
+
     if (s->ir_format) {
-        ret = ff_set_common_all_channel_counts(ctx);
+        ret = ff_set_common_channel_layouts(ctx, layouts);
         if (ret < 0)
             return ret;
     } else {
         AVFilterChannelLayouts *mono = NULL;
-        AVFilterChannelLayouts *layouts = ff_all_channel_counts();
 
         if ((ret = ff_channel_layouts_ref(layouts, &ctx->inputs[0]->outcfg.channel_layouts)) < 0)
             return ret;
@@ -754,10 +758,12 @@ static int query_formats(AVFilterContext *ctx)
         }
     }
 
-    if ((ret = ff_set_common_formats_from_list(ctx, sample_fmts)) < 0)
+    formats = ff_make_format_list(sample_fmts);
+    if ((ret = ff_set_common_formats(ctx, formats)) < 0)
         return ret;
 
-    return ff_set_common_all_samplerates(ctx);
+    formats = ff_all_samplerates();
+    return ff_set_common_samplerates(ctx, formats);
 }
 
 static int config_output(AVFilterLink *outlink)
@@ -791,6 +797,9 @@ static av_cold void uninit(AVFilterContext *ctx)
     for (int i = 0; i < s->nb_irs; i++) {
         av_frame_free(&s->ir[i]);
     }
+
+    for (unsigned i = 1; i < ctx->nb_inputs; i++)
+        av_freep(&ctx->input_pads[i].name);
 
     av_frame_free(&s->video);
 }
@@ -833,7 +842,7 @@ static av_cold int init(AVFilterContext *ctx)
         .type = AVMEDIA_TYPE_AUDIO,
     };
 
-    ret = ff_append_inpad(ctx, &pad);
+    ret = ff_insert_inpad(ctx, 0, &pad);
     if (ret < 0)
         return ret;
 
@@ -846,9 +855,11 @@ static av_cold int init(AVFilterContext *ctx)
         if (!pad.name)
             return AVERROR(ENOMEM);
 
-        ret = ff_append_inpad_free_name(ctx, &pad);
-        if (ret < 0)
+        ret = ff_insert_inpad(ctx, n + 1, &pad);
+        if (ret < 0) {
+            av_freep(&pad.name);
             return ret;
+        }
     }
 
     pad = (AVFilterPad) {
@@ -857,7 +868,7 @@ static av_cold int init(AVFilterContext *ctx)
         .config_props  = config_output,
     };
 
-    ret = ff_append_outpad(ctx, &pad);
+    ret = ff_insert_outpad(ctx, 0, &pad);
     if (ret < 0)
         return ret;
 
@@ -868,7 +879,7 @@ static av_cold int init(AVFilterContext *ctx)
             .config_props = config_video,
         };
 
-        ret = ff_append_outpad(ctx, &vpad);
+        ret = ff_insert_outpad(ctx, 1, &vpad);
         if (ret < 0)
             return ret;
     }
@@ -937,12 +948,12 @@ static const AVOption afir_options[] = {
 
 AVFILTER_DEFINE_CLASS(afir);
 
-const AVFilter ff_af_afir = {
+AVFilter ff_af_afir = {
     .name          = "afir",
     .description   = NULL_IF_CONFIG_SMALL("Apply Finite Impulse Response filter with supplied coefficients in additional stream(s)."),
     .priv_size     = sizeof(AudioFIRContext),
     .priv_class    = &afir_class,
-    FILTER_QUERY_FUNC(query_formats),
+    .query_formats = query_formats,
     .init          = init,
     .activate      = activate,
     .uninit        = uninit,

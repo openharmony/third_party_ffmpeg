@@ -23,6 +23,8 @@
 
 #include <stdint.h>
 
+#include "libavutil/avassert.h"
+
 #include "avcodec.h"
 #include "bytestream.h"
 #include "get_bits.h"

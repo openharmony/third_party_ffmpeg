@@ -23,7 +23,6 @@
  */
 
 #include "xavs2.h"
-#include "encode.h"
 #include "mpeg12.h"
 #include "libavutil/avstring.h"
 
@@ -206,7 +205,7 @@ static int xavs2_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
         ret = cae->api->encoder_encode(cae->encoder, &pic, &cae->packet);
 
         if (ret) {
-            av_log(avctx, AV_LOG_ERROR, "Encoding error occurred.\n");
+            av_log(avctx, AV_LOG_ERROR, "Encoding error occured.\n");
             return AVERROR_EXTERNAL;
         }
 
@@ -215,9 +214,10 @@ static int xavs2_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     }
 
     if ((cae->packet.len) && (cae->packet.state != XAVS2_STATE_FLUSH_END)) {
-        if ((ret = ff_get_encode_buffer(avctx, pkt, cae->packet.len, 0)) < 0) {
+        if (av_new_packet(pkt, cae->packet.len) < 0) {
+            av_log(avctx, AV_LOG_ERROR, "Failed to alloc xavs2 packet.\n");
             cae->api->encoder_packet_unref(cae->encoder, &cae->packet);
-            return ret;
+            return AVERROR(ENOMEM);
         }
 
         pkt->pts = cae->packet.pts;
@@ -230,6 +230,7 @@ static int xavs2_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
         }
 
         memcpy(pkt->data, cae->packet.stream, cae->packet.len);
+        pkt->size = cae->packet.len;
 
         cae->api->encoder_packet_unref(cae->encoder, &cae->packet);
 
@@ -284,17 +285,16 @@ static const AVCodecDefault xavs2_defaults[] = {
     { NULL },
 };
 
-const AVCodec ff_libxavs2_encoder = {
+AVCodec ff_libxavs2_encoder = {
     .name           = "libxavs2",
     .long_name      = NULL_IF_CONFIG_SMALL("libxavs2 AVS2-P2/IEEE1857.4"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_AVS2,
-    .capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY |
-                      AV_CODEC_CAP_OTHER_THREADS,
     .priv_data_size = sizeof(XAVS2EContext),
     .init           = xavs2_init,
     .encode2        = xavs2_encode_frame,
     .close          = xavs2_close,
+    .capabilities   = AV_CODEC_CAP_DELAY | AV_CODEC_CAP_OTHER_THREADS,
     .caps_internal  = FF_CODEC_CAP_AUTO_THREADS,
     .pix_fmts       = (const enum AVPixelFormat[]) { AV_PIX_FMT_YUV420P,
                                                      AV_PIX_FMT_NONE },

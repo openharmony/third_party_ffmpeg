@@ -412,6 +412,7 @@ static const AVFilterPad ahistogram_inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .config_props = config_input,
     },
+    { NULL }
 };
 
 static const AVFilterPad ahistogram_outputs[] = {
@@ -420,16 +421,17 @@ static const AVFilterPad ahistogram_outputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .config_props = config_output,
     },
+    { NULL }
 };
 
-const AVFilter ff_avf_ahistogram = {
+AVFilter ff_avf_ahistogram = {
     .name          = "ahistogram",
     .description   = NULL_IF_CONFIG_SMALL("Convert input audio to histogram video output."),
     .uninit        = uninit,
+    .query_formats = query_formats,
     .priv_size     = sizeof(AudioHistogramContext),
     .activate      = activate,
-    FILTER_INPUTS(ahistogram_inputs),
-    FILTER_OUTPUTS(ahistogram_outputs),
-    FILTER_QUERY_FUNC(query_formats),
+    .inputs        = ahistogram_inputs,
+    .outputs       = ahistogram_outputs,
     .priv_class    = &ahistogram_class,
 };

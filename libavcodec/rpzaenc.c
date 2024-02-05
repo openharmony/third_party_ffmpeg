@@ -28,7 +28,6 @@
 #include "libavutil/opt.h"
 
 #include "avcodec.h"
-#include "encode.h"
 #include "internal.h"
 #include "put_bits.h"
 
@@ -205,7 +204,7 @@ static void get_max_component_diff(BlockInfo *bi, uint16_t *block_ptr,
 
     // loop thru and compare pixels
     for (y = 0; y < bi->block_height; y++) {
-        for (x = 0; x < bi->block_width; x++){
+        for (x = 0; x < bi->block_width; x++) {
             // TODO:  optimize
             min_r = FFMIN(R(block_ptr[x]), min_r);
             min_g = FFMIN(G(block_ptr[x]), min_g);
@@ -277,7 +276,7 @@ static int leastsquares(uint16_t *block_ptr, BlockInfo *bi,
         return -1;
 
     for (i = 0; i < bi->block_height; i++) {
-        for (j = 0; j < bi->block_width; j++){
+        for (j = 0; j < bi->block_width; j++) {
             x = GET_CHAN(block_ptr[j], xchannel);
             y = GET_CHAN(block_ptr[j], ychannel);
             sumx += x;
@@ -324,7 +323,7 @@ static int calc_lsq_max_fit_error(uint16_t *block_ptr, BlockInfo *bi,
     int max_err = 0;
 
     for (i = 0; i < bi->block_height; i++) {
-        for (j = 0; j < bi->block_width; j++){
+        for (j = 0; j < bi->block_width; j++) {
             int x_inc, lin_y, lin_x;
             x = GET_CHAN(block_ptr[j], xchannel);
             y = GET_CHAN(block_ptr[j], ychannel);
@@ -420,6 +419,7 @@ static void update_block_in_prev_frame(const uint16_t *src_pixels,
                                        const BlockInfo *bi, int block_counter)
 {
     const int y_size = FFMIN(4, bi->image_height - bi->row * 4);
+
     for (int y = 0; y < y_size; y++) {
         memcpy(dest_pixels, src_pixels, 8);
         dest_pixels += bi->rowstride;
@@ -736,18 +736,21 @@ post_skip :
 
                 row_ptr = &src_pixels[block_offset];
                 y_size = FFMIN(4, bi.image_height - bi.row * 4);
+
                 for (int y = 0; y < y_size; y++) {
-                    for (int x = 0; x < 4; x++){
+                    for (int x = 0; x < 4; x++) {
                         rgb555 = row_ptr[x] & ~0x8000;
 
                         put_bits(&s->pb, 16, rgb555);
                     }
                     row_ptr += bi.rowstride;
                 }
+
                 for (int y = y_size; y < 4; y++) {
                     for (int x = 0; x < 4; x++)
                         put_bits(&s->pb, 16, 0);
                 }
+
                 block_counter++;
             } else { // FOUR COLOR BLOCK
                 block_counter += encode_four_color_block(min_color, max_color,
@@ -781,9 +784,9 @@ static int rpza_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     RpzaContext *s = avctx->priv_data;
     const AVFrame *pict = frame;
     uint8_t *buf;
-    int ret = ff_alloc_packet(avctx, pkt, 6LL * avctx->height * avctx->width);
+    int ret;
 
-    if (ret < 0)
+    if ((ret = ff_alloc_packet2(avctx, pkt, 6LL * avctx->height * avctx->width, 0)) < 0)
         return ret;
 
     init_put_bits(&s->pb, pkt->data, pkt->size);
@@ -807,7 +810,7 @@ static int rpza_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
     flush_put_bits(&s->pb);
 
-    av_shrink_packet(pkt, put_bytes_output(&s->pb));
+    av_shrink_packet(pkt, put_bits_count(&s->pb) >> 3);
     buf = pkt->data;
 
     // write header opcode
@@ -847,7 +850,7 @@ static const AVClass rpza_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const AVCodec ff_rpza_encoder = {
+AVCodec ff_rpza_encoder = {
     .name           = "rpza",
     .long_name      = NULL_IF_CONFIG_SMALL("QuickTime video (RPZA)"),
     .type           = AVMEDIA_TYPE_VIDEO,

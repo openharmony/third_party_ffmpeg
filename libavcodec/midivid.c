@@ -202,7 +202,12 @@ static int decode_frame(AVCodecContext *avctx, void *data,
     bytestream2_skip(gb, 8);
     uncompressed = bytestream2_get_le32(gb);
 
-    if (!uncompressed) {
+    if ((ret = ff_reget_buffer(avctx, s->frame, 0)) < 0)
+        return ret;
+
+    if (uncompressed) {
+        ret = decode_mvdv(s, avctx, frame);
+    } else {
         av_fast_padded_malloc(&s->uncompressed, &s->uncompressed_size, 16LL * (avpkt->size - 12));
         if (!s->uncompressed)
             return AVERROR(ENOMEM);
@@ -211,12 +216,8 @@ static int decode_frame(AVCodecContext *avctx, void *data,
         if (ret < 0)
             return ret;
         bytestream2_init(gb, s->uncompressed, ret);
+        ret = decode_mvdv(s, avctx, frame);
     }
-
-    if ((ret = ff_reget_buffer(avctx, s->frame, 0)) < 0)
-        return ret;
-
-    ret = decode_mvdv(s, avctx, frame);
 
     if (ret < 0)
         return ret;
@@ -276,7 +277,7 @@ static av_cold int decode_close(AVCodecContext *avctx)
     return 0;
 }
 
-const AVCodec ff_mvdv_decoder = {
+AVCodec ff_mvdv_decoder = {
     .name           = "mvdv",
     .long_name      = NULL_IF_CONFIG_SMALL("MidiVid VQ"),
     .type           = AVMEDIA_TYPE_VIDEO,
@@ -287,5 +288,5 @@ const AVCodec ff_mvdv_decoder = {
     .flush          = decode_flush,
     .close          = decode_close,
     .capabilities   = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
 };

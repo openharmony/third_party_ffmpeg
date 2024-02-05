@@ -116,7 +116,16 @@ static const struct {
     #if CONFIG_HEVC_DECODER
         { "hevc_add_res", checkasm_check_hevc_add_res },
         { "hevc_idct", checkasm_check_hevc_idct },
-        { "hevc_pel", checkasm_check_hevc_pel },
+        { "hevc_qpel", checkasm_check_hevc_qpel },
+        { "hevc_qpel_uni", checkasm_check_hevc_qpel_uni },
+        { "hevc_qpel_uni_w", checkasm_check_hevc_qpel_uni_w },
+        { "hevc_qpel_bi", checkasm_check_hevc_qpel_bi },
+        { "hevc_qpel_bi_w", checkasm_check_hevc_qpel_bi_w },
+        { "hevc_epel", checkasm_check_hevc_epel },
+        { "hevc_epel_uni", checkasm_check_hevc_epel_uni },
+        { "hevc_epel_uni_w", checkasm_check_hevc_epel_uni_w },
+        { "hevc_epel_bi", checkasm_check_hevc_epel_bi },
+        { "hevc_epel_bi_w", checkasm_check_hevc_epel_bi_w },
         { "hevc_sao", checkasm_check_hevc_sao },
     #endif
     #if CONFIG_HUFFYUV_DECODER
@@ -189,7 +198,6 @@ static const struct {
 #if CONFIG_AVUTIL
         { "fixed_dsp", checkasm_check_fixed_dsp },
         { "float_dsp", checkasm_check_float_dsp },
-        { "av_tx",     checkasm_check_av_tx },
 #endif
     { NULL }
 };
@@ -236,9 +244,6 @@ static const struct {
     { "FMA4",     "fma4",     AV_CPU_FLAG_FMA4 },
     { "AVX2",     "avx2",     AV_CPU_FLAG_AVX2 },
     { "AVX-512",  "avx512",   AV_CPU_FLAG_AVX512 },
-#elif ARCH_LOONGARCH
-    { "LSX",      "lsx",      AV_CPU_FLAG_LSX },
-    { "LASX",     "lasx",     AV_CPU_FLAG_LASX },
 #endif
     { NULL }
 };
@@ -632,13 +637,9 @@ static int bench_init_linux(void)
     }
     return 0;
 }
-#elif CONFIG_MACOS_KPERF
-static int bench_init_kperf(void)
-{
-    ff_kperf_init();
-    return 0;
-}
-#else
+#endif
+
+#if !CONFIG_LINUX_PERF
 static int bench_init_ffmpeg(void)
 {
 #ifdef AV_READ_TIME
@@ -655,8 +656,6 @@ static int bench_init(void)
 {
 #if CONFIG_LINUX_PERF
     int ret = bench_init_linux();
-#elif CONFIG_MACOS_KPERF
-    int ret = bench_init_kperf();
 #else
     int ret = bench_init_ffmpeg();
 #endif

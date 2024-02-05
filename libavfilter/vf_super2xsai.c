@@ -245,13 +245,21 @@ static int super2xsai(AVFilterContext *ctx, void *arg, int jobnr, int nb_jobs)
     return 0;
 }
 
-static const enum AVPixelFormat pix_fmts[] = {
-    AV_PIX_FMT_RGBA, AV_PIX_FMT_BGRA, AV_PIX_FMT_ARGB, AV_PIX_FMT_ABGR,
-    AV_PIX_FMT_RGB24, AV_PIX_FMT_BGR24,
-    AV_PIX_FMT_RGB565BE, AV_PIX_FMT_BGR565BE, AV_PIX_FMT_RGB555BE, AV_PIX_FMT_BGR555BE,
-    AV_PIX_FMT_RGB565LE, AV_PIX_FMT_BGR565LE, AV_PIX_FMT_RGB555LE, AV_PIX_FMT_BGR555LE,
-    AV_PIX_FMT_NONE
-};
+static int query_formats(AVFilterContext *ctx)
+{
+    static const enum AVPixelFormat pix_fmts[] = {
+        AV_PIX_FMT_RGBA, AV_PIX_FMT_BGRA, AV_PIX_FMT_ARGB, AV_PIX_FMT_ABGR,
+        AV_PIX_FMT_RGB24, AV_PIX_FMT_BGR24,
+        AV_PIX_FMT_RGB565BE, AV_PIX_FMT_BGR565BE, AV_PIX_FMT_RGB555BE, AV_PIX_FMT_BGR555BE,
+        AV_PIX_FMT_RGB565LE, AV_PIX_FMT_BGR565LE, AV_PIX_FMT_RGB555LE, AV_PIX_FMT_BGR555LE,
+        AV_PIX_FMT_NONE
+    };
+
+    AVFilterFormats *fmts_list = ff_make_format_list(pix_fmts);
+    if (!fmts_list)
+        return AVERROR(ENOMEM);
+    return ff_set_common_formats(ctx, fmts_list);
+}
 
 static int config_input(AVFilterLink *inlink)
 {
@@ -326,8 +334,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     out->height = outlink->h;
 
     td.in = in, td.out = out;
-    ff_filter_execute(ctx, super2xsai, &td, NULL,
-                      FFMIN(in->height, ff_filter_get_nb_threads(ctx)));
+    ctx->internal->execute(ctx, super2xsai, &td, NULL, FFMIN(in->height, ff_filter_get_nb_threads(ctx)));
 
     av_frame_free(&in);
     return ff_filter_frame(outlink, out);
@@ -340,6 +347,7 @@ static const AVFilterPad super2xsai_inputs[] = {
         .config_props = config_input,
         .filter_frame = filter_frame,
     },
+    { NULL }
 };
 
 static const AVFilterPad super2xsai_outputs[] = {
@@ -348,14 +356,15 @@ static const AVFilterPad super2xsai_outputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .config_props = config_output,
     },
+    { NULL }
 };
 
-const AVFilter ff_vf_super2xsai = {
+AVFilter ff_vf_super2xsai = {
     .name          = "super2xsai",
     .description   = NULL_IF_CONFIG_SMALL("Scale the input by 2x using the Super2xSaI pixel art algorithm."),
     .priv_size     = sizeof(Super2xSaIContext),
-    FILTER_INPUTS(super2xsai_inputs),
-    FILTER_OUTPUTS(super2xsai_outputs),
-    FILTER_PIXFMTS_ARRAY(pix_fmts),
+    .query_formats = query_formats,
+    .inputs        = super2xsai_inputs,
+    .outputs       = super2xsai_outputs,
     .flags         = AVFILTER_FLAG_SLICE_THREADS,
 };

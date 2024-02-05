@@ -200,11 +200,8 @@ static int rtsp_write_packet(AVFormatContext *s, AVPacket *pkt)
             ret = ff_rtsp_read_reply(s, &reply, NULL, 1, NULL);
             if (ret < 0)
                 return AVERROR(EPIPE);
-            if (ret == 1) {
-                ret = ff_rtsp_skip_packet(s);
-                if (ret < 0)
-                    return ret;
-            }
+            if (ret == 1)
+                ff_rtsp_skip_packet(s);
             /* XXX: parse message */
             if (rt->state != RTSP_STATE_STREAMING)
                 return AVERROR(EPIPE);
@@ -243,7 +240,7 @@ static int rtsp_write_close(AVFormatContext *s)
     return 0;
 }
 
-const AVOutputFormat ff_rtsp_muxer = {
+AVOutputFormat ff_rtsp_muxer = {
     .name              = "rtsp",
     .long_name         = NULL_IF_CONFIG_SMALL("RTSP output"),
     .priv_data_size    = sizeof(RTSPState),

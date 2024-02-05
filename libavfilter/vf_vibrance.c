@@ -285,27 +285,38 @@ static int filter_frame(AVFilterLink *link, AVFrame *frame)
     VibranceContext *s = avctx->priv;
     int res;
 
-    if (res = ff_filter_execute(avctx, s->do_slice, frame, NULL,
-                                FFMIN(frame->height, ff_filter_get_nb_threads(avctx))))
+    if (res = avctx->internal->execute(avctx, s->do_slice, frame, NULL,
+                                       FFMIN(frame->height, ff_filter_get_nb_threads(avctx))))
         return res;
 
     return ff_filter_frame(avctx->outputs[0], frame);
 }
 
-static const enum AVPixelFormat pixel_fmts[] = {
-    AV_PIX_FMT_RGB24, AV_PIX_FMT_BGR24,
-    AV_PIX_FMT_RGBA, AV_PIX_FMT_BGRA,
-    AV_PIX_FMT_ARGB, AV_PIX_FMT_ABGR,
-    AV_PIX_FMT_0RGB, AV_PIX_FMT_0BGR,
-    AV_PIX_FMT_RGB0, AV_PIX_FMT_BGR0,
-    AV_PIX_FMT_GBRP, AV_PIX_FMT_GBRAP,
-    AV_PIX_FMT_GBRP9, AV_PIX_FMT_GBRP10, AV_PIX_FMT_GBRP12,
-    AV_PIX_FMT_GBRP14, AV_PIX_FMT_GBRP16,
-    AV_PIX_FMT_GBRAP10, AV_PIX_FMT_GBRAP12, AV_PIX_FMT_GBRAP16,
-    AV_PIX_FMT_RGB48,  AV_PIX_FMT_BGR48,
-    AV_PIX_FMT_RGBA64, AV_PIX_FMT_BGRA64,
-    AV_PIX_FMT_NONE
-};
+static av_cold int query_formats(AVFilterContext *avctx)
+{
+    static const enum AVPixelFormat pixel_fmts[] = {
+        AV_PIX_FMT_RGB24, AV_PIX_FMT_BGR24,
+        AV_PIX_FMT_RGBA, AV_PIX_FMT_BGRA,
+        AV_PIX_FMT_ARGB, AV_PIX_FMT_ABGR,
+        AV_PIX_FMT_0RGB, AV_PIX_FMT_0BGR,
+        AV_PIX_FMT_RGB0, AV_PIX_FMT_BGR0,
+        AV_PIX_FMT_GBRP, AV_PIX_FMT_GBRAP,
+        AV_PIX_FMT_GBRP9, AV_PIX_FMT_GBRP10, AV_PIX_FMT_GBRP12,
+        AV_PIX_FMT_GBRP14, AV_PIX_FMT_GBRP16,
+        AV_PIX_FMT_GBRAP10, AV_PIX_FMT_GBRAP12, AV_PIX_FMT_GBRAP16,
+        AV_PIX_FMT_RGB48,  AV_PIX_FMT_BGR48,
+        AV_PIX_FMT_RGBA64, AV_PIX_FMT_BGRA64,
+        AV_PIX_FMT_NONE
+    };
+
+    AVFilterFormats *formats = NULL;
+
+    formats = ff_make_format_list(pixel_fmts);
+    if (!formats)
+        return AVERROR(ENOMEM);
+
+    return ff_set_common_formats(avctx, formats);
+}
 
 static av_cold int config_input(AVFilterLink *inlink)
 {
@@ -335,10 +346,11 @@ static const AVFilterPad vibrance_inputs[] = {
     {
         .name           = "default",
         .type           = AVMEDIA_TYPE_VIDEO,
-        .flags          = AVFILTERPAD_FLAG_NEEDS_WRITABLE,
+        .needs_writable = 1,
         .filter_frame   = filter_frame,
         .config_props   = config_input,
     },
+    { NULL }
 };
 
 static const AVFilterPad vibrance_outputs[] = {
@@ -346,6 +358,7 @@ static const AVFilterPad vibrance_outputs[] = {
         .name = "default",
         .type = AVMEDIA_TYPE_VIDEO,
     },
+    { NULL }
 };
 
 #define OFFSET(x) offsetof(VibranceContext, x)
@@ -365,14 +378,14 @@ static const AVOption vibrance_options[] = {
 
 AVFILTER_DEFINE_CLASS(vibrance);
 
-const AVFilter ff_vf_vibrance = {
+AVFilter ff_vf_vibrance = {
     .name          = "vibrance",
     .description   = NULL_IF_CONFIG_SMALL("Boost or alter saturation."),
     .priv_size     = sizeof(VibranceContext),
     .priv_class    = &vibrance_class,
-    FILTER_INPUTS(vibrance_inputs),
-    FILTER_OUTPUTS(vibrance_outputs),
-    FILTER_PIXFMTS_ARRAY(pixel_fmts),
+    .query_formats = query_formats,
+    .inputs        = vibrance_inputs,
+    .outputs       = vibrance_outputs,
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
     .process_command = ff_filter_process_command,
 };

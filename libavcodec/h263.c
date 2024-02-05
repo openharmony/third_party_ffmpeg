@@ -27,16 +27,17 @@
  * H.263/MPEG-4 codec.
  */
 
+#include <limits.h>
+
 #include "libavutil/thread.h"
+#include "avcodec.h"
 #include "mpegvideo.h"
 #include "h263.h"
 #include "h263data.h"
-#include "h263dsp.h"
-#include "idctdsp.h"
 #include "mathops.h"
-#include "mpegpicture.h"
 #include "mpegutils.h"
-#include "rl.h"
+#include "flv.h"
+#include "mpeg4video.h"
 
 static av_cold void h263_init_rl_inter(void)
 {

@@ -308,7 +308,7 @@ static int ty_read_header(AVFormatContext *s)
         return AVERROR(ENOMEM);
     st->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codecpar->codec_id   = AV_CODEC_ID_MPEG2VIDEO;
-    ffstream(st)->need_parsing = AVSTREAM_PARSE_FULL_RAW;
+    st->need_parsing         = AVSTREAM_PARSE_FULL_RAW;
     avpriv_set_pts_info(st, 64, 1, 90000);
 
     ast = avformat_new_stream(s, NULL);
@@ -318,7 +318,7 @@ static int ty_read_header(AVFormatContext *s)
 
     if (ty->audio_type == TIVO_AUDIO_MPEG) {
         ast->codecpar->codec_id = AV_CODEC_ID_MP2;
-        ffstream(ast)->need_parsing = AVSTREAM_PARSE_FULL_RAW;
+        ast->need_parsing       = AVSTREAM_PARSE_FULL_RAW;
     } else {
         ast->codecpar->codec_id = AV_CODEC_ID_AC3;
     }
@@ -710,7 +710,7 @@ static int ty_read_close(AVFormatContext *s)
     return 0;
 }
 
-const AVInputFormat ff_ty_demuxer = {
+AVInputFormat ff_ty_demuxer = {
     .name           = "ty",
     .long_name      = NULL_IF_CONFIG_SMALL("TiVo TY Stream"),
     .priv_data_size = sizeof(TYDemuxContext),

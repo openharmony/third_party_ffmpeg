@@ -24,9 +24,7 @@
 
 #include "libavutil/buffer.h"
 
-#include "codec_id.h"
-#include "codec_par.h"
-#include "packet.h"
+#include "avcodec.h"
 
 
 /*
@@ -42,7 +40,6 @@
  * bitstream.
  */
 
-struct AVCodecContext;
 struct CodedBitstreamType;
 
 /**
@@ -274,11 +271,7 @@ int ff_cbs_read_extradata(CodedBitstreamContext *ctx,
  */
 int ff_cbs_read_extradata_from_codec(CodedBitstreamContext *ctx,
                                      CodedBitstreamFragment *frag,
-                                     const struct AVCodecContext *avctx);
-
-int ff_cbs_read_packet_side_data(CodedBitstreamContext *ctx,
-                                 CodedBitstreamFragment *frag,
-                                 const AVPacket *pkt);
+                                     const AVCodecContext *avctx);
 
 /**
  * Read the data bitstream from a packet into a fragment, then
@@ -379,6 +372,15 @@ int ff_cbs_alloc_unit_content(CodedBitstreamUnit *unit,
  */
 int ff_cbs_alloc_unit_content2(CodedBitstreamContext *ctx,
                                CodedBitstreamUnit *unit);
+
+
+/**
+ * Allocate a new internal data buffer of the given size in the unit.
+ *
+ * The data buffer will have input padding.
+ */
+int ff_cbs_alloc_unit_data(CodedBitstreamUnit *unit,
+                           size_t size);
 
 /**
  * Insert a new unit into a fragment with the given content.

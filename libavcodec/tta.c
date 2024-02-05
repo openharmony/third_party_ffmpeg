@@ -29,7 +29,6 @@
 
 #include <limits.h>
 
-#include "libavutil/channel_layout.h"
 #include "libavutil/crc.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/opt.h"
@@ -107,8 +106,7 @@ static int allocate_buffers(AVCodecContext *avctx)
     TTAContext *s = avctx->priv_data;
 
     if (s->bps < 3) {
-        s->decode_buffer = av_calloc(s->frame_length,
-                                     sizeof(*s->decode_buffer) * s->channels);
+        s->decode_buffer = av_mallocz_array(sizeof(int32_t)*s->frame_length, s->channels);
         if (!s->decode_buffer)
             return AVERROR(ENOMEM);
     } else
@@ -373,15 +371,8 @@ static int tta_decode_frame(AVCodecContext *avctx, void *data,
     case 3: {
         // shift samples for 24-bit sample format
         int32_t *samples = (int32_t *)frame->data[0];
-        int overflow = 0;
-
-        for (i = 0; i < framelen * s->channels; i++) {
-            int scaled = *samples * 256U;
-            overflow += (scaled >> 8 != *samples);
-            *samples++ = scaled;
-        }
-        if (overflow)
-            av_log(avctx, AV_LOG_WARNING, "%d overflows occurred on 24bit upscale\n", overflow);
+        for (i = 0; i < framelen * s->channels; i++)
+            *samples++ *= 256;
         // reset decode buffer
         s->decode_buffer = NULL;
         break;
@@ -423,7 +414,7 @@ static const AVClass tta_decoder_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const AVCodec ff_tta_decoder = {
+AVCodec ff_tta_decoder = {
     .name           = "tta",
     .long_name      = NULL_IF_CONFIG_SMALL("TTA (True Audio)"),
     .type           = AVMEDIA_TYPE_AUDIO,
@@ -434,5 +425,4 @@ const AVCodec ff_tta_decoder = {
     .decode         = tta_decode_frame,
     .capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_FRAME_THREADS | AV_CODEC_CAP_CHANNEL_CONF,
     .priv_class     = &tta_decoder_class,
-    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

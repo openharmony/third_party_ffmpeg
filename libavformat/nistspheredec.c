@@ -132,7 +132,7 @@ static int nist_read_header(AVFormatContext *s)
     return AVERROR_EOF;
 }
 
-const AVInputFormat ff_nistsphere_demuxer = {
+AVInputFormat ff_nistsphere_demuxer = {
     .name           = "nistsphere",
     .long_name      = NULL_IF_CONFIG_SMALL("NIST SPeech HEader REsources"),
     .read_probe     = nist_probe,

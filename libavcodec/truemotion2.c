@@ -1008,7 +1008,7 @@ static av_cold int decode_end(AVCodecContext *avctx)
     return 0;
 }
 
-const AVCodec ff_truemotion2_decoder = {
+AVCodec ff_truemotion2_decoder = {
     .name           = "truemotion2",
     .long_name      = NULL_IF_CONFIG_SMALL("Duck TrueMotion 2.0"),
     .type           = AVMEDIA_TYPE_VIDEO,

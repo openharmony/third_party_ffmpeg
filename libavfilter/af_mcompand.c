@@ -28,6 +28,7 @@
  * audio multiband compand filter
  */
 
+#include "libavutil/avassert.h"
 #include "libavutil/avstring.h"
 #include "libavutil/ffmath.h"
 #include "libavutil/opt.h"
@@ -120,6 +121,36 @@ static av_cold void uninit(AVFilterContext *ctx)
         }
     }
     av_freep(&s->bands);
+}
+
+static int query_formats(AVFilterContext *ctx)
+{
+    AVFilterChannelLayouts *layouts;
+    AVFilterFormats *formats;
+    static const enum AVSampleFormat sample_fmts[] = {
+        AV_SAMPLE_FMT_DBLP,
+        AV_SAMPLE_FMT_NONE
+    };
+    int ret;
+
+    layouts = ff_all_channel_counts();
+    if (!layouts)
+        return AVERROR(ENOMEM);
+    ret = ff_set_common_channel_layouts(ctx, layouts);
+    if (ret < 0)
+        return ret;
+
+    formats = ff_make_format_list(sample_fmts);
+    if (!formats)
+        return AVERROR(ENOMEM);
+    ret = ff_set_common_formats(ctx, formats);
+    if (ret < 0)
+        return ret;
+
+    formats = ff_all_samplerates();
+    if (!formats)
+        return AVERROR(ENOMEM);
+    return ff_set_common_samplerates(ctx, formats);
 }
 
 static void count_items(char *item_str, int *nb_items, char delimiter)
@@ -353,9 +384,6 @@ static int config_output(AVFilterLink *outlink)
         s->bands[i].attack_rate = av_calloc(outlink->channels, sizeof(double));
         s->bands[i].decay_rate = av_calloc(outlink->channels, sizeof(double));
         s->bands[i].volume = av_calloc(outlink->channels, sizeof(double));
-        if (!s->bands[i].attack_rate || !s->bands[i].decay_rate || !s->bands[i].volume)
-            return AVERROR(ENOMEM);
-
         for (k = 0; k < FFMIN(nb_attacks / 2, outlink->channels); k++) {
             char *tstr3 = av_strtok(p3, ",", &saveptr3);
 
@@ -621,6 +649,7 @@ static const AVFilterPad mcompand_inputs[] = {
         .type           = AVMEDIA_TYPE_AUDIO,
         .filter_frame   = filter_frame,
     },
+    { NULL }
 };
 
 static const AVFilterPad mcompand_outputs[] = {
@@ -630,17 +659,18 @@ static const AVFilterPad mcompand_outputs[] = {
         .request_frame = request_frame,
         .config_props  = config_output,
     },
+    { NULL }
 };
 
 
-const AVFilter ff_af_mcompand = {
+AVFilter ff_af_mcompand = {
     .name           = "mcompand",
     .description    = NULL_IF_CONFIG_SMALL(
             "Multiband Compress or expand audio dynamic range."),
+    .query_formats  = query_formats,
     .priv_size      = sizeof(MCompandContext),
     .priv_class     = &mcompand_class,
     .uninit         = uninit,
-    FILTER_INPUTS(mcompand_inputs),
-    FILTER_OUTPUTS(mcompand_outputs),
-    FILTER_SINGLE_SAMPLEFMT(AV_SAMPLE_FMT_DBLP),
+    .inputs         = mcompand_inputs,
+    .outputs        = mcompand_outputs,
 };

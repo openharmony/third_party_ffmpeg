@@ -18,8 +18,6 @@
 
 #include <string.h>
 
-#include "config.h"
-
 #include "libavutil/avassert.h"
 #include "libavutil/log.h"
 #include "libavutil/mem.h"
@@ -34,35 +32,29 @@
 
 #define IS_EMPTY(pkt) (!(pkt)->data && !(pkt)->side_data_elems)
 
-typedef struct FFBSFContext {
-    AVBSFContext pub;
+struct AVBSFInternal {
     AVPacket *buffer_pkt;
     int eof;
-} FFBSFContext;
-
-static av_always_inline FFBSFContext *ffbsfcontext(AVBSFContext *ctx)
-{
-    return (FFBSFContext *)ctx;
-}
+};
 
 void av_bsf_free(AVBSFContext **pctx)
 {
     AVBSFContext *ctx;
-    FFBSFContext *bsfi;
 
     if (!pctx || !*pctx)
         return;
-    ctx  = *pctx;
-    bsfi = ffbsfcontext(ctx);
+    ctx = *pctx;
 
-    if (ctx->priv_data) {
+    if (ctx->internal) {
         if (ctx->filter->close)
             ctx->filter->close(ctx);
-        if (ctx->filter->priv_class)
-            av_opt_free(ctx->priv_data);
-        av_freep(&ctx->priv_data);
+        av_packet_free(&ctx->internal->buffer_pkt);
+        av_freep(&ctx->internal);
     }
-    av_packet_free(&bsfi->buffer_pkt);
+    if (ctx->filter->priv_class && ctx->priv_data)
+        av_opt_free(ctx->priv_data);
+
+    av_freep(&ctx->priv_data);
 
     avcodec_parameters_free(&ctx->par_in);
     avcodec_parameters_free(&ctx->par_out);
@@ -88,6 +80,9 @@ static const AVClass bsf_class = {
     .item_name        = bsf_to_name,
     .version          = LIBAVUTIL_VERSION_INT,
     .child_next       = bsf_child_next,
+#if FF_API_CHILD_CLASS_NEXT
+    .child_class_next = ff_bsf_child_class_next,
+#endif
     .child_class_iterate = ff_bsf_child_class_iterate,
     .category         = AV_CLASS_CATEGORY_BITSTREAM_FILTER,
 };
@@ -100,13 +95,12 @@ const AVClass *av_bsf_get_class(void)
 int av_bsf_alloc(const AVBitStreamFilter *filter, AVBSFContext **pctx)
 {
     AVBSFContext *ctx;
-    FFBSFContext *bsfi;
+    AVBSFInternal *bsfi;
     int ret;
 
-    bsfi = av_mallocz(sizeof(*bsfi));
-    if (!bsfi)
+    ctx = av_mallocz(sizeof(*ctx));
+    if (!ctx)
         return AVERROR(ENOMEM);
-    ctx  = &bsfi->pub;
 
     ctx->av_class = &bsf_class;
     ctx->filter   = filter;
@@ -129,6 +123,15 @@ int av_bsf_alloc(const AVBitStreamFilter *filter, AVBSFContext **pctx)
             av_opt_set_defaults(ctx->priv_data);
         }
     }
+    /* Allocate AVBSFInternal; must happen after priv_data has been allocated
+     * so that a filter->close needing priv_data is never called without. */
+    bsfi = av_mallocz(sizeof(*bsfi));
+    if (!bsfi) {
+        ret = AVERROR(ENOMEM);
+        goto fail;
+    }
+    ctx->internal = bsfi;
+
     bsfi->buffer_pkt = av_packet_alloc();
     if (!bsfi->buffer_pkt) {
         ret = AVERROR(ENOMEM);
@@ -157,9 +160,9 @@ int av_bsf_init(AVBSFContext *ctx)
                    "bitstream filter '%s'. Supported codecs are: ",
                    desc ? desc->name : "unknown", ctx->par_in->codec_id, ctx->filter->name);
             for (i = 0; ctx->filter->codec_ids[i] != AV_CODEC_ID_NONE; i++) {
-                enum AVCodecID codec_id = ctx->filter->codec_ids[i];
+                desc = avcodec_descriptor_get(ctx->filter->codec_ids[i]);
                 av_log(ctx, AV_LOG_ERROR, "%s (%d) ",
-                       avcodec_get_name(codec_id), codec_id);
+                       desc ? desc->name : "unknown", ctx->filter->codec_ids[i]);
             }
             av_log(ctx, AV_LOG_ERROR, "\n");
             return AVERROR(EINVAL);
@@ -185,7 +188,7 @@ int av_bsf_init(AVBSFContext *ctx)
 
 void av_bsf_flush(AVBSFContext *ctx)
 {
-    FFBSFContext *const bsfi = ffbsfcontext(ctx);
+    AVBSFInternal *bsfi = ctx->internal;
 
     bsfi->eof = 0;
 
@@ -197,12 +200,10 @@ void av_bsf_flush(AVBSFContext *ctx)
 
 int av_bsf_send_packet(AVBSFContext *ctx, AVPacket *pkt)
 {
-    FFBSFContext *const bsfi = ffbsfcontext(ctx);
+    AVBSFInternal *bsfi = ctx->internal;
     int ret;
 
     if (!pkt || IS_EMPTY(pkt)) {
-        if (pkt)
-            av_packet_unref(pkt);
         bsfi->eof = 1;
         return 0;
     }
@@ -230,7 +231,7 @@ int av_bsf_receive_packet(AVBSFContext *ctx, AVPacket *pkt)
 
 int ff_bsf_get_packet(AVBSFContext *ctx, AVPacket **pkt)
 {
-    FFBSFContext *const bsfi = ffbsfcontext(ctx);
+    AVBSFInternal *bsfi = ctx->internal;
     AVPacket *tmp_pkt;
 
     if (bsfi->eof)
@@ -251,7 +252,7 @@ int ff_bsf_get_packet(AVBSFContext *ctx, AVPacket **pkt)
 
 int ff_bsf_get_packet_ref(AVBSFContext *ctx, AVPacket *pkt)
 {
-    FFBSFContext *const bsfi = ffbsfcontext(ctx);
+    AVBSFInternal *bsfi = ctx->internal;
 
     if (bsfi->eof)
         return AVERROR_EOF;
@@ -398,7 +399,7 @@ static const AVClass bsf_list_class = {
         .version    = LIBAVUTIL_VERSION_INT,
 };
 
-static const AVBitStreamFilter list_bsf = {
+const AVBitStreamFilter ff_list_bsf = {
         .name           = "bsf_list",
         .priv_data_size = sizeof(BSFListContext),
         .priv_class     = &bsf_list_class,
@@ -494,7 +495,7 @@ int av_bsf_list_finalize(AVBSFList **lst, AVBSFContext **bsf)
         goto end;
     }
 
-    ret = av_bsf_alloc(&list_bsf, bsf);
+    ret = av_bsf_alloc(&ff_list_bsf, bsf);
     if (ret < 0)
         return ret;
 
@@ -522,6 +523,7 @@ static int bsf_parse_single(char *str, AVBSFList *bsf_lst)
 int av_bsf_list_parse_str(const char *str, AVBSFContext **bsf_lst)
 {
     AVBSFList *lst;
+    char *bsf_str, *buf, *dup, *saveptr;
     int ret;
 
     if (!str)
@@ -531,27 +533,28 @@ int av_bsf_list_parse_str(const char *str, AVBSFContext **bsf_lst)
     if (!lst)
         return AVERROR(ENOMEM);
 
-    do {
-        char *bsf_str = av_get_token(&str, ",");
+    if (!(dup = buf = av_strdup(str))) {
+        ret = AVERROR(ENOMEM);
+        goto end;
+    }
+
+    while (bsf_str = av_strtok(buf, ",", &saveptr)) {
         ret = bsf_parse_single(bsf_str, lst);
-        av_free(bsf_str);
         if (ret < 0)
             goto end;
-    } while (*str && *++str);
+
+        buf = NULL;
+    }
 
     ret = av_bsf_list_finalize(&lst, bsf_lst);
 end:
     if (ret < 0)
         av_bsf_list_free(&lst);
+    av_free(dup);
     return ret;
 }
 
 int av_bsf_get_null_filter(AVBSFContext **bsf)
 {
-#if CONFIG_NULL_BSF
-    extern const AVBitStreamFilter ff_null_bsf;
-    return av_bsf_alloc(&ff_null_bsf, bsf);
-#else
-    return av_bsf_alloc(&list_bsf, bsf);
-#endif
+    return av_bsf_alloc(&ff_list_bsf, bsf);
 }

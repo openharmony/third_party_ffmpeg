@@ -37,12 +37,13 @@ typedef struct HWDownloadContext {
 
 static int hwdownload_query_formats(AVFilterContext *avctx)
 {
+    AVFilterFormats *fmts;
     int err;
 
-    if ((err = ff_formats_ref(ff_formats_pixdesc_filter(AV_PIX_FMT_FLAG_HWACCEL, 0),
-                              &avctx->inputs[0]->outcfg.formats))  ||
-        (err = ff_formats_ref(ff_formats_pixdesc_filter(0, AV_PIX_FMT_FLAG_HWACCEL),
-                              &avctx->outputs[0]->incfg.formats)))
+    if ((err = ff_formats_pixdesc_filter(&fmts, AV_PIX_FMT_FLAG_HWACCEL, 0)) ||
+        (err = ff_formats_ref(fmts, &avctx->inputs[0]->outcfg.formats))      ||
+        (err = ff_formats_pixdesc_filter(&fmts, 0, AV_PIX_FMT_FLAG_HWACCEL)) ||
+        (err = ff_formats_ref(fmts, &avctx->outputs[0]->incfg.formats)))
         return err;
 
     return 0;
@@ -179,6 +180,7 @@ static const AVFilterPad hwdownload_inputs[] = {
         .config_props = hwdownload_config_input,
         .filter_frame = hwdownload_filter_frame,
     },
+    { NULL }
 };
 
 static const AVFilterPad hwdownload_outputs[] = {
@@ -187,16 +189,17 @@ static const AVFilterPad hwdownload_outputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .config_props = hwdownload_config_output,
     },
+    { NULL }
 };
 
-const AVFilter ff_vf_hwdownload = {
+AVFilter ff_vf_hwdownload = {
     .name          = "hwdownload",
     .description   = NULL_IF_CONFIG_SMALL("Download a hardware frame to a normal frame"),
     .uninit        = hwdownload_uninit,
+    .query_formats = hwdownload_query_formats,
     .priv_size     = sizeof(HWDownloadContext),
     .priv_class    = &hwdownload_class,
-    FILTER_INPUTS(hwdownload_inputs),
-    FILTER_OUTPUTS(hwdownload_outputs),
-    FILTER_QUERY_FUNC(hwdownload_query_formats),
+    .inputs        = hwdownload_inputs,
+    .outputs       = hwdownload_outputs,
     .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 };

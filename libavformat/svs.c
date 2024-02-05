@@ -51,6 +51,7 @@ static int svs_read_header(AVFormatContext *s)
     pitch = avio_rl32(s->pb);
     avio_skip(s->pb, 12);
 
+    s->internal->data_offset     = avio_tell(s->pb);
     st->codecpar->codec_type     = AVMEDIA_TYPE_AUDIO;
     st->codecpar->codec_id       = AV_CODEC_ID_ADPCM_PSX;
     st->codecpar->channel_layout = AV_CH_LAYOUT_STEREO;
@@ -85,7 +86,7 @@ static int svs_read_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-const AVInputFormat ff_svs_demuxer = {
+AVInputFormat ff_svs_demuxer = {
     .name        = "svs",
     .long_name   = NULL_IF_CONFIG_SMALL("Square SVS"),
     .read_probe  = svs_probe,

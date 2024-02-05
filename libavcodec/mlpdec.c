@@ -53,8 +53,6 @@
 typedef struct SubStream {
     /// Set if a valid restart header has been read. Otherwise the substream cannot be decoded.
     uint8_t     restart_seen;
-    /// Set if end of stream is encountered
-    uint8_t     end_of_stream;
 
     //@{
     /** restart header data */
@@ -73,7 +71,6 @@ typedef struct SubStream {
     uint64_t    mask;
     /// The matrix encoding mode for this substream
     enum AVMatrixEncoding matrix_encoding;
-    enum AVMatrixEncoding prev_matrix_encoding;
 
     /// Channel coding parameters for channels in the substream
     ChannelParams channel_params[MAX_CHANNELS];
@@ -392,7 +389,7 @@ static int read_major_sync(MLPDecodeContext *m, GetBitContext *gb)
      * substream is Stereo. Subsequent substreams' layouts are indicated in the
      * major sync. */
     if (m->avctx->codec_id == AV_CODEC_ID_MLP) {
-        if (mh.stream_type != SYNC_MLP) {
+        if (mh.stream_type != 0xbb) {
             avpriv_request_sample(m->avctx,
                         "unexpected stream_type %X in MLP",
                         mh.stream_type);
@@ -402,16 +399,12 @@ static int read_major_sync(MLPDecodeContext *m, GetBitContext *gb)
             m->substream[0].mask = AV_CH_LAYOUT_STEREO;
         m->substream[substr].mask = mh.channel_layout_mlp;
     } else {
-        if (mh.stream_type != SYNC_TRUEHD) {
+        if (mh.stream_type != 0xba) {
             avpriv_request_sample(m->avctx,
                         "unexpected stream_type %X in !MLP",
                         mh.stream_type);
             return AVERROR_PATCHWELCOME;
         }
-        if (mh.channels_thd_stream1 == 2 &&
-            mh.channels_thd_stream2 == 2 &&
-            m->avctx->channels == 2)
-            m->substream[0].mask = AV_CH_LAYOUT_STEREO;
         if ((substr = (mh.num_substreams > 1)))
             m->substream[0].mask = AV_CH_LAYOUT_STEREO;
         if (mh.num_substreams > 2)
@@ -419,8 +412,7 @@ static int read_major_sync(MLPDecodeContext *m, GetBitContext *gb)
                 m->substream[2].mask = mh.channel_layout_thd_stream2;
             else
                 m->substream[2].mask = mh.channel_layout_thd_stream1;
-        if (m->avctx->channels > 2)
-            m->substream[mh.num_substreams > 1].mask = mh.channel_layout_thd_stream1;
+        m->substream[substr].mask = mh.channel_layout_thd_stream1;
 
         if (m->avctx->channels<=2 && m->substream[substr].mask == AV_CH_LAYOUT_MONO && m->max_decoded_substream == 1) {
             av_log(m->avctx, AV_LOG_DEBUG, "Mono stream with 2 substreams, ignoring 2nd\n");
@@ -928,7 +920,7 @@ fail:
     return ret;
 }
 
-#define MSB_MASK(bits)  (-(1 << (bits)))
+#define MSB_MASK(bits)  (-1u << (bits))
 
 /** Generate PCM samples using the prediction filters and residual values
  *  read from the data stream, and update the filter state. */
@@ -1127,12 +1119,8 @@ static int output_data(MLPDecodeContext *m, unsigned int substr,
                                                     is32);
 
     /* Update matrix encoding side data */
-    if (s->matrix_encoding != s->prev_matrix_encoding) {
-        if ((ret = ff_side_data_update_matrix_encoding(frame, s->matrix_encoding)) < 0)
-            return ret;
-
-        s->prev_matrix_encoding = s->matrix_encoding;
-    }
+    if ((ret = ff_side_data_update_matrix_encoding(frame, s->matrix_encoding)) < 0)
+        return ret;
 
     *got_frame_ptr = 1;
 
@@ -1252,12 +1240,6 @@ static int read_access_unit(AVCodecContext *avctx, void* data,
 
     for (substr = 0; substr <= m->max_decoded_substream; substr++) {
         SubStream *s = &m->substream[substr];
-
-        if (substr != m->max_decoded_substream &&
-            m->substream[m->max_decoded_substream].min_channel == 0 &&
-            m->substream[m->max_decoded_substream].max_channel == avctx->channels - 1)
-            goto skip_substr;
-
         init_get_bits(&gb, buf, substream_data_len[substr] * 8);
 
         m->matrix_changed = 0;
@@ -1304,8 +1286,8 @@ static int read_access_unit(AVCodecContext *avctx, void* data,
             else if (m->avctx->codec_id == AV_CODEC_ID_MLP    && shorten_by != 0xD234)
                 return AVERROR_INVALIDDATA;
 
-            av_log(m->avctx, AV_LOG_DEBUG, "End of stream indicated.\n");
-            s->end_of_stream = 1;
+            if (substr == m->max_decoded_substream)
+                av_log(m->avctx, AV_LOG_INFO, "End of stream indicated.\n");
         }
 
         if (substream_parity_present[substr]) {
@@ -1331,22 +1313,11 @@ next_substr:
             av_log(m->avctx, AV_LOG_ERROR,
                    "No restart header present in substream %d.\n", substr);
 
-skip_substr:
         buf += substream_data_len[substr];
     }
 
     if ((ret = output_data(m, m->max_decoded_substream, data, got_frame_ptr)) < 0)
         return ret;
-
-    for (substr = 0; substr <= m->max_decoded_substream; substr++){
-        SubStream *s = &m->substream[substr];
-
-        if (s->end_of_stream) {
-            s->lossless_check_data = 0xffffffff;
-            s->end_of_stream = 0;
-            m->params_valid = 0;
-        }
-    }
 
     return length;
 
@@ -1359,21 +1330,8 @@ error:
     return AVERROR_INVALIDDATA;
 }
 
-static void mlp_decode_flush(AVCodecContext *avctx)
-{
-    MLPDecodeContext *m = avctx->priv_data;
-
-    m->params_valid = 0;
-    for (int substr = 0; substr <= m->max_decoded_substream; substr++){
-        SubStream *s = &m->substream[substr];
-
-        s->lossless_check_data = 0xffffffff;
-        s->prev_matrix_encoding = 0;
-    }
-}
-
 #if CONFIG_MLP_DECODER
-const AVCodec ff_mlp_decoder = {
+AVCodec ff_mlp_decoder = {
     .name           = "mlp",
     .long_name      = NULL_IF_CONFIG_SMALL("MLP (Meridian Lossless Packing)"),
     .type           = AVMEDIA_TYPE_AUDIO,
@@ -1381,13 +1339,12 @@ const AVCodec ff_mlp_decoder = {
     .priv_data_size = sizeof(MLPDecodeContext),
     .init           = mlp_decode_init,
     .decode         = read_access_unit,
-    .flush          = mlp_decode_flush,
     .capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_CHANNEL_CONF,
     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };
 #endif
 #if CONFIG_TRUEHD_DECODER
-const AVCodec ff_truehd_decoder = {
+AVCodec ff_truehd_decoder = {
     .name           = "truehd",
     .long_name      = NULL_IF_CONFIG_SMALL("TrueHD"),
     .type           = AVMEDIA_TYPE_AUDIO,
@@ -1395,7 +1352,6 @@ const AVCodec ff_truehd_decoder = {
     .priv_data_size = sizeof(MLPDecodeContext),
     .init           = mlp_decode_init,
     .decode         = read_access_unit,
-    .flush          = mlp_decode_flush,
     .capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_CHANNEL_CONF,
     .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

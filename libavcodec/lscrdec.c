@@ -264,7 +264,7 @@ static void lscr_decode_flush(AVCodecContext *avctx)
     av_frame_unref(s->last_picture);
 }
 
-const AVCodec ff_lscr_decoder = {
+AVCodec ff_lscr_decoder = {
     .name           = "lscr",
     .long_name      = NULL_IF_CONFIG_SMALL("LEAD Screen Capture"),
     .type           = AVMEDIA_TYPE_VIDEO,

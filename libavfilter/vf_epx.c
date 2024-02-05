@@ -17,6 +17,7 @@
  */
 
 #include "libavutil/opt.h"
+#include "libavutil/avassert.h"
 #include "libavutil/pixdesc.h"
 #include "internal.h"
 
@@ -221,10 +222,18 @@ static int config_output(AVFilterLink *outlink)
     return 0;
 }
 
-static const enum AVPixelFormat pix_fmts[] = {
-    AV_PIX_FMT_RGBA, AV_PIX_FMT_BGRA, AV_PIX_FMT_ARGB, AV_PIX_FMT_ABGR,
-    AV_PIX_FMT_NONE,
-};
+static int query_formats(AVFilterContext *ctx)
+{
+    static const enum AVPixelFormat pix_fmts[] = {
+        AV_PIX_FMT_RGBA, AV_PIX_FMT_BGRA, AV_PIX_FMT_ARGB, AV_PIX_FMT_ABGR,
+        AV_PIX_FMT_NONE,
+    };
+
+    AVFilterFormats *fmts_list = ff_make_format_list(pix_fmts);
+    if (!fmts_list)
+        return AVERROR(ENOMEM);
+    return ff_set_common_formats(ctx, fmts_list);
+}
 
 static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 {
@@ -242,8 +251,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     av_frame_copy_props(out, in);
 
     td.in = in, td.out = out;
-    ff_filter_execute(ctx, s->epx_slice, &td, NULL,
-                      FFMIN(inlink->h, ff_filter_get_nb_threads(ctx)));
+    ctx->internal->execute(ctx, s->epx_slice, &td, NULL, FFMIN(inlink->h, ff_filter_get_nb_threads(ctx)));
 
     av_frame_free(&in);
     return ff_filter_frame(outlink, out);
@@ -255,6 +263,7 @@ static const AVFilterPad inputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .filter_frame = filter_frame,
     },
+    { NULL }
 };
 
 static const AVFilterPad outputs[] = {
@@ -263,14 +272,15 @@ static const AVFilterPad outputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .config_props = config_output,
     },
+    { NULL }
 };
 
-const AVFilter ff_vf_epx = {
+AVFilter ff_vf_epx = {
     .name          = "epx",
     .description   = NULL_IF_CONFIG_SMALL("Scale the input using EPX algorithm."),
-    FILTER_INPUTS(inputs),
-    FILTER_OUTPUTS(outputs),
-    FILTER_PIXFMTS_ARRAY(pix_fmts),
+    .inputs        = inputs,
+    .outputs       = outputs,
+    .query_formats = query_formats,
     .priv_size     = sizeof(EPXContext),
     .priv_class    = &epx_class,
     .flags         = AVFILTER_FLAG_SLICE_THREADS,

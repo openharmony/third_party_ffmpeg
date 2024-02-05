@@ -145,7 +145,7 @@ static int lvf_read_packet(AVFormatContext *s, AVPacket *pkt)
     return AVERROR_EOF;
 }
 
-const AVInputFormat ff_lvf_demuxer = {
+AVInputFormat ff_lvf_demuxer = {
     .name        = "lvf",
     .long_name   = NULL_IF_CONFIG_SMALL("LVF"),
     .read_probe  = lvf_probe,

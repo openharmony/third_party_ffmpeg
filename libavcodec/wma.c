@@ -41,11 +41,9 @@ static av_cold int init_coef_vlc(VLC *vlc, uint16_t **prun_table,
     const uint16_t *levels_table = vlc_table->levels;
     uint16_t *run_table, *int_table;
     float *flevel_table;
-    int i, l, j, k, level, ret;
+    int i, l, j, k, level;
 
-    ret = init_vlc(vlc, VLCBITS, n, table_bits, 1, 1, table_codes, 4, 4, 0);
-    if (ret < 0)
-        return ret;
+    init_vlc(vlc, VLCBITS, n, table_bits, 1, 1, table_codes, 4, 4, 0);
 
     run_table    = av_malloc_array(n, sizeof(uint16_t));
     flevel_table = av_malloc_array(n, sizeof(*flevel_table));
@@ -81,7 +79,7 @@ av_cold int ff_wma_init(AVCodecContext *avctx, int flags2)
     WMACodecContext *s = avctx->priv_data;
     int i, ret;
     float bps1, high_freq;
-    float bps;
+    volatile float bps;
     int sample_rate1;
     int coef_vlc_table;
 
