@@ -62,7 +62,7 @@ typedef struct AMVContext
 
     int32_t aframe_size;  /* Expected audio frame size.      */
     int32_t ablock_align; /* Expected audio block align.     */
-    AVPacket *apad;       /* Dummy audio packet for padding; not owned by us. */
+    AVPacket *apad;       /* Dummy audio packet for padding. */
     AVPacket *vpad;       /* Most recent video frame, for padding. */
 
     /*
@@ -183,8 +183,11 @@ static av_cold int amv_init(AVFormatContext *s)
     }
 
     /* Allocate and fill dummy packet so we can pad the audio. */
-    amv->apad = ffformatcontext(s)->pkt;
+    amv->apad = av_packet_alloc();
+    if (!amv->apad)
+        return AVERROR(ENOMEM);
     if ((ret = av_new_packet(amv->apad, amv->ablock_align)) < 0) {
+        av_packet_free(&amv->apad);
         return ret;
     }
 
@@ -194,6 +197,7 @@ static av_cold int amv_init(AVFormatContext *s)
 
     amv->vpad = av_packet_alloc();
     if (!amv->vpad) {
+        av_packet_free(&amv->apad);
         return AVERROR(ENOMEM);
     }
     amv->vpad->stream_index = AMV_STREAM_VIDEO;
@@ -205,6 +209,7 @@ static void amv_deinit(AVFormatContext *s)
 {
     AMVContext *amv = s->priv_data;
 
+    av_packet_free(&amv->apad);
     av_packet_free(&amv->vpad);
 }
 
@@ -401,7 +406,7 @@ static int amv_write_trailer(AVFormatContext *s)
     return 0;
 }
 
-const AVOutputFormat ff_amv_muxer = {
+AVOutputFormat ff_amv_muxer = {
     .name           = "amv",
     .long_name      = NULL_IF_CONFIG_SMALL("AMV"),
     .mime_type      = "video/amv",

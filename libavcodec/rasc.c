@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "libavutil/avassert.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/opt.h"
 
@@ -721,7 +722,6 @@ static int decode_frame(AVCodecContext *avctx,
             break;
         default:
             bytestream2_skip(gb, size);
-            ret = 0;
         }
 
         if (ret < 0)
@@ -805,7 +805,7 @@ static const AVClass rasc_decoder_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const AVCodec ff_rasc_decoder = {
+AVCodec ff_rasc_decoder = {
     .name             = "rasc",
     .long_name        = NULL_IF_CONFIG_SMALL("RemotelyAnywhere Screen Capture"),
     .type             = AVMEDIA_TYPE_VIDEO,

@@ -57,7 +57,6 @@ static int mjpegb_decode_frame(AVCodecContext *avctx,
     buf_end = buf + buf_size;
     s->got_picture = 0;
     s->adobe_transform = -1;
-    s->buf_size = buf_size;
 
 read_header:
     /* reset on every SOI */
@@ -157,7 +156,7 @@ read_header:
     return buf_size;
 }
 
-const AVCodec ff_mjpegb_decoder = {
+AVCodec ff_mjpegb_decoder = {
     .name           = "mjpegb",
     .long_name      = NULL_IF_CONFIG_SMALL("Apple MJPEG-B"),
     .type           = AVMEDIA_TYPE_VIDEO,

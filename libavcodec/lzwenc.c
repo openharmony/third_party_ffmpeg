@@ -25,10 +25,9 @@
  * @author Bartlomiej Wolowiec
  */
 
-#include <stdint.h>
-#include "libavutil/avassert.h"
-#include "libavutil/common.h"
+#include "avcodec.h"
 #include "lzw.h"
+#include "mathops.h"
 #include "put_bits.h"
 
 #define LZW_MAXBITS 12
@@ -190,7 +189,7 @@ static void clearTable(LZWEncodeState * s)
  * @return Number of bytes written
  */
 static int writtenBytes(LZWEncodeState *s){
-    int ret = put_bytes_count(&s->pb, 0);
+    int ret = put_bits_count(&s->pb) >> 3;
     ret -= s->output_bytes;
     s->output_bytes += ret;
     return ret;

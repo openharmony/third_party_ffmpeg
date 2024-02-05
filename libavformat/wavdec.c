@@ -49,7 +49,6 @@ typedef struct WAVDemuxContext {
     const AVClass *class;
     int64_t data_end;
     int w64;
-    AVStream *vst;
     int64_t smv_data_ofs;
     int smv_block_size;
     int smv_frames_per_jpeg;
@@ -166,32 +165,35 @@ static int wav_probe(const AVProbeData *p)
 static void handle_stream_probing(AVStream *st)
 {
     if (st->codecpar->codec_id == AV_CODEC_ID_PCM_S16LE) {
-        FFStream *const sti = ffstream(st);
-        sti->request_probe = AVPROBE_SCORE_EXTENSION;
-        sti->probe_packets = FFMIN(sti->probe_packets, 32);
+        st->internal->request_probe = AVPROBE_SCORE_EXTENSION;
+        st->probe_packets = FFMIN(st->probe_packets, 32);
     }
 }
 
-static int wav_parse_fmt_tag(AVFormatContext *s, int64_t size, AVStream *st)
+static int wav_parse_fmt_tag(AVFormatContext *s, int64_t size, AVStream **st)
 {
     AVIOContext *pb = s->pb;
     WAVDemuxContext *wav = s->priv_data;
     int ret;
 
     /* parse fmt header */
-    ret = ff_get_wav_header(s, pb, st->codecpar, size, wav->rifx);
+    *st = avformat_new_stream(s, NULL);
+    if (!*st)
+        return AVERROR(ENOMEM);
+
+    ret = ff_get_wav_header(s, pb, (*st)->codecpar, size, wav->rifx);
     if (ret < 0)
         return ret;
-    handle_stream_probing(st);
+    handle_stream_probing(*st);
 
-    ffstream(st)->need_parsing = AVSTREAM_PARSE_FULL_RAW;
+    (*st)->need_parsing = AVSTREAM_PARSE_FULL_RAW;
 
-    avpriv_set_pts_info(st, 64, 1, st->codecpar->sample_rate);
+    avpriv_set_pts_info(*st, 64, 1, (*st)->codecpar->sample_rate);
 
     return 0;
 }
 
-static int wav_parse_xma2_tag(AVFormatContext *s, int64_t size, AVStream *st)
+static int wav_parse_xma2_tag(AVFormatContext *s, int64_t size, AVStream **st)
 {
     AVIOContext *pb = s->pb;
     int version, num_streams, i, channels = 0, ret;
@@ -199,9 +201,13 @@ static int wav_parse_xma2_tag(AVFormatContext *s, int64_t size, AVStream *st)
     if (size < 36)
         return AVERROR_INVALIDDATA;
 
-    st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
-    st->codecpar->codec_id   = AV_CODEC_ID_XMA2;
-    ffstream(st)->need_parsing = AVSTREAM_PARSE_FULL_RAW;
+    *st = avformat_new_stream(s, NULL);
+    if (!*st)
+        return AVERROR(ENOMEM);
+
+    (*st)->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
+    (*st)->codecpar->codec_id   = AV_CODEC_ID_XMA2;
+    (*st)->need_parsing         = AVSTREAM_PARSE_FULL_RAW;
 
     version = avio_r8(pb);
     if (version != 3 && version != 4)
@@ -210,26 +216,26 @@ static int wav_parse_xma2_tag(AVFormatContext *s, int64_t size, AVStream *st)
     if (size != (32 + ((version==3)?0:8) + 4*num_streams))
         return AVERROR_INVALIDDATA;
     avio_skip(pb, 10);
-    st->codecpar->sample_rate = avio_rb32(pb);
+    (*st)->codecpar->sample_rate = avio_rb32(pb);
     if (version == 4)
         avio_skip(pb, 8);
     avio_skip(pb, 4);
-    st->duration = avio_rb32(pb);
+    (*st)->duration = avio_rb32(pb);
     avio_skip(pb, 8);
 
     for (i = 0; i < num_streams; i++) {
         channels += avio_r8(pb);
         avio_skip(pb, 3);
     }
-    st->codecpar->channels = channels;
+    (*st)->codecpar->channels = channels;
 
-    if (st->codecpar->channels <= 0 || st->codecpar->sample_rate <= 0)
+    if ((*st)->codecpar->channels <= 0 || (*st)->codecpar->sample_rate <= 0)
         return AVERROR_INVALIDDATA;
 
-    avpriv_set_pts_info(st, 64, 1, st->codecpar->sample_rate);
+    avpriv_set_pts_info(*st, 64, 1, (*st)->codecpar->sample_rate);
 
     avio_seek(pb, -size, SEEK_CUR);
-    if ((ret = ff_get_extradata(s, st->codecpar, pb, size)) < 0)
+    if ((ret = ff_get_extradata(s, (*st)->codecpar, pb, size)) < 0)
         return ret;
 
     return 0;
@@ -242,8 +248,8 @@ static inline int wav_parse_bext_string(AVFormatContext *s, const char *key,
     int ret;
 
     av_assert0(length < sizeof(temp));
-    if ((ret = ffio_read_size(s->pb, temp, length)) < 0)
-        return ret;
+    if ((ret = avio_read(s->pb, temp, length)) != length)
+        return ret < 0 ? ret : AVERROR_INVALIDDATA;
 
     temp[length] = 0;
 
@@ -312,9 +318,9 @@ static int wav_parse_bext_tag(AVFormatContext *s, int64_t size)
         if (!(coding_history = av_malloc(size + 1)))
             return AVERROR(ENOMEM);
 
-        if ((ret = ffio_read_size(s->pb, coding_history, size)) < 0) {
+        if ((ret = avio_read(s->pb, coding_history, size)) != size) {
             av_free(coding_history);
-            return ret;
+            return ret < 0 ? ret : AVERROR_INVALIDDATA;
         }
 
         coding_history[size] = 0;
@@ -401,11 +407,6 @@ static int wav_read_header(AVFormatContext *s)
 
     }
 
-    /* Create the audio stream now so that its index is always zero */
-    st = avformat_new_stream(s, NULL);
-    if (!st)
-        return AVERROR(ENOMEM);
-
     for (;;) {
         AVStream *vst;
         size         = next_tag(pb, &tag, wav->rifx);
@@ -417,7 +418,7 @@ static int wav_read_header(AVFormatContext *s)
         switch (tag) {
         case MKTAG('f', 'm', 't', ' '):
             /* only parse the first 'fmt ' tag found */
-            if (!got_xma2 && !got_fmt && (ret = wav_parse_fmt_tag(s, size, st)) < 0) {
+            if (!got_xma2 && !got_fmt && (ret = wav_parse_fmt_tag(s, size, &st)) < 0) {
                 return ret;
             } else if (got_fmt)
                 av_log(s, AV_LOG_WARNING, "found more than one 'fmt ' tag\n");
@@ -426,7 +427,7 @@ static int wav_read_header(AVFormatContext *s)
             break;
         case MKTAG('X', 'M', 'A', '2'):
             /* only parse the first 'XMA2' tag found */
-            if (!got_fmt && !got_xma2 && (ret = wav_parse_xma2_tag(s, size, st)) < 0) {
+            if (!got_fmt && !got_xma2 && (ret = wav_parse_xma2_tag(s, size, &st)) < 0) {
                 return ret;
             } else if (got_xma2)
                 av_log(s, AV_LOG_WARNING, "found more than one 'XMA2' tag\n");
@@ -483,7 +484,6 @@ static int wav_read_header(AVFormatContext *s)
             vst = avformat_new_stream(s, NULL);
             if (!vst)
                 return AVERROR(ENOMEM);
-            wav->vst = vst;
             avio_r8(pb);
             vst->id = 1;
             vst->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
@@ -551,8 +551,8 @@ static int wav_read_header(AVFormatContext *s)
             break;
         case MKTAG('I', 'D', '3', ' '):
         case MKTAG('i', 'd', '3', ' '): {
-            ID3v2ExtraMeta *id3v2_extra_meta;
-            ff_id3v2_read_dict(pb, &ffformatcontext(s)->id3v2_meta, ID3v2_DEFAULT_MAGIC, &id3v2_extra_meta);
+            ID3v2ExtraMeta *id3v2_extra_meta = NULL;
+            ff_id3v2_read_dict(pb, &s->internal->id3v2_meta, ID3v2_DEFAULT_MAGIC, &id3v2_extra_meta);
             if (id3v2_extra_meta) {
                 ff_id3v2_parse_apic(s, id3v2_extra_meta);
                 ff_id3v2_parse_chapters(s, id3v2_extra_meta);
@@ -668,7 +668,7 @@ break_loop:
     set_spdif(s, wav);
 
 #ifdef OHOS_OPT_COMPAT
-    if (ffformatcontext(s)->id3v2_meta && s->metadata) {
+    if (s->internal->id3v2_meta && s->metadata) {
         av_log(s, AV_LOG_WARNING, "Discarding fmt metadata because ID3 tag is found.\n");
         av_dict_free(&s->metadata);
         s->metadata = NULL;
@@ -703,24 +703,23 @@ static int wav_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     int ret, size;
     int64_t left;
+    AVStream *st;
     WAVDemuxContext *wav = s->priv_data;
-    AVStream *st = s->streams[0];
 
     if (CONFIG_SPDIF_DEMUXER && wav->spdif == 1)
         return ff_spdif_read_packet(s, pkt);
 
     if (wav->smv_data_ofs > 0) {
         int64_t audio_dts, video_dts;
-        AVStream *vst = wav->vst;
 smv_retry:
-        audio_dts = (int32_t)ffstream( st)->cur_dts;
-        video_dts = (int32_t)ffstream(vst)->cur_dts;
+        audio_dts = (int32_t)s->streams[0]->cur_dts;
+        video_dts = (int32_t)s->streams[1]->cur_dts;
 
         if (audio_dts != AV_NOPTS_VALUE && video_dts != AV_NOPTS_VALUE) {
             /*We always return a video frame first to get the pixel format first*/
             wav->smv_last_stream = wav->smv_given_first ?
-                av_compare_ts(video_dts, vst->time_base,
-                              audio_dts,  st->time_base) > 0 : 0;
+                av_compare_ts(video_dts, s->streams[1]->time_base,
+                              audio_dts, s->streams[0]->time_base) > 0 : 0;
             wav->smv_given_first = 1;
         }
         wav->smv_last_stream = !wav->smv_last_stream;
@@ -743,7 +742,7 @@ smv_retry:
             pkt->duration = wav->smv_frames_per_jpeg;
             wav->smv_block++;
 
-            pkt->stream_index = vst->index;
+            pkt->stream_index = 1;
 smv_out:
             avio_seek(s->pb, old_pos, SEEK_SET);
             if (ret == AVERROR_EOF) {
@@ -753,6 +752,8 @@ smv_out:
             return ret;
         }
     }
+
+    st = s->streams[0];
 
     left = wav->data_end - avio_tell(s->pb);
     if (wav->ignore_length)
@@ -790,24 +791,22 @@ static int wav_read_seek(AVFormatContext *s,
                          int stream_index, int64_t timestamp, int flags)
 {
     WAVDemuxContext *wav = s->priv_data;
-    AVStream *ast = s->streams[0], *vst = wav->vst;
+    AVStream *st;
     wav->smv_eof = 0;
     wav->audio_eof = 0;
-
-    if (stream_index != 0 && (!vst || stream_index != vst->index))
-        return AVERROR(EINVAL);
     if (wav->smv_data_ofs > 0) {
         int64_t smv_timestamp = timestamp;
         if (stream_index == 0)
-            smv_timestamp = av_rescale_q(timestamp, ast->time_base, vst->time_base);
+            smv_timestamp = av_rescale_q(timestamp, s->streams[0]->time_base, s->streams[1]->time_base);
         else
-            timestamp = av_rescale_q(smv_timestamp, vst->time_base, ast->time_base);
+            timestamp = av_rescale_q(smv_timestamp, s->streams[1]->time_base, s->streams[0]->time_base);
         if (wav->smv_frames_per_jpeg > 0) {
             wav->smv_block = smv_timestamp / wav->smv_frames_per_jpeg;
         }
     }
 
-    switch (ast->codecpar->codec_id) {
+    st = s->streams[0];
+    switch (st->codecpar->codec_id) {
     case AV_CODEC_ID_MP2:
     case AV_CODEC_ID_MP3:
     case AV_CODEC_ID_AC3:
@@ -818,7 +817,7 @@ static int wav_read_seek(AVFormatContext *s,
     default:
         break;
     }
-    return ff_pcm_read_seek(s, 0, timestamp, flags);
+    return ff_pcm_read_seek(s, stream_index, timestamp, flags);
 }
 
 static const AVClass wav_demuxer_class = {
@@ -827,7 +826,7 @@ static const AVClass wav_demuxer_class = {
     .option     = demux_options,
     .version    = LIBAVUTIL_VERSION_INT,
 };
-const AVInputFormat ff_wav_demuxer = {
+AVInputFormat ff_wav_demuxer = {
     .name           = "wav",
     .long_name      = NULL_IF_CONFIG_SMALL("WAV / WAVE (Waveform Audio)"),
     .priv_data_size = sizeof(WAVDemuxContext),
@@ -961,7 +960,7 @@ static int w64_read_header(AVFormatContext *s)
     ff_metadata_conv_ctx(s, NULL, ff_riff_info_conv);
 
     handle_stream_probing(st);
-    ffstream(st)->need_parsing = AVSTREAM_PARSE_FULL_RAW;
+    st->need_parsing = AVSTREAM_PARSE_FULL_RAW;
 
     avio_seek(pb, data_ofs, SEEK_SET);
 
@@ -977,7 +976,7 @@ static const AVClass w64_demuxer_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const AVInputFormat ff_w64_demuxer = {
+AVInputFormat ff_w64_demuxer = {
     .name           = "w64",
     .long_name      = NULL_IF_CONFIG_SMALL("Sony Wave64"),
     .priv_data_size = sizeof(WAVDemuxContext),

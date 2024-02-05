@@ -187,7 +187,7 @@ static av_cold int fastaudio_close(AVCodecContext *avctx)
     return 0;
 }
 
-const AVCodec ff_fastaudio_decoder = {
+AVCodec ff_fastaudio_decoder = {
     .name           = "fastaudio",
     .long_name      = NULL_IF_CONFIG_SMALL("MobiClip FastAudio"),
     .type           = AVMEDIA_TYPE_AUDIO,
@@ -199,5 +199,4 @@ const AVCodec ff_fastaudio_decoder = {
     .capabilities   = AV_CODEC_CAP_DR1,
     .sample_fmts    = (const enum AVSampleFormat[]) { AV_SAMPLE_FMT_FLTP,
                                                       AV_SAMPLE_FMT_NONE },
-    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

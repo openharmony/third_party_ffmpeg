@@ -26,6 +26,7 @@
 #include "libavutil/imgutils.h"
 #include "libavutil/internal.h"
 #include "libavutil/intreadwrite.h"
+#include "libavutil/mem.h"
 
 #include "avcodec.h"
 #include "bytestream.h"
@@ -607,9 +608,6 @@ static int decode_frame(AVCodecContext *avctx, void *data,
     uint32_t chunk;
     int ret;
 
-    if (avpkt->size < 4)
-        return AVERROR_INVALIDDATA;
-
     bytestream2_init(gb, avpkt->data, avpkt->size);
 
     if ((ret = ff_reget_buffer(avctx, frame, 0)) < 0)
@@ -678,12 +676,12 @@ static av_cold int decode_init(AVCodecContext *avctx)
 {
     ArgoContext *s = avctx->priv_data;
 
-    switch (avctx->bits_per_coded_sample) {
+    switch (avctx->bits_per_raw_sample) {
     case  8: s->bpp = 1;
              avctx->pix_fmt = AV_PIX_FMT_PAL8; break;
     case 24: s->bpp = 4;
              avctx->pix_fmt = AV_PIX_FMT_BGR0; break;
-    default: avpriv_request_sample(s, "depth == %u", avctx->bits_per_coded_sample);
+    default: avpriv_request_sample(s, "depth == %u", avctx->bits_per_raw_sample);
              return AVERROR_PATCHWELCOME;
     }
 
@@ -732,7 +730,7 @@ static av_cold int decode_close(AVCodecContext *avctx)
     return 0;
 }
 
-const AVCodec ff_argo_decoder = {
+AVCodec ff_argo_decoder = {
     .name           = "argo",
     .long_name      = NULL_IF_CONFIG_SMALL("Argonaut Games Video"),
     .type           = AVMEDIA_TYPE_VIDEO,
@@ -743,5 +741,5 @@ const AVCodec ff_argo_decoder = {
     .flush          = decode_flush,
     .close          = decode_close,
     .capabilities   = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
 };

@@ -324,18 +324,17 @@ static int mpc8_read_packet(AVFormatContext *s, AVPacket *pkt)
 static int mpc8_read_seek(AVFormatContext *s, int stream_index, int64_t timestamp, int flags)
 {
     AVStream *st = s->streams[stream_index];
-    FFStream *const sti = ffstream(st);
     int index = av_index_search_timestamp(st, timestamp, flags);
 
     if(index < 0) return -1;
-    if (avio_seek(s->pb, sti->index_entries[index].pos, SEEK_SET) < 0)
+    if (avio_seek(s->pb, st->index_entries[index].pos, SEEK_SET) < 0)
         return -1;
-    avpriv_update_cur_dts(s, st, sti->index_entries[index].timestamp);
+    ff_update_cur_dts(s, st, st->index_entries[index].timestamp);
     return 0;
 }
 
 
-const AVInputFormat ff_mpc8_demuxer = {
+AVInputFormat ff_mpc8_demuxer = {
     .name           = "mpc8",
     .long_name      = NULL_IF_CONFIG_SMALL("Musepack SV8"),
     .priv_data_size = sizeof(MPCContext),

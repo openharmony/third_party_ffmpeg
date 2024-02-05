@@ -45,7 +45,6 @@
 #include "libavutil/channel_layout.h"
 #include "libavutil/lfg.h"
 #include "libavutil/mem_internal.h"
-#include "libavutil/thread.h"
 
 #include "audiodsp.h"
 #include "avcodec.h"
@@ -248,7 +247,7 @@ static av_cold int init_cook_mlt(COOKContext *q)
     int j, ret;
     int mlt_size = q->samples_per_channel;
 
-    if (!(q->mlt_window = av_malloc_array(mlt_size, sizeof(*q->mlt_window))))
+    if ((q->mlt_window = av_malloc_array(mlt_size, sizeof(*q->mlt_window))) == 0)
         return AVERROR(ENOMEM);
 
     /* Initialize the MLT window: simple sine window. */
@@ -257,9 +256,10 @@ static av_cold int init_cook_mlt(COOKContext *q)
         q->mlt_window[j] *= sqrt(2.0 / q->samples_per_channel);
 
     /* Initialize the MDCT. */
-    ret = ff_mdct_init(&q->mdct_ctx, av_log2(mlt_size) + 1, 1, 1.0 / 32768.0);
-    if (ret < 0)
+    if ((ret = ff_mdct_init(&q->mdct_ctx, av_log2(mlt_size) + 1, 1, 1.0 / 32768.0))) {
+        av_freep(&q->mlt_window);
         return ret;
+    }
     av_log(q->avctx, AV_LOG_DEBUG, "MDCT initialized, order = %d.\n",
            av_log2(mlt_size) + 1);
 
@@ -1072,7 +1072,6 @@ static void dump_cook_context(COOKContext *q)
  */
 static av_cold int cook_decode_init(AVCodecContext *avctx)
 {
-    static AVOnce init_static_once = AV_ONCE_INIT;
     COOKContext *q = avctx->priv_data;
     GetByteContext gb;
     int s = 0;
@@ -1251,7 +1250,7 @@ static av_cold int cook_decode_init(AVCodecContext *avctx)
     }
 
     /* Generate tables */
-    ff_thread_once(&init_static_once, init_pow2table);
+    init_pow2table();
     init_gain_table(q);
     init_cplscales_table(q);
 
@@ -1293,7 +1292,7 @@ static av_cold int cook_decode_init(AVCodecContext *avctx)
     return 0;
 }
 
-const AVCodec ff_cook_decoder = {
+AVCodec ff_cook_decoder = {
     .name           = "cook",
     .long_name      = NULL_IF_CONFIG_SMALL("Cook / Cooker / Gecko (RealAudio G2)"),
     .type           = AVMEDIA_TYPE_AUDIO,
@@ -1303,7 +1302,7 @@ const AVCodec ff_cook_decoder = {
     .close          = cook_decode_close,
     .decode         = cook_decode_frame,
     .capabilities   = AV_CODEC_CAP_DR1,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
     .sample_fmts    = (const enum AVSampleFormat[]) { AV_SAMPLE_FMT_FLTP,
                                                       AV_SAMPLE_FMT_NONE },
-    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
 };

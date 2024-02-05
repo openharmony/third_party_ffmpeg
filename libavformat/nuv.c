@@ -24,7 +24,6 @@
 #include "libavutil/intreadwrite.h"
 #include "libavutil/intfloat.h"
 #include "avformat.h"
-#include "avio_internal.h"
 #include "internal.h"
 #include "riff.h"
 
@@ -133,7 +132,7 @@ static int get_codec_data(AVFormatContext *s, AVIOContext *pb, AVStream *vst,
                 }
                 ast->codecpar->codec_id = id;
 
-                ffstream(ast)->need_parsing = AVSTREAM_PARSE_FULL;
+                ast->need_parsing = AVSTREAM_PARSE_FULL;
             } else
                 avio_skip(pb, 4 * 4);
 
@@ -259,9 +258,9 @@ static int nuv_packet(AVFormatContext *s, AVPacket *pkt)
         int copyhdrsize = ctx->rtjpg_video ? HDRSIZE : 0;
         uint64_t pos    = avio_tell(pb);
 
-        ret = ffio_read_size(pb, hdr, HDRSIZE);
-        if (ret < 0)
-            return ret;
+        ret = avio_read(pb, hdr, HDRSIZE);
+        if (ret < HDRSIZE)
+            return ret < 0 ? ret : AVERROR(EIO);
 
         frametype = hdr[0];
         size      = PKTSIZE(AV_RL32(&hdr[8]));
@@ -395,7 +394,7 @@ static int64_t nuv_read_dts(AVFormatContext *s, int stream_index,
 }
 
 
-const AVInputFormat ff_nuv_demuxer = {
+AVInputFormat ff_nuv_demuxer = {
     .name           = "nuv",
     .long_name      = NULL_IF_CONFIG_SMALL("NuppelVideo"),
     .priv_data_size = sizeof(NUVContext),

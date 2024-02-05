@@ -352,11 +352,21 @@ static av_cold int init(AVFilterContext *ctx)
         pad.type = AVMEDIA_TYPE_VIDEO;
         pad.config_props = config_output;
 
-        if ((ret = ff_append_outpad_free_name(ctx, &pad)) < 0)
+        if ((ret = ff_insert_outpad(ctx, ctx->nb_outputs, &pad)) < 0) {
+            av_freep(&pad.name);
             return ret;
+        }
     }
 
     return 0;
+}
+
+static av_cold void uninit(AVFilterContext *ctx)
+{
+    int i;
+
+    for (i = 0; i < ctx->nb_outputs; i++)
+        av_freep(&ctx->output_pads[i].name);
 }
 
 static const AVFilterPad extractplanes_inputs[] = {
@@ -366,17 +376,19 @@ static const AVFilterPad extractplanes_inputs[] = {
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
+    { NULL }
 };
 
-const AVFilter ff_vf_extractplanes = {
+AVFilter ff_vf_extractplanes = {
     .name          = "extractplanes",
     .description   = NULL_IF_CONFIG_SMALL("Extract planes as grayscale frames."),
     .priv_size     = sizeof(ExtractPlanesContext),
     .priv_class    = &extractplanes_class,
     .init          = init,
-    FILTER_INPUTS(extractplanes_inputs),
+    .uninit        = uninit,
+    .query_formats = query_formats,
+    .inputs        = extractplanes_inputs,
     .outputs       = NULL,
-    FILTER_QUERY_FUNC(query_formats),
     .flags         = AVFILTER_FLAG_DYNAMIC_OUTPUTS,
 };
 
@@ -387,27 +399,20 @@ static av_cold int init_alphaextract(AVFilterContext *ctx)
     ExtractPlanesContext *s = ctx->priv;
 
     s->requested_planes = PLANE_A;
-    s->map[0] = 3;
 
-    return 0;
+    return init(ctx);
 }
 
-static const AVFilterPad alphaextract_outputs[] = {
-    {
-        .name         = "default",
-        .type         = AVMEDIA_TYPE_VIDEO,
-        .config_props = config_output,
-    },
-};
-
-const AVFilter ff_vf_alphaextract = {
+AVFilter ff_vf_alphaextract = {
     .name           = "alphaextract",
     .description    = NULL_IF_CONFIG_SMALL("Extract an alpha channel as a "
                       "grayscale image component."),
     .priv_size      = sizeof(ExtractPlanesContext),
     .init           = init_alphaextract,
-    FILTER_INPUTS(extractplanes_inputs),
-    FILTER_OUTPUTS(alphaextract_outputs),
-    FILTER_QUERY_FUNC(query_formats),
+    .uninit         = uninit,
+    .query_formats  = query_formats,
+    .inputs         = extractplanes_inputs,
+    .outputs        = NULL,
+    .flags          = AVFILTER_FLAG_DYNAMIC_OUTPUTS,
 };
 #endif  /* CONFIG_ALPHAEXTRACT_FILTER */

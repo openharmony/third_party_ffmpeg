@@ -34,11 +34,6 @@ DISPOSITION:visual_impaired=1
 DISPOSITION:clean_effects=0
 DISPOSITION:attached_pic=0
 DISPOSITION:timed_thumbnails=0
-DISPOSITION:captions=0
-DISPOSITION:descriptions=0
-DISPOSITION:metadata=0
-DISPOSITION:dependent=0
-DISPOSITION:still_image=0
 [/STREAM]
 [STREAM]
 index=1
@@ -54,9 +49,4 @@ DISPOSITION:visual_impaired=0
 DISPOSITION:clean_effects=0
 DISPOSITION:attached_pic=0
 DISPOSITION:timed_thumbnails=0
-DISPOSITION:captions=0
-DISPOSITION:descriptions=0
-DISPOSITION:metadata=0
-DISPOSITION:dependent=0
-DISPOSITION:still_image=0
 [/STREAM]

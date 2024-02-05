@@ -21,7 +21,6 @@
 #include "libavutil/common.h"
 #include "avcodec.h"
 #include "bytestream.h"
-#include "decode.h"
 #include "internal.h"
 
 typedef struct SimbiosisIMXContext {
@@ -51,13 +50,16 @@ static int imx_decode_frame(AVCodecContext *avctx, void *data,
 {
     SimbiosisIMXContext *imx = avctx->priv_data;
     int ret, x, y;
+    buffer_size_t pal_size;
+    const uint8_t *pal = av_packet_get_side_data(avpkt, AV_PKT_DATA_PALETTE, &pal_size);
     AVFrame *frame = imx->frame;
     GetByteContext gb;
 
     if ((ret = ff_reget_buffer(avctx, frame, 0)) < 0)
         return ret;
 
-    if (ff_copy_palette(imx->pal, avpkt, avctx)) {
+    if (pal && pal_size == AVPALETTE_SIZE) {
+        memcpy(imx->pal, pal, pal_size);
         frame->palette_has_changed = 1;
         frame->key_frame = 1;
     } else {
@@ -179,7 +181,7 @@ static int imx_decode_close(AVCodecContext *avctx)
     return 0;
 }
 
-const AVCodec ff_simbiosis_imx_decoder = {
+AVCodec ff_simbiosis_imx_decoder = {
     .name           = "simbiosis_imx",
     .long_name      = NULL_IF_CONFIG_SMALL("Simbiosis Interactive IMX Video"),
     .type           = AVMEDIA_TYPE_VIDEO,

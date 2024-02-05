@@ -23,6 +23,7 @@
 
 #include "libavutil/mem_internal.h"
 
+#include "avcodec.h"
 #include "intrax8.h"
 #include "mpegvideo.h"
 #include "wmv2dsp.h"

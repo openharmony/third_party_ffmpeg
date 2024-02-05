@@ -124,7 +124,7 @@ static void libgsm_flush(AVCodecContext *avctx) {
 }
 
 #if CONFIG_LIBGSM_DECODER
-const AVCodec ff_libgsm_decoder = {
+AVCodec ff_libgsm_decoder = {
     .name           = "libgsm",
     .long_name      = NULL_IF_CONFIG_SMALL("libgsm GSM"),
     .type           = AVMEDIA_TYPE_AUDIO,
@@ -139,7 +139,7 @@ const AVCodec ff_libgsm_decoder = {
 };
 #endif
 #if CONFIG_LIBGSM_MS_DECODER
-const AVCodec ff_libgsm_ms_decoder = {
+AVCodec ff_libgsm_ms_decoder = {
     .name           = "libgsm_ms",
     .long_name      = NULL_IF_CONFIG_SMALL("libgsm GSM Microsoft variant"),
     .type           = AVMEDIA_TYPE_AUDIO,

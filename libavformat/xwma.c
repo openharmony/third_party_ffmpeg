@@ -78,7 +78,7 @@ static int xwma_read_header(AVFormatContext *s)
     ret = ff_get_wav_header(s, pb, st->codecpar, size, 0);
     if (ret < 0)
         return ret;
-    ffstream(st)->need_parsing = AVSTREAM_PARSE_NONE;
+    st->need_parsing = AVSTREAM_PARSE_NONE;
 
     /* XWMA encoder only allows a few channel/sample rate/bitrate combinations,
      * but some create identical files with fake bitrate (1ch 22050hz at
@@ -278,7 +278,7 @@ static int xwma_read_header(AVFormatContext *s)
          * the total duration using the average bits per sample and the
          * total data length.
          */
-        st->duration = av_rescale((size<<3), st->codecpar->sample_rate, st->codecpar->bit_rate);
+        st->duration = (size<<3) * st->codecpar->sample_rate / st->codecpar->bit_rate;
     }
 
 fail:
@@ -313,7 +313,7 @@ static int xwma_read_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-const AVInputFormat ff_xwma_demuxer = {
+AVInputFormat ff_xwma_demuxer = {
     .name           = "xwma",
     .long_name      = NULL_IF_CONFIG_SMALL("Microsoft xWMA"),
     .priv_data_size = sizeof(XWMAContext),

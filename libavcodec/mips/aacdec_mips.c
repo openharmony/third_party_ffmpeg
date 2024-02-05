@@ -52,7 +52,6 @@
  * Reference: libavcodec/aacdec.c
  */
 
-#include "libavutil/attributes.h"
 #include "libavcodec/aac.h"
 #include "aacdec_mips.h"
 #include "libavcodec/aactab.h"

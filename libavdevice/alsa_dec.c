@@ -157,7 +157,7 @@ static const AVClass alsa_demuxer_class = {
     .category       = AV_CLASS_CATEGORY_DEVICE_AUDIO_INPUT,
 };
 
-const AVInputFormat ff_alsa_demuxer = {
+AVInputFormat ff_alsa_demuxer = {
     .name           = "alsa",
     .long_name      = NULL_IF_CONFIG_SMALL("ALSA audio input"),
     .priv_data_size = sizeof(AlsaData),

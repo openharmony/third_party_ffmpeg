@@ -27,7 +27,6 @@
  */
 
 #include "avcodec.h"
-#include "encode.h"
 #include "hpeldsp.h"
 #include "me_cmp.h"
 #include "mpegvideo.h"
@@ -373,7 +372,8 @@ static int svq1_encode_plane(SVQ1EncContext *s, int plane,
             int score[4]     = { 0, 0, 0, 0 }, best;
             uint8_t *temp    = s->scratchbuf;
 
-            if (put_bytes_left(&s->pb, 0) < 3000) { // FIXME: check size
+            if (s->pb.buf_end - s->pb.buf -
+                (put_bits_count(&s->pb) >> 3) < 3000) { // FIXME: check size
                 av_log(s->avctx, AV_LOG_ERROR, "encoded frame too large\n");
                 return -1;
             }
@@ -582,9 +582,8 @@ static int svq1_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     SVQ1EncContext *const s = avctx->priv_data;
     int i, ret;
 
-    ret = ff_alloc_packet(avctx, pkt, s->y_block_width * s->y_block_height *
-                          MAX_MB_BYTES * 3 + AV_INPUT_BUFFER_MIN_SIZE);
-    if (ret < 0)
+    if ((ret = ff_alloc_packet2(avctx, pkt, s->y_block_width * s->y_block_height *
+                             MAX_MB_BYTES*3 + AV_INPUT_BUFFER_MIN_SIZE, 0)) < 0)
         return ret;
 
     if (avctx->pix_fmt != AV_PIX_FMT_YUV410P) {
@@ -618,6 +617,13 @@ static int svq1_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
         s->pict_type = AV_PICTURE_TYPE_I;
     s->quality = pict->quality;
 
+#if FF_API_CODED_FRAME
+FF_DISABLE_DEPRECATION_WARNINGS
+    avctx->coded_frame->pict_type = s->pict_type;
+    avctx->coded_frame->key_frame = s->pict_type == AV_PICTURE_TYPE_I;
+FF_ENABLE_DEPRECATION_WARNINGS
+#endif
+
     ff_side_data_set_encoder_stats(pkt, pict->quality, NULL, 0, s->pict_type);
 
     svq1_write_header(s, s->pict_type);
@@ -648,7 +654,7 @@ static int svq1_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
     flush_put_bits(&s->pb);
 
-    pkt->size = put_bytes_output(&s->pb);
+    pkt->size = put_bits_count(&s->pb) / 8;
     if (s->pict_type == AV_PICTURE_TYPE_I)
         pkt->flags |= AV_PKT_FLAG_KEY;
     *got_packet = 1;
@@ -674,7 +680,7 @@ static const AVClass svq1enc_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const AVCodec ff_svq1_encoder = {
+AVCodec ff_svq1_encoder = {
     .name           = "svq1",
     .long_name      = NULL_IF_CONFIG_SMALL("Sorenson Vector Quantizer 1 / Sorenson Video 1 / SVQ1"),
     .type           = AVMEDIA_TYPE_VIDEO,
@@ -684,7 +690,7 @@ const AVCodec ff_svq1_encoder = {
     .init           = svq1_encode_init,
     .encode2        = svq1_encode_frame,
     .close          = svq1_encode_end,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
     .pix_fmts       = (const enum AVPixelFormat[]) { AV_PIX_FMT_YUV410P,
                                                      AV_PIX_FMT_NONE },
-    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
 };

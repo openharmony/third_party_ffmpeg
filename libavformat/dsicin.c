@@ -226,7 +226,7 @@ static int cin_read_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-const AVInputFormat ff_dsicin_demuxer = {
+AVInputFormat ff_dsicin_demuxer = {
     .name           = "dsicin",
     .long_name      = NULL_IF_CONFIG_SMALL("Delphine Software International CIN"),
     .priv_data_size = sizeof(CinDemuxContext),

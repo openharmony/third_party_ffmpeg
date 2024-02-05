@@ -62,7 +62,6 @@
 #include "roqvideo.h"
 #include "bytestream.h"
 #include "elbg.h"
-#include "encode.h"
 #include "internal.h"
 #include "mathops.h"
 
@@ -133,7 +132,6 @@ typedef struct CelEvaluation {
 
 typedef struct RoqEncContext {
     RoqContext common;
-    struct ELBGContext *elbg;
     AVLFG randctx;
     uint64_t lambda;
 
@@ -666,6 +664,7 @@ static void reconstruct_and_encode_image(RoqEncContext *enc,
     int i, j, k;
     int x, y;
     int subX, subY;
+    int dist=0;
 
     roq_qcell *qcell;
     CelEvaluation *eval;
@@ -691,6 +690,7 @@ static void reconstruct_and_encode_image(RoqEncContext *enc,
 
         x = eval->sourceX;
         y = eval->sourceY;
+        dist += eval->eval_dist[eval->best_coding];
 
         switch (eval->best_coding) {
         case RoQ_ID_MOT:
@@ -823,8 +823,12 @@ static int generate_codebook(RoqEncContext *enc,
     int *codebook = enc->tmp_codebook_buf;
     int *closest_cb = enc->closest_cb;
 
-    ret = avpriv_elbg_do(&enc->elbg, points, 6 * c_size, inputCount, codebook,
-                         cbsize, 1, closest_cb, &enc->randctx, 0);
+    ret = avpriv_init_elbg(points, 6 * c_size, inputCount, codebook,
+                       cbsize, 1, closest_cb, &enc->randctx);
+    if (ret < 0)
+        return ret;
+    ret = avpriv_do_elbg(points, 6 * c_size, inputCount, codebook,
+                     cbsize, 1, closest_cb, &enc->randctx);
     if (ret < 0)
         return ret;
 
@@ -960,8 +964,6 @@ static av_cold int roq_encode_end(AVCodecContext *avctx)
     av_freep(&enc->this_motion8);
     av_freep(&enc->last_motion8);
 
-    avpriv_elbg_free(&enc->elbg);
-
     return 0;
 }
 
@@ -1000,13 +1002,13 @@ static av_cold int roq_encode_init(AVCodecContext *avctx)
         return AVERROR(ENOMEM);
 
     enc->this_motion4 =
-        av_calloc(roq->width * roq->height / 16, sizeof(*enc->this_motion4));
+        av_mallocz_array(roq->width * roq->height / 16, sizeof(motion_vect));
 
     enc->last_motion4 =
         av_malloc_array (roq->width * roq->height / 16, sizeof(motion_vect));
 
     enc->this_motion8 =
-        av_calloc(roq->width * roq->height / 64, sizeof(*enc->this_motion8));
+        av_mallocz_array(roq->width * roq->height / 64, sizeof(motion_vect));
 
     enc->last_motion8 =
         av_malloc_array (roq->width * roq->height / 64, sizeof(motion_vect));
@@ -1069,7 +1071,7 @@ static int roq_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     /* 138 bits max per 8x8 block +
      *     256 codebooks*(6 bytes 2x2 + 4 bytes 4x4) + 8 bytes frame header */
     size = ((roq->width * roq->height / 64) * 138 + 7) / 8 + 256 * (6 + 4) + 8;
-    if ((ret = ff_alloc_packet(avctx, pkt, size)) < 0)
+    if ((ret = ff_alloc_packet2(avctx, pkt, size, 0)) < 0)
         return ret;
     enc->out_buf = pkt->data;
 
@@ -1117,7 +1119,7 @@ static const AVClass roq_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const AVCodec ff_roq_encoder = {
+AVCodec ff_roq_encoder = {
     .name                 = "roqvideo",
     .long_name            = NULL_IF_CONFIG_SMALL("id RoQ video"),
     .type                 = AVMEDIA_TYPE_VIDEO,
@@ -1129,5 +1131,5 @@ const AVCodec ff_roq_encoder = {
     .pix_fmts             = (const enum AVPixelFormat[]){ AV_PIX_FMT_YUVJ444P,
                                                         AV_PIX_FMT_NONE },
     .priv_class     = &roq_class,
-    .caps_internal        = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal        = FF_CODEC_CAP_INIT_CLEANUP,
 };

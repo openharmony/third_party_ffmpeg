@@ -108,7 +108,11 @@ static int query_formats(AVFilterContext *ctx)
         AV_PIX_FMT_NONE
     };
 
-    return ff_set_common_formats_from_list(ctx, s->coupling ? cpix_fmts : pix_fmts);
+    AVFilterFormats *fmts_list = ff_make_format_list(s->coupling ? cpix_fmts : pix_fmts);
+    if (!fmts_list)
+        return AVERROR(ENOMEM);
+
+    return ff_set_common_formats(ctx, fmts_list);
 }
 
 static float frand(int x, int y)
@@ -422,9 +426,9 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     av_frame_copy_props(out, in);
 
     td.in = in; td.out = out;
-    ff_filter_execute(ctx, s->deband, &td, NULL,
-                      FFMIN3(s->planeheight[1], s->planeheight[2],
-                             ff_filter_get_nb_threads(ctx)));
+    ctx->internal->execute(ctx, s->deband, &td, NULL, FFMIN3(s->planeheight[1],
+                                                             s->planeheight[2],
+                                                             ff_filter_get_nb_threads(ctx)));
 
     av_frame_free(&in);
     return ff_filter_frame(outlink, out);
@@ -456,6 +460,7 @@ static const AVFilterPad avfilter_vf_deband_inputs[] = {
         .config_props = config_input,
         .filter_frame = filter_frame,
     },
+    { NULL }
 };
 
 static const AVFilterPad avfilter_vf_deband_outputs[] = {
@@ -463,17 +468,18 @@ static const AVFilterPad avfilter_vf_deband_outputs[] = {
         .name = "default",
         .type = AVMEDIA_TYPE_VIDEO,
     },
+    { NULL }
 };
 
-const AVFilter ff_vf_deband = {
+AVFilter ff_vf_deband = {
     .name          = "deband",
     .description   = NULL_IF_CONFIG_SMALL("Debands video."),
     .priv_size     = sizeof(DebandContext),
     .priv_class    = &deband_class,
     .uninit        = uninit,
-    FILTER_INPUTS(avfilter_vf_deband_inputs),
-    FILTER_OUTPUTS(avfilter_vf_deband_outputs),
-    FILTER_QUERY_FUNC(query_formats),
+    .query_formats = query_formats,
+    .inputs        = avfilter_vf_deband_inputs,
+    .outputs       = avfilter_vf_deband_outputs,
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
     .process_command = process_command,
 };

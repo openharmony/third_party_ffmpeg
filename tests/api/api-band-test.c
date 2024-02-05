@@ -66,7 +66,7 @@ static void draw_horiz_band(AVCodecContext *ctx, const AVFrame *fr, int offset[4
 
 static int video_decode(const char *input_filename)
 {
-    const AVCodec *codec = NULL;
+    AVCodec *codec = NULL;
     AVCodecContext *ctx= NULL;
     AVCodecParameters *origin_par = NULL;
     uint8_t *byte_buffer = NULL;

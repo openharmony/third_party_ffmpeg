@@ -158,7 +158,7 @@ static int pgx_decode_frame(AVCodecContext *avctx, void *data,
     return 0;
 }
 
-const AVCodec ff_pgx_decoder = {
+AVCodec ff_pgx_decoder = {
     .name           = "pgx",
     .long_name      = NULL_IF_CONFIG_SMALL("PGX (JPEG2000 Test Format)"),
     .type           = AVMEDIA_TYPE_VIDEO,

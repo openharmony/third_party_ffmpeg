@@ -720,7 +720,7 @@ error:
     return ret;
 }
 
-const AVCodec ff_smacker_decoder = {
+AVCodec ff_smacker_decoder = {
     .name           = "smackvid",
     .long_name      = NULL_IF_CONFIG_SMALL("Smacker video"),
     .type           = AVMEDIA_TYPE_VIDEO,
@@ -733,7 +733,7 @@ const AVCodec ff_smacker_decoder = {
     .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP | FF_CODEC_CAP_INIT_THREADSAFE,
 };
 
-const AVCodec ff_smackaud_decoder = {
+AVCodec ff_smackaud_decoder = {
     .name           = "smackaud",
     .long_name      = NULL_IF_CONFIG_SMALL("Smacker audio"),
     .type           = AVMEDIA_TYPE_AUDIO,

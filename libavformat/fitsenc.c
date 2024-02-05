@@ -194,7 +194,7 @@ static int fits_write_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-const AVOutputFormat ff_fits_muxer = {
+AVOutputFormat ff_fits_muxer = {
     .name         = "fits",
     .long_name    = NULL_IF_CONFIG_SMALL("Flexible Image Transport System"),
     .extensions   = "fits",

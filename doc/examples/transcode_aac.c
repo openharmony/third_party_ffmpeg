@@ -38,7 +38,6 @@
 #include "libavutil/audio_fifo.h"
 #include "libavutil/avassert.h"
 #include "libavutil/avstring.h"
-#include "libavutil/channel_layout.h"
 #include "libavutil/frame.h"
 #include "libavutil/opt.h"
 
@@ -61,7 +60,7 @@ static int open_input_file(const char *filename,
                            AVCodecContext **input_codec_context)
 {
     AVCodecContext *avctx;
-    const AVCodec *input_codec;
+    AVCodec *input_codec;
     int error;
 
     /* Open the input file to read from it. */
@@ -145,7 +144,7 @@ static int open_output_file(const char *filename,
     AVCodecContext *avctx          = NULL;
     AVIOContext *output_io_context = NULL;
     AVStream *stream               = NULL;
-    const AVCodec *output_codec    = NULL;
+    AVCodec *output_codec          = NULL;
     int error;
 
     /* Open the output file to write to it. */
