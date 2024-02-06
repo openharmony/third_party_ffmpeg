@@ -43,7 +43,6 @@
 #define BITSTREAM_READER_LE
 #include "avcodec.h"
 #include "bytestream.h"
-#include "decode.h"
 #include "get_bits.h"
 #include "hpeldsp.h"
 #include "internal.h"
@@ -1318,7 +1317,14 @@ static int ipvideo_decode_frame(AVCodecContext *avctx,
         return ret;
 
     if (!s->is_16bpp) {
-        frame->palette_has_changed = ff_copy_palette(s->pal, avpkt, avctx);
+        buffer_size_t size;
+        const uint8_t *pal = av_packet_get_side_data(avpkt, AV_PKT_DATA_PALETTE, &size);
+        if (pal && size == AVPALETTE_SIZE) {
+            frame->palette_has_changed = 1;
+            memcpy(s->pal, pal, AVPALETTE_SIZE);
+        } else if (pal) {
+            av_log(avctx, AV_LOG_ERROR, "Palette size %d is wrong\n", size);
+        }
     }
 
     switch (frame_format) {
@@ -1357,7 +1363,7 @@ static av_cold int ipvideo_decode_end(AVCodecContext *avctx)
     return 0;
 }
 
-const AVCodec ff_interplay_video_decoder = {
+AVCodec ff_interplay_video_decoder = {
     .name           = "interplayvideo",
     .long_name      = NULL_IF_CONFIG_SMALL("Interplay MVE video"),
     .type           = AVMEDIA_TYPE_VIDEO,
@@ -1367,5 +1373,5 @@ const AVCodec ff_interplay_video_decoder = {
     .close          = ipvideo_decode_end,
     .decode         = ipvideo_decode_frame,
     .capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_PARAM_CHANGE,
-    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
 };

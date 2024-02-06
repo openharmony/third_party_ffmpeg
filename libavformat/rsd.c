@@ -220,7 +220,7 @@ static int rsd_read_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-const AVInputFormat ff_rsd_demuxer = {
+AVInputFormat ff_rsd_demuxer = {
     .name           =   "rsd",
     .long_name      =   NULL_IF_CONFIG_SMALL("GameCube RSD"),
     .read_probe     =   rsd_probe,

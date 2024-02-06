@@ -21,6 +21,7 @@
  * Display frame palette (AV_PIX_FMT_PAL8)
  */
 
+#include "libavutil/avassert.h"
 #include "libavutil/opt.h"
 #include "avfilter.h"
 #include "formats.h"
@@ -100,6 +101,7 @@ static const AVFilterPad showpalette_inputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .filter_frame = filter_frame,
     },
+    { NULL }
 };
 
 static const AVFilterPad showpalette_outputs[] = {
@@ -108,14 +110,15 @@ static const AVFilterPad showpalette_outputs[] = {
         .type         = AVMEDIA_TYPE_VIDEO,
         .config_props = config_output,
     },
+    { NULL }
 };
 
-const AVFilter ff_vf_showpalette = {
+AVFilter ff_vf_showpalette = {
     .name          = "showpalette",
     .description   = NULL_IF_CONFIG_SMALL("Display frame palette."),
     .priv_size     = sizeof(ShowPaletteContext),
-    FILTER_INPUTS(showpalette_inputs),
-    FILTER_OUTPUTS(showpalette_outputs),
-    FILTER_QUERY_FUNC(query_formats),
+    .query_formats = query_formats,
+    .inputs        = showpalette_inputs,
+    .outputs       = showpalette_outputs,
     .priv_class    = &showpalette_class,
 };

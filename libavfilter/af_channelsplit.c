@@ -97,8 +97,9 @@ static av_cold int init(AVFilterContext *ctx)
             s->map[i] = ret;
         }
 
-        if ((ret = ff_append_outpad(ctx, &pad)) < 0)
+        if ((ret = ff_insert_outpad(ctx, i, &pad)) < 0) {
             return ret;
+        }
     }
 
 fail:
@@ -112,7 +113,7 @@ static int query_formats(AVFilterContext *ctx)
     int i, ret;
 
     if ((ret = ff_set_common_formats(ctx, ff_planar_sample_fmts())) < 0 ||
-        (ret = ff_set_common_all_samplerates(ctx)) < 0)
+        (ret = ff_set_common_samplerates(ctx, ff_all_samplerates())) < 0)
         return ret;
 
     if ((ret = ff_add_channel_layout(&in_layouts, s->channel_layout)) < 0 ||
@@ -164,16 +165,17 @@ static const AVFilterPad avfilter_af_channelsplit_inputs[] = {
         .type         = AVMEDIA_TYPE_AUDIO,
         .filter_frame = filter_frame,
     },
+    { NULL }
 };
 
-const AVFilter ff_af_channelsplit = {
+AVFilter ff_af_channelsplit = {
     .name           = "channelsplit",
     .description    = NULL_IF_CONFIG_SMALL("Split audio into per-channel streams."),
     .priv_size      = sizeof(ChannelSplitContext),
     .priv_class     = &channelsplit_class,
     .init           = init,
-    FILTER_INPUTS(avfilter_af_channelsplit_inputs),
+    .query_formats  = query_formats,
+    .inputs         = avfilter_af_channelsplit_inputs,
     .outputs        = NULL,
-    FILTER_QUERY_FUNC(query_formats),
     .flags          = AVFILTER_FLAG_DYNAMIC_OUTPUTS,
 };

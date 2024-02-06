@@ -22,7 +22,6 @@
 
 #include "libavutil/intreadwrite.h"
 #include "libavutil/avassert.h"
-#include "libavutil/channel_layout.h"
 #include "libavutil/internal.h"
 #include "avformat.h"
 #include "internal.h"
@@ -467,7 +466,7 @@ static int sga_seek(AVFormatContext *s, int stream_index,
     return -1;
 }
 
-const AVInputFormat ff_sga_demuxer = {
+AVInputFormat ff_sga_demuxer = {
     .name           = "sga",
     .long_name      = NULL_IF_CONFIG_SMALL("Digital Pictures SGA"),
     .priv_data_size = sizeof(SGADemuxContext),

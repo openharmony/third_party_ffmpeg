@@ -91,7 +91,7 @@ static int mods_read_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-const AVInputFormat ff_mods_demuxer = {
+AVInputFormat ff_mods_demuxer = {
     .name           = "mods",
     .long_name      = NULL_IF_CONFIG_SMALL("MobiClip MODS"),
     .read_probe     = mods_probe,

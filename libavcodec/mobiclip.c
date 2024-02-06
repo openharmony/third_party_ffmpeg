@@ -329,7 +329,7 @@ static av_cold int mobiclip_init(AVCodecContext *avctx)
     return 0;
 }
 
-static int setup_qtables(AVCodecContext *avctx, int64_t quantizer)
+static int setup_qtables(AVCodecContext *avctx, int quantizer)
 {
     MobiClipContext *s = avctx->priv_data;
     int qx, qy;
@@ -491,7 +491,7 @@ static int add_pframe_coefficients(AVCodecContext *avctx, AVFrame *frame,
     int ret, idx = get_ue_golomb_31(gb);
 
     if (idx == 0) {
-        return add_coefficients(avctx, frame, bx, by, size, plane);
+        ret = add_coefficients(avctx, frame, bx, by, size, plane);
     } else if ((unsigned)idx < FF_ARRAY_ELEMS(pframe_block4x4_coefficients_tab)) {
         int flags = pframe_block4x4_coefficients_tab[idx];
 
@@ -505,10 +505,11 @@ static int add_pframe_coefficients(AVCodecContext *avctx, AVFrame *frame,
                 flags >>= 1;
             }
         }
-        return 0;
     } else {
-        return AVERROR_INVALIDDATA;
+        ret = AVERROR_INVALIDDATA;
     }
+
+    return ret;
 }
 
 static int adjust(int x, int size)
@@ -1255,7 +1256,7 @@ static int mobiclip_decode(AVCodecContext *avctx, void *data,
         frame->key_frame = 0;
         s->dct_tab_idx = 0;
 
-        ret = setup_qtables(avctx, s->quantizer + (int64_t)get_se_golomb(gb));
+        ret = setup_qtables(avctx, s->quantizer + get_se_golomb(gb));
         if (ret < 0)
             return ret;
 
@@ -1339,7 +1340,7 @@ static av_cold int mobiclip_close(AVCodecContext *avctx)
     return 0;
 }
 
-const AVCodec ff_mobiclip_decoder = {
+AVCodec ff_mobiclip_decoder = {
     .name           = "mobiclip",
     .long_name      = NULL_IF_CONFIG_SMALL("MobiClip Video"),
     .type           = AVMEDIA_TYPE_VIDEO,

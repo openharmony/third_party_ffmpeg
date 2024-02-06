@@ -27,7 +27,6 @@
  * http://www.goice.co.jp/member/mo/formats/au.html
  */
 
-#include "libavutil/bprint.h"
 #include "avformat.h"
 #include "internal.h"
 #include "avio_internal.h"
@@ -227,7 +226,7 @@ static int au_read_header(AVFormatContext *s)
     return 0;
 }
 
-const AVInputFormat ff_au_demuxer = {
+AVInputFormat ff_au_demuxer = {
     .name        = "au",
     .long_name   = NULL_IF_CONFIG_SMALL("Sun AU"),
     .read_probe  = au_probe,
@@ -329,7 +328,7 @@ static int au_write_trailer(AVFormatContext *s)
     return 0;
 }
 
-const AVOutputFormat ff_au_muxer = {
+AVOutputFormat ff_au_muxer = {
     .name          = "au",
     .long_name     = NULL_IF_CONFIG_SMALL("Sun AU"),
     .mime_type     = "audio/basic",

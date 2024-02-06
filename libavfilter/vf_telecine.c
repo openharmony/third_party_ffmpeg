@@ -101,11 +101,16 @@ static av_cold int init(AVFilterContext *ctx)
 
 static int query_formats(AVFilterContext *ctx)
 {
-    int reject_flags = AV_PIX_FMT_FLAG_BITSTREAM |
-                       AV_PIX_FMT_FLAG_HWACCEL   |
-                       AV_PIX_FMT_FLAG_PAL;
+    AVFilterFormats *formats = NULL;
+    int ret;
 
-    return ff_set_common_formats(ctx, ff_formats_pixdesc_filter(0, reject_flags));
+    ret = ff_formats_pixdesc_filter(&formats, 0,
+                                    AV_PIX_FMT_FLAG_BITSTREAM |
+                                    AV_PIX_FMT_FLAG_PAL |
+                                    AV_PIX_FMT_FLAG_HWACCEL);
+    if (ret < 0)
+        return ret;
+    return ff_set_common_formats(ctx, formats);
 }
 
 static int config_input(AVFilterLink *inlink)
@@ -270,6 +275,7 @@ static const AVFilterPad telecine_inputs[] = {
         .filter_frame  = filter_frame,
         .config_props  = config_input,
     },
+    { NULL }
 };
 
 static const AVFilterPad telecine_outputs[] = {
@@ -278,16 +284,17 @@ static const AVFilterPad telecine_outputs[] = {
         .type          = AVMEDIA_TYPE_VIDEO,
         .config_props  = config_output,
     },
+    { NULL }
 };
 
-const AVFilter ff_vf_telecine = {
+AVFilter ff_vf_telecine = {
     .name          = "telecine",
     .description   = NULL_IF_CONFIG_SMALL("Apply a telecine pattern."),
     .priv_size     = sizeof(TelecineContext),
     .priv_class    = &telecine_class,
     .init          = init,
     .uninit        = uninit,
-    FILTER_INPUTS(telecine_inputs),
-    FILTER_OUTPUTS(telecine_outputs),
-    FILTER_QUERY_FUNC(query_formats),
+    .query_formats = query_formats,
+    .inputs        = telecine_inputs,
+    .outputs       = telecine_outputs,
 };

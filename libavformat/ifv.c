@@ -20,7 +20,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/channel_layout.h"
 #include "avformat.h"
 #include "internal.h"
 #include "avio_internal.h"
@@ -188,26 +187,23 @@ static int ifv_read_header(AVFormatContext *s)
 static int ifv_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     IFVContext *ifv = s->priv_data;
+    AVStream *st;
     AVIndexEntry *ev, *ea, *e_next;
     int ret;
 
     ev = ea = e_next = NULL;
 
     if (ifv->next_video_index < ifv->total_vframes) {
-        AVStream *const st  = s->streams[ifv->video_stream_index];
-        FFStream *const sti = ffstream(st);
-
-        if (ifv->next_video_index < sti->nb_index_entries)
-            e_next = ev = &sti->index_entries[ifv->next_video_index];
+        st = s->streams[ifv->video_stream_index];
+        if (ifv->next_video_index < st->nb_index_entries)
+            e_next = ev = &st->index_entries[ifv->next_video_index];
     }
 
     if (ifv->is_audio_present &&
         ifv->next_audio_index < ifv->total_aframes) {
-        AVStream *const st  = s->streams[ifv->audio_stream_index];
-        FFStream *const sti = ffstream(st);
-
-        if (ifv->next_audio_index < sti->nb_index_entries) {
-            ea = &sti->index_entries[ifv->next_audio_index];
+        st = s->streams[ifv->audio_stream_index];
+        if (ifv->next_audio_index < st->nb_index_entries) {
+            ea = &st->index_entries[ifv->next_audio_index];
             if (!ev || ea->timestamp < ev->timestamp)
                 e_next = ea;
         }
@@ -309,7 +305,7 @@ static int ifv_read_seek(AVFormatContext *s, int stream_index, int64_t ts, int f
     return 0;
 }
 
-const AVInputFormat ff_ifv_demuxer = {
+AVInputFormat ff_ifv_demuxer = {
     .name           = "ifv",
     .long_name      = NULL_IF_CONFIG_SMALL("IFV CCTV DVR"),
     .priv_data_size = sizeof(IFVContext),

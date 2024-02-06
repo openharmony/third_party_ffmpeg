@@ -25,7 +25,6 @@
 #include <stddef.h>
 #include "avformat.h"
 #include "libavutil/bprint.h"
-#include "avio_internal.h"
 
 enum sub_sort {
     SUB_SORT_TS_POS = 0,    ///< sort by timestamps, then position
@@ -43,7 +42,7 @@ typedef struct {
     AVIOContext *pb;
     unsigned char buf[8];
     int buf_pos, buf_len;
-    FFIOContext buf_pb;
+    AVIOContext buf_pb;
 } FFTextReader;
 
 /**
@@ -143,13 +142,6 @@ int ff_subtitles_queue_seek(FFDemuxSubtitlesQueue *q, AVFormatContext *s, int st
  * Remove and destroy all the subtitles packets.
  */
 void ff_subtitles_queue_clean(FFDemuxSubtitlesQueue *q);
-
-int ff_subtitles_read_packet(AVFormatContext *s, AVPacket *pkt);
-
-int ff_subtitles_read_seek(AVFormatContext *s, int stream_index,
-                           int64_t min_ts, int64_t ts, int64_t max_ts, int flags);
-
-int ff_subtitles_read_close(AVFormatContext *s);
 
 /**
  * SMIL helper to load next chunk ("<...>" or untagged content) in buf.

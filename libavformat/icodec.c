@@ -96,11 +96,13 @@ static int read_header(AVFormatContext *s)
         int tmp;
 
         if (avio_seek(pb, 6 + i * 16, SEEK_SET) < 0)
-            return AVERROR_INVALIDDATA;
+            goto fail;
 
         st = avformat_new_stream(s, NULL);
-        if (!st)
+        if (!st) {
+            av_freep(&ico->images);
             return AVERROR(ENOMEM);
+        }
 
         st->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
         st->codecpar->width      = avio_r8(pb);
@@ -114,12 +116,12 @@ static int read_header(AVFormatContext *s)
         ico->images[i].size   = avio_rl32(pb);
         if (ico->images[i].size <= 0) {
             av_log(s, AV_LOG_ERROR, "Invalid image size %d\n", ico->images[i].size);
-            return AVERROR_INVALIDDATA;
+            goto fail;
         }
         ico->images[i].offset = avio_rl32(pb);
 
         if (avio_seek(pb, ico->images[i].offset, SEEK_SET) < 0)
-            return AVERROR_INVALIDDATA;
+            goto fail;
 
         codec = avio_rl32(pb);
         switch (codec) {
@@ -129,8 +131,9 @@ static int read_header(AVFormatContext *s)
             st->codecpar->height   = 0;
             break;
         case 40:
-            if (ico->images[i].size < 40)
-                return AVERROR_INVALIDDATA;
+            if (ico->images[i].size < 40) {
+                goto fail;
+            }
             st->codecpar->codec_id = AV_CODEC_ID_BMP;
             tmp = avio_rl32(pb);
             if (tmp)
@@ -141,11 +144,14 @@ static int read_header(AVFormatContext *s)
             break;
         default:
             avpriv_request_sample(s, "codec %d", codec);
-            return AVERROR_INVALIDDATA;
+            goto fail;
         }
     }
 
     return 0;
+fail:
+    av_freep(&ico->images);
+    return AVERROR_INVALIDDATA;
 }
 
 static int read_packet(AVFormatContext *s, AVPacket *pkt)
@@ -197,9 +203,6 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
             AV_WL32(buf + 32, image->nb_pal);
         }
 
-        if (image->nb_pal > INT_MAX / 4 - 14 - 40)
-            return AVERROR_INVALIDDATA;
-
         AV_WL32(buf - 4, 14 + 40 + image->nb_pal * 4);
         AV_WL32(buf + 8, AV_RL32(buf + 8) / 2);
     }
@@ -217,11 +220,10 @@ static int ico_read_close(AVFormatContext * s)
     return 0;
 }
 
-const AVInputFormat ff_ico_demuxer = {
+AVInputFormat ff_ico_demuxer = {
     .name           = "ico",
     .long_name      = NULL_IF_CONFIG_SMALL("Microsoft Windows ICO"),
     .priv_data_size = sizeof(IcoDemuxContext),
-    .flags_internal = FF_FMT_INIT_CLEANUP,
     .read_probe     = probe,
     .read_header    = read_header,
     .read_packet    = read_packet,

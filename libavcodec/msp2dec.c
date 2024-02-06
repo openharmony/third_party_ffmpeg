@@ -93,7 +93,7 @@ static int msp2_decode_frame(AVCodecContext *avctx,
     return buf_size;
 }
 
-const AVCodec ff_msp2_decoder = {
+AVCodec ff_msp2_decoder = {
     .name           = "msp2",
     .long_name      = NULL_IF_CONFIG_SMALL("Microsoft Paint (MSP) version 2"),
     .type           = AVMEDIA_TYPE_VIDEO,

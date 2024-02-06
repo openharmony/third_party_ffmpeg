@@ -638,7 +638,7 @@ static av_cold int decode_end(AVCodecContext *avctx)
 }
 
 #if CONFIG_MSZH_DECODER
-const AVCodec ff_mszh_decoder = {
+AVCodec ff_mszh_decoder = {
     .name           = "mszh",
     .long_name      = NULL_IF_CONFIG_SMALL("LCL (LossLess Codec Library) MSZH"),
     .type           = AVMEDIA_TYPE_VIDEO,
@@ -653,7 +653,7 @@ const AVCodec ff_mszh_decoder = {
 #endif
 
 #if CONFIG_ZLIB_DECODER
-const AVCodec ff_zlib_decoder = {
+AVCodec ff_zlib_decoder = {
     .name           = "zlib",
     .long_name      = NULL_IF_CONFIG_SMALL("LCL (LossLess Codec Library) ZLIB"),
     .type           = AVMEDIA_TYPE_VIDEO,

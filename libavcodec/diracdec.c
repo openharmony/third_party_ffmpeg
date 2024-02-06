@@ -37,7 +37,7 @@
 #include "dirac_arith.h"
 #include "dirac_vlc.h"
 #include "mpeg12data.h"
-#include "mpegpicture.h"
+#include "libavcodec/mpegvideo.h"
 #include "mpegvideoencdsp.h"
 #include "dirac_dwt.h"
 #include "dirac.h"
@@ -304,7 +304,7 @@ static int alloc_sequence_buffers(DiracContext *s)
         w = FFALIGN(CALC_PADDING(w, MAX_DWT_LEVELS), 8); /* FIXME: Should this be 16 for SSE??? */
         h = top_padding + CALC_PADDING(h, MAX_DWT_LEVELS) + max_yblen/2;
 
-        s->plane[i].idwt.buf_base = av_calloc(w + max_xblen, h * (2 << s->pshift));
+        s->plane[i].idwt.buf_base = av_mallocz_array((w+max_xblen), h * (2 << s->pshift));
         s->plane[i].idwt.tmp      = av_malloc_array((w+16), 2 << s->pshift);
         s->plane[i].idwt.buf      = s->plane[i].idwt.buf_base + (top_padding*w)*(2 << s->pshift);
         if (!s->plane[i].idwt.buf_base || !s->plane[i].idwt.tmp)
@@ -1432,8 +1432,8 @@ static void global_mv(DiracContext *s, DiracBlock *block, int x, int y, int ref)
     int *c      = s->globalmc[ref].perspective;
 
     int64_t m   = (1<<ep) - (c[0]*(int64_t)x + c[1]*(int64_t)y);
-    int64_t mx  = m * (uint64_t)((A[0][0] * (int64_t)x + A[0][1]*(int64_t)y) + (1LL<<ez) * b[0]);
-    int64_t my  = m * (uint64_t)((A[1][0] * (int64_t)x + A[1][1]*(int64_t)y) + (1LL<<ez) * b[1]);
+    int64_t mx  = m * (int64_t)((A[0][0] * (int64_t)x + A[0][1]*(int64_t)y) + (1LL<<ez) * b[0]);
+    int64_t my  = m * (int64_t)((A[1][0] * (int64_t)x + A[1][1]*(int64_t)y) + (1LL<<ez) * b[1]);
 
     block->u.mv[ref][0] = (mx + (1<<(ez+ep))) >> (ez+ep);
     block->u.mv[ref][1] = (my + (1<<(ez+ep))) >> (ez+ep);
@@ -2355,7 +2355,7 @@ static int dirac_decode_frame(AVCodecContext *avctx, void *data, int *got_frame,
     return buf_idx;
 }
 
-const AVCodec ff_dirac_decoder = {
+AVCodec ff_dirac_decoder = {
     .name           = "dirac",
     .long_name      = NULL_IF_CONFIG_SMALL("BBC Dirac VC-2"),
     .type           = AVMEDIA_TYPE_VIDEO,

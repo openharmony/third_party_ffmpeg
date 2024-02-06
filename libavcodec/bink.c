@@ -24,7 +24,6 @@
 #include "libavutil/imgutils.h"
 #include "libavutil/internal.h"
 #include "libavutil/mem_internal.h"
-#include "libavutil/thread.h"
 
 #define BITSTREAM_READER_LE
 #include "avcodec.h"
@@ -1087,7 +1086,7 @@ static int bink_decode_plane(BinkContext *c, AVFrame *frame, GetBitContext *gb,
         for (bx = 0; bx < bw; bx++, dst += 8, prev += 8) {
             blk = get_value(c, BINK_SRC_BLOCK_TYPES);
             // 16x16 block type on odd line means part of the already decoded block, so skip it
-            if (((by & 1) || (bx & 1)) && blk == SCALED_BLOCK) {
+            if ((by & 1) && blk == SCALED_BLOCK) {
                 bx++;
                 dst  += 8;
                 prev += 8;
@@ -1310,20 +1309,6 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *got_frame, AVPac
     return pkt->size;
 }
 
-static av_cold void bink_init_vlcs(void)
-{
-    for (int i = 0, offset = 0; i < 16; i++) {
-        static VLC_TYPE table[976][2];
-        const int maxbits = bink_tree_lens[i][15];
-        bink_trees[i].table           = table + offset;
-        bink_trees[i].table_allocated = 1 << maxbits;
-        offset                       += bink_trees[i].table_allocated;
-        init_vlc(&bink_trees[i], maxbits, 16,
-                 bink_tree_lens[i], 1, 1,
-                 bink_tree_bits[i], 1, 1, INIT_VLC_USE_NEW_STATIC | INIT_VLC_LE);
-    }
-}
-
 /**
  * Calculate quantization tables for version b
  */
@@ -1358,10 +1343,11 @@ static av_cold void binkb_calc_quant(void)
 
 static av_cold int decode_init(AVCodecContext *avctx)
 {
-    static AVOnce init_static_once = AV_ONCE_INIT;
     BinkContext * const c = avctx->priv_data;
+    static VLC_TYPE table[16 * 128][2];
+    static int binkb_initialised = 0;
     HpelDSPContext hdsp;
-    int ret;
+    int i, ret;
     int flags;
 
     c->version = avctx->codec_tag >> 24;
@@ -1372,6 +1358,16 @@ static av_cold int decode_init(AVCodecContext *avctx)
     flags = AV_RL32(avctx->extradata);
     c->has_alpha = flags & BINK_FLAG_ALPHA;
     c->swap_planes = c->version >= 'h';
+    if (!bink_trees[15].table) {
+        for (i = 0; i < 16; i++) {
+            const int maxbits = bink_tree_lens[i][15];
+            bink_trees[i].table = table + i*128;
+            bink_trees[i].table_allocated = 1 << maxbits;
+            init_vlc(&bink_trees[i], maxbits, 16,
+                     bink_tree_lens[i], 1, 1,
+                     bink_tree_bits[i], 1, 1, INIT_VLC_USE_NEW_STATIC | INIT_VLC_LE);
+        }
+    }
     c->avctx = avctx;
 
     if ((ret = av_image_check_size(avctx->width, avctx->height, 0, avctx)) < 0)
@@ -1393,10 +1389,11 @@ static av_cold int decode_init(AVCodecContext *avctx)
         return ret;
 
     if (c->version == 'b') {
-        static AVOnce binkb_init_once = AV_ONCE_INIT;
-        ff_thread_once(&binkb_init_once, binkb_calc_quant);
+        if (!binkb_initialised) {
+            binkb_calc_quant();
+            binkb_initialised = 1;
+        }
     }
-    ff_thread_once(&init_static_once, bink_init_vlcs);
 
     return 0;
 }
@@ -1418,7 +1415,7 @@ static void flush(AVCodecContext *avctx)
     c->frame_num = 0;
 }
 
-const AVCodec ff_bink_decoder = {
+AVCodec ff_bink_decoder = {
     .name           = "binkvideo",
     .long_name      = NULL_IF_CONFIG_SMALL("Bink video"),
     .type           = AVMEDIA_TYPE_VIDEO,
@@ -1429,5 +1426,5 @@ const AVCodec ff_bink_decoder = {
     .decode         = decode_frame,
     .flush          = flush,
     .capabilities   = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
 };

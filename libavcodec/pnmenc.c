@@ -23,7 +23,6 @@
 #include "libavutil/imgutils.h"
 #include "libavutil/pixdesc.h"
 #include "avcodec.h"
-#include "encode.h"
 #include "internal.h"
 
 static int pnm_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
@@ -35,7 +34,7 @@ static int pnm_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     int size = av_image_get_buffer_size(avctx->pix_fmt,
                                         avctx->width, avctx->height, 1);
 
-    if ((ret = ff_get_encode_buffer(avctx, pkt, size + 200, 0)) < 0)
+    if ((ret = ff_alloc_packet2(avctx, pkt, size + 200, 0)) < 0)
         return ret;
 
     bytestream_start =
@@ -142,19 +141,32 @@ static int pnm_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                 ptr2 += p->linesize[2];
         }
     }
-    av_shrink_packet(pkt, bytestream - bytestream_start);
+    pkt->size   = bytestream - bytestream_start;
+    pkt->flags |= AV_PKT_FLAG_KEY;
     *got_packet = 1;
 
     return 0;
 }
 
+static av_cold int pnm_encode_init(AVCodecContext *avctx)
+{
+#if FF_API_CODED_FRAME
+FF_DISABLE_DEPRECATION_WARNINGS
+    avctx->coded_frame->pict_type = AV_PICTURE_TYPE_I;
+    avctx->coded_frame->key_frame = 1;
+FF_ENABLE_DEPRECATION_WARNINGS
+#endif
+
+    return 0;
+}
+
 #if CONFIG_PGM_ENCODER
-const AVCodec ff_pgm_encoder = {
+AVCodec ff_pgm_encoder = {
     .name           = "pgm",
     .long_name      = NULL_IF_CONFIG_SMALL("PGM (Portable GrayMap) image"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_PGM,
-    .capabilities   = AV_CODEC_CAP_DR1,
+    .init           = pnm_encode_init,
     .encode2        = pnm_encode_frame,
     .pix_fmts       = (const enum AVPixelFormat[]){
         AV_PIX_FMT_GRAY8, AV_PIX_FMT_GRAY16BE, AV_PIX_FMT_NONE
@@ -164,12 +176,12 @@ const AVCodec ff_pgm_encoder = {
 #endif
 
 #if CONFIG_PGMYUV_ENCODER
-const AVCodec ff_pgmyuv_encoder = {
+AVCodec ff_pgmyuv_encoder = {
     .name           = "pgmyuv",
     .long_name      = NULL_IF_CONFIG_SMALL("PGMYUV (Portable GrayMap YUV) image"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_PGMYUV,
-    .capabilities   = AV_CODEC_CAP_DR1,
+    .init           = pnm_encode_init,
     .encode2        = pnm_encode_frame,
     .pix_fmts       = (const enum AVPixelFormat[]){
         AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV420P16BE, AV_PIX_FMT_NONE
@@ -179,12 +191,12 @@ const AVCodec ff_pgmyuv_encoder = {
 #endif
 
 #if CONFIG_PPM_ENCODER
-const AVCodec ff_ppm_encoder = {
+AVCodec ff_ppm_encoder = {
     .name           = "ppm",
     .long_name      = NULL_IF_CONFIG_SMALL("PPM (Portable PixelMap) image"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_PPM,
-    .capabilities   = AV_CODEC_CAP_DR1,
+    .init           = pnm_encode_init,
     .encode2        = pnm_encode_frame,
     .pix_fmts       = (const enum AVPixelFormat[]){
         AV_PIX_FMT_RGB24, AV_PIX_FMT_RGB48BE, AV_PIX_FMT_NONE
@@ -194,12 +206,12 @@ const AVCodec ff_ppm_encoder = {
 #endif
 
 #if CONFIG_PBM_ENCODER
-const AVCodec ff_pbm_encoder = {
+AVCodec ff_pbm_encoder = {
     .name           = "pbm",
     .long_name      = NULL_IF_CONFIG_SMALL("PBM (Portable BitMap) image"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_PBM,
-    .capabilities   = AV_CODEC_CAP_DR1,
+    .init           = pnm_encode_init,
     .encode2        = pnm_encode_frame,
     .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_MONOWHITE,
                                                   AV_PIX_FMT_NONE },
@@ -208,12 +220,12 @@ const AVCodec ff_pbm_encoder = {
 #endif
 
 #if CONFIG_PFM_ENCODER
-const AVCodec ff_pfm_encoder = {
+AVCodec ff_pfm_encoder = {
     .name           = "pfm",
     .long_name      = NULL_IF_CONFIG_SMALL("PFM (Portable FloatMap) image"),
     .type           = AVMEDIA_TYPE_VIDEO,
     .id             = AV_CODEC_ID_PFM,
-    .capabilities   = AV_CODEC_CAP_DR1,
+    .init           = pnm_encode_init,
     .encode2        = pnm_encode_frame,
     .pix_fmts       = (const enum AVPixelFormat[]){ AV_PIX_FMT_GBRPF32,
                                                     AV_PIX_FMT_NONE },

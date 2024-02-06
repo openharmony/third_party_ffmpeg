@@ -32,7 +32,6 @@
 #include "libavformat/internal.h"
 #include "libavutil/opt.h"
 #include "libavutil/time.h"
-#include "libavutil/wchar_filename.h"
 #include <windows.h>
 
 /**
@@ -246,20 +245,8 @@ gdigrab_read_header(AVFormatContext *s1)
     int ret;
 
     if (!strncmp(filename, "title=", 6)) {
-        wchar_t *name_w = NULL;
         name = filename + 6;
-
-        if(utf8towchar(name, &name_w)) {
-            ret = AVERROR(errno);
-            goto error;
-        }
-        if(!name_w) {
-            ret = AVERROR(EINVAL);
-            goto error;
-        }
-
-        hwnd = FindWindowW(NULL, name_w);
-        av_freep(&name_w);
+        hwnd = FindWindow(NULL, name);
         if (!hwnd) {
             av_log(s1, AV_LOG_ERROR,
                    "Can't find window '%s', aborting.\n", name);
@@ -664,7 +651,7 @@ static const AVClass gdigrab_class = {
 };
 
 /** gdi grabber device demuxer declaration */
-const AVInputFormat ff_gdigrab_demuxer = {
+AVInputFormat ff_gdigrab_demuxer = {
     .name           = "gdigrab",
     .long_name      = NULL_IF_CONFIG_SMALL("GDI API Windows frame grabber"),
     .priv_data_size = sizeof(struct gdigrab),

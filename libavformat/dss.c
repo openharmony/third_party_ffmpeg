@@ -50,6 +50,7 @@ typedef struct DSSDemuxContext {
     int counter;
     int swap;
     int dss_sp_swap_byte;
+    int8_t dss_sp_buf[DSS_FRAME_SIZE + 1];
 
     int packet_size;
     int dss_header_size;
@@ -143,8 +144,6 @@ static int dss_read_header(AVFormatContext *s)
     if (ctx->audio_codec == DSS_ACODEC_DSS_SP) {
         st->codecpar->codec_id    = AV_CODEC_ID_DSS_SP;
         st->codecpar->sample_rate = 11025;
-        s->bit_rate = 8 * (DSS_FRAME_SIZE - 1) * st->codecpar->sample_rate
-                        * 512 / (506 * 264);
     } else if (ctx->audio_codec == DSS_ACODEC_G723_1) {
         st->codecpar->codec_id    = AV_CODEC_ID_G723_1;
         st->codecpar->sample_rate = 8000;
@@ -181,29 +180,33 @@ static void dss_skip_audio_header(AVFormatContext *s, AVPacket *pkt)
     ctx->counter += DSS_BLOCK_SIZE - DSS_AUDIO_BLOCK_HEADER_SIZE;
 }
 
-static void dss_sp_byte_swap(DSSDemuxContext *ctx, uint8_t *data)
+static void dss_sp_byte_swap(DSSDemuxContext *ctx,
+                             uint8_t *dst, const uint8_t *src)
 {
     int i;
 
     if (ctx->swap) {
-        for (i = 0; i < DSS_FRAME_SIZE - 2; i += 2)
-            data[i] = data[i + 4];
+        for (i = 3; i < DSS_FRAME_SIZE; i += 2)
+            dst[i] = src[i];
 
-        /* Zero the padding. */
-        data[DSS_FRAME_SIZE] = 0;
-        data[1] = ctx->dss_sp_swap_byte;
+        for (i = 0; i < DSS_FRAME_SIZE - 2; i += 2)
+            dst[i] = src[i + 4];
+
+        dst[1] = ctx->dss_sp_swap_byte;
     } else {
-        ctx->dss_sp_swap_byte = data[DSS_FRAME_SIZE - 2];
+        memcpy(dst, src, DSS_FRAME_SIZE);
+        ctx->dss_sp_swap_byte = src[DSS_FRAME_SIZE - 2];
     }
 
     /* make sure byte 40 is always 0 */
-    data[DSS_FRAME_SIZE - 2] = 0;
+    dst[DSS_FRAME_SIZE - 2] = 0;
     ctx->swap             ^= 1;
 }
 
 static int dss_sp_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     DSSDemuxContext *ctx = s->priv_data;
+    AVStream *st = s->streams[0];
     int read_size, ret, offset = 0, buff_offset = 0;
     int64_t pos = avio_tell(s->pb);
 
@@ -216,6 +219,8 @@ static int dss_sp_read_packet(AVFormatContext *s, AVPacket *pkt)
     } else
         read_size = DSS_FRAME_SIZE;
 
+    ctx->packet_size = DSS_FRAME_SIZE - 1;
+
     ret = av_new_packet(pkt, DSS_FRAME_SIZE);
     if (ret < 0)
         return ret;
@@ -223,9 +228,10 @@ static int dss_sp_read_packet(AVFormatContext *s, AVPacket *pkt)
     pkt->duration     = 264;
     pkt->pos = pos;
     pkt->stream_index = 0;
+    s->bit_rate = 8LL * ctx->packet_size * st->codecpar->sample_rate * 512 / (506 * pkt->duration);
 
     if (ctx->counter < read_size) {
-        ret = avio_read(s->pb, pkt->data + buff_offset,
+        ret = avio_read(s->pb, ctx->dss_sp_buf + buff_offset,
                         ctx->counter);
         if (ret < ctx->counter)
             goto error_eof;
@@ -235,19 +241,18 @@ static int dss_sp_read_packet(AVFormatContext *s, AVPacket *pkt)
     }
     ctx->counter -= read_size;
 
-    /* This will write one byte into pkt's padding if buff_offset == 3 */
-    ret = avio_read(s->pb, pkt->data + offset + buff_offset,
+    ret = avio_read(s->pb, ctx->dss_sp_buf + offset + buff_offset,
                     read_size - offset);
     if (ret < read_size - offset)
         goto error_eof;
 
-    dss_sp_byte_swap(ctx, pkt->data);
+    dss_sp_byte_swap(ctx, pkt->data, ctx->dss_sp_buf);
 
     if (ctx->dss_sp_swap_byte < 0) {
         return AVERROR(EAGAIN);
     }
 
-    return 0;
+    return pkt->size;
 
 error_eof:
     return ret < 0 ? ret : AVERROR_EOF;
@@ -302,7 +307,7 @@ static int dss_723_1_read_packet(AVFormatContext *s, AVPacket *pkt)
     if (ret < size)
         return ret < 0 ? ret : AVERROR_EOF;
 
-    return 0;
+    return pkt->size;
 }
 
 static int dss_read_packet(AVFormatContext *s, AVPacket *pkt)
@@ -354,7 +359,7 @@ static int dss_read_seek(AVFormatContext *s, int stream_index,
 }
 
 
-const AVInputFormat ff_dss_demuxer = {
+AVInputFormat ff_dss_demuxer = {
     .name           = "dss",
     .long_name      = NULL_IF_CONFIG_SMALL("Digital Speech Standard (DSS)"),
     .priv_data_size = sizeof(DSSDemuxContext),

@@ -135,8 +135,6 @@ typedef struct WMACodecContext {
     float lsp_pow_m_table2[(1 << LSP_POW_BITS)];
     AVFloatDSPContext *fdsp;
 
-    int eof_done; /* decode flag to output remaining samples after EOF */
-
 #ifdef TRACE
     int frame_count;
 #endif /* TRACE */

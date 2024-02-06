@@ -115,7 +115,7 @@ static int dat_read_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-const AVInputFormat ff_luodat_demuxer = {
+AVInputFormat ff_luodat_demuxer = {
     .name           = "luodat",
     .long_name      = NULL_IF_CONFIG_SMALL("Video CCTV DAT"),
     .read_probe     = dat_probe,

@@ -29,7 +29,6 @@
  * SBC ARMv6 optimization for some basic "building bricks"
  */
 
-#include "libavutil/attributes.h"
 #include "libavutil/cpu.h"
 #include "libavutil/mem_internal.h"
 #include "libavutil/arm/cpu.h"

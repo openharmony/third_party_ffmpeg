@@ -21,9 +21,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "libavutil/avassert.h"
 #include "libavutil/avutil.h"
 #include "libavutil/common.h"
-#include "libavutil/cpu.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/opt.h"
@@ -208,9 +208,7 @@ static int libuavs3d_decode_frame(AVCodecContext *avctx, void *data, int *got_fr
                 }
                 avctx->has_b_frames  = !seqh->low_delay;
                 avctx->pix_fmt = seqh->bit_depth_internal == 8 ? AV_PIX_FMT_YUV420P : AV_PIX_FMT_YUV420P10LE;
-                ret = ff_set_dimensions(avctx, seqh->horizontal_size, seqh->vertical_size);
-                if (ret < 0)
-                    return ret;
+                ff_set_dimensions(avctx, seqh->horizontal_size, seqh->vertical_size);
                 h->got_seqhdr = 1;
 
                 if (seqh->colour_description) {
@@ -246,7 +244,7 @@ static int libuavs3d_decode_frame(AVCodecContext *avctx, void *data, int *got_fr
     return buf_ptr - buf;
 }
 
-const AVCodec ff_libuavs3d_decoder = {
+AVCodec ff_libuavs3d_decoder = {
     .name           = "libuavs3d",
     .long_name      = NULL_IF_CONFIG_SMALL("libuavs3d AVS3-P2/IEEE1857.10"),
     .type           = AVMEDIA_TYPE_VIDEO,

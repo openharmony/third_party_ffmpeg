@@ -214,34 +214,45 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
     AVFilterContext *ctx = inlink->dst;
     MonochromeContext *s = ctx->priv;
 
-    ff_filter_execute(ctx, s->do_slice, frame, NULL,
-                      FFMIN(frame->height, ff_filter_get_nb_threads(ctx)));
-    ff_filter_execute(ctx, s->clear_uv, frame, NULL,
-                      FFMIN(frame->height >> s->subh, ff_filter_get_nb_threads(ctx)));
+    ctx->internal->execute(ctx, s->do_slice, frame, NULL,
+                           FFMIN(frame->height, ff_filter_get_nb_threads(ctx)));
+    ctx->internal->execute(ctx, s->clear_uv, frame, NULL,
+                           FFMIN(frame->height >> s->subh, ff_filter_get_nb_threads(ctx)));
 
     return ff_filter_frame(ctx->outputs[0], frame);
 }
 
-static const enum AVPixelFormat pixel_fmts[] = {
-    AV_PIX_FMT_YUV410P, AV_PIX_FMT_YUV411P,
-    AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV422P,
-    AV_PIX_FMT_YUV440P, AV_PIX_FMT_YUV444P,
-    AV_PIX_FMT_YUVJ420P, AV_PIX_FMT_YUVJ422P,
-    AV_PIX_FMT_YUVJ440P, AV_PIX_FMT_YUVJ444P,
-    AV_PIX_FMT_YUVJ411P,
-    AV_PIX_FMT_YUV420P9, AV_PIX_FMT_YUV422P9, AV_PIX_FMT_YUV444P9,
-    AV_PIX_FMT_YUV420P10, AV_PIX_FMT_YUV422P10, AV_PIX_FMT_YUV444P10,
-    AV_PIX_FMT_YUV440P10,
-    AV_PIX_FMT_YUV444P12, AV_PIX_FMT_YUV422P12, AV_PIX_FMT_YUV420P12,
-    AV_PIX_FMT_YUV440P12,
-    AV_PIX_FMT_YUV444P14, AV_PIX_FMT_YUV422P14, AV_PIX_FMT_YUV420P14,
-    AV_PIX_FMT_YUV420P16, AV_PIX_FMT_YUV422P16, AV_PIX_FMT_YUV444P16,
-    AV_PIX_FMT_YUVA420P,  AV_PIX_FMT_YUVA422P,   AV_PIX_FMT_YUVA444P,
-    AV_PIX_FMT_YUVA444P9, AV_PIX_FMT_YUVA444P10, AV_PIX_FMT_YUVA444P12, AV_PIX_FMT_YUVA444P16,
-    AV_PIX_FMT_YUVA422P9, AV_PIX_FMT_YUVA422P10, AV_PIX_FMT_YUVA422P12, AV_PIX_FMT_YUVA422P16,
-    AV_PIX_FMT_YUVA420P9, AV_PIX_FMT_YUVA420P10, AV_PIX_FMT_YUVA420P16,
-    AV_PIX_FMT_NONE
-};
+static av_cold int query_formats(AVFilterContext *ctx)
+{
+    static const enum AVPixelFormat pixel_fmts[] = {
+        AV_PIX_FMT_YUV410P, AV_PIX_FMT_YUV411P,
+        AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV422P,
+        AV_PIX_FMT_YUV440P, AV_PIX_FMT_YUV444P,
+        AV_PIX_FMT_YUVJ420P, AV_PIX_FMT_YUVJ422P,
+        AV_PIX_FMT_YUVJ440P, AV_PIX_FMT_YUVJ444P,
+        AV_PIX_FMT_YUVJ411P,
+        AV_PIX_FMT_YUV420P9, AV_PIX_FMT_YUV422P9, AV_PIX_FMT_YUV444P9,
+        AV_PIX_FMT_YUV420P10, AV_PIX_FMT_YUV422P10, AV_PIX_FMT_YUV444P10,
+        AV_PIX_FMT_YUV440P10,
+        AV_PIX_FMT_YUV444P12, AV_PIX_FMT_YUV422P12, AV_PIX_FMT_YUV420P12,
+        AV_PIX_FMT_YUV440P12,
+        AV_PIX_FMT_YUV444P14, AV_PIX_FMT_YUV422P14, AV_PIX_FMT_YUV420P14,
+        AV_PIX_FMT_YUV420P16, AV_PIX_FMT_YUV422P16, AV_PIX_FMT_YUV444P16,
+        AV_PIX_FMT_YUVA420P,  AV_PIX_FMT_YUVA422P,   AV_PIX_FMT_YUVA444P,
+        AV_PIX_FMT_YUVA444P9, AV_PIX_FMT_YUVA444P10, AV_PIX_FMT_YUVA444P12, AV_PIX_FMT_YUVA444P16,
+        AV_PIX_FMT_YUVA422P9, AV_PIX_FMT_YUVA422P10, AV_PIX_FMT_YUVA422P12, AV_PIX_FMT_YUVA422P16,
+        AV_PIX_FMT_YUVA420P9, AV_PIX_FMT_YUVA420P10, AV_PIX_FMT_YUVA420P16,
+        AV_PIX_FMT_NONE
+    };
+
+    AVFilterFormats *formats = NULL;
+
+    formats = ff_make_format_list(pixel_fmts);
+    if (!formats)
+        return AVERROR(ENOMEM);
+
+    return ff_set_common_formats(ctx, formats);
+}
 
 static av_cold int config_input(AVFilterLink *inlink)
 {
@@ -262,10 +273,11 @@ static const AVFilterPad monochrome_inputs[] = {
     {
         .name           = "default",
         .type           = AVMEDIA_TYPE_VIDEO,
-        .flags          = AVFILTERPAD_FLAG_NEEDS_WRITABLE,
+        .needs_writable = 1,
         .filter_frame   = filter_frame,
         .config_props   = config_input,
     },
+    { NULL }
 };
 
 static const AVFilterPad monochrome_outputs[] = {
@@ -273,6 +285,7 @@ static const AVFilterPad monochrome_outputs[] = {
         .name = "default",
         .type = AVMEDIA_TYPE_VIDEO,
     },
+    { NULL }
 };
 
 #define OFFSET(x) offsetof(MonochromeContext, x)
@@ -288,14 +301,14 @@ static const AVOption monochrome_options[] = {
 
 AVFILTER_DEFINE_CLASS(monochrome);
 
-const AVFilter ff_vf_monochrome = {
+AVFilter ff_vf_monochrome = {
     .name          = "monochrome",
     .description   = NULL_IF_CONFIG_SMALL("Convert video to gray using custom color filter."),
     .priv_size     = sizeof(MonochromeContext),
     .priv_class    = &monochrome_class,
-    FILTER_INPUTS(monochrome_inputs),
-    FILTER_OUTPUTS(monochrome_outputs),
-    FILTER_PIXFMTS_ARRAY(pixel_fmts),
+    .query_formats = query_formats,
+    .inputs        = monochrome_inputs,
+    .outputs       = monochrome_outputs,
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
     .process_command = ff_filter_process_command,
 };

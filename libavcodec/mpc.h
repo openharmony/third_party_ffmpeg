@@ -29,11 +29,10 @@
 #ifndef AVCODEC_MPC_H
 #define AVCODEC_MPC_H
 
-#include <stdint.h>
-
 #include "libavutil/lfg.h"
 #include "libavutil/mem_internal.h"
 
+#include "avcodec.h"
 #include "bswapdsp.h"
 #include "mpegaudio.h"
 #include "mpegaudiodsp.h"

@@ -79,6 +79,15 @@ static const enum AVPixelFormat formats_supported[] = {
     AV_PIX_FMT_NONE
 };
 
+static int query_formats(AVFilterContext *ctx)
+{
+    // this will ensure that formats are the same on all pads
+    AVFilterFormats *fmts_list = ff_make_format_list(formats_supported);
+    if (!fmts_list)
+        return AVERROR(ENOMEM);
+    return ff_set_common_formats(ctx, fmts_list);
+}
+
 static av_cold void framepack_uninit(AVFilterContext *ctx)
 {
     FramepackContext *s = ctx->priv;
@@ -448,6 +457,7 @@ static const AVFilterPad framepack_inputs[] = {
         .name         = "right",
         .type         = AVMEDIA_TYPE_VIDEO,
     },
+    { NULL }
 };
 
 static const AVFilterPad framepack_outputs[] = {
@@ -456,16 +466,17 @@ static const AVFilterPad framepack_outputs[] = {
         .type          = AVMEDIA_TYPE_VIDEO,
         .config_props  = config_output,
     },
+    { NULL }
 };
 
-const AVFilter ff_vf_framepack = {
+AVFilter ff_vf_framepack = {
     .name          = "framepack",
     .description   = NULL_IF_CONFIG_SMALL("Generate a frame packed stereoscopic video."),
     .priv_size     = sizeof(FramepackContext),
     .priv_class    = &framepack_class,
-    FILTER_INPUTS(framepack_inputs),
-    FILTER_OUTPUTS(framepack_outputs),
-    FILTER_PIXFMTS_ARRAY(formats_supported),
+    .query_formats = query_formats,
+    .inputs        = framepack_inputs,
+    .outputs       = framepack_outputs,
     .activate      = activate,
     .uninit        = framepack_uninit,
 };

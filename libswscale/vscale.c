@@ -237,7 +237,7 @@ int ff_init_vscale(SwsContext *c, SwsFilterDescriptor *desc, SwsSlice *src, SwsS
             desc[1].dst = dst;
         }
     } else {
-        lumCtx = av_calloc(2, sizeof(*lumCtx));
+        lumCtx = av_mallocz_array(sizeof(VScalerContext), 2);
         if (!lumCtx)
             return AVERROR(ENOMEM);
         chrCtx = &lumCtx[1];

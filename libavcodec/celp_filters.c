@@ -20,10 +20,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <stdint.h>
-#include <string.h>
+#include <inttypes.h>
 
-#include "config.h"
+#include "avcodec.h"
 #include "celp_filters.h"
 #include "libavutil/avassert.h"
 #include "libavutil/common.h"

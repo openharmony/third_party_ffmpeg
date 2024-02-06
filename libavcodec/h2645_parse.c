@@ -92,7 +92,8 @@ int ff_h2645_extract_rbsp(const uint8_t *src, int length,
     } else if (i > length)
         i = length;
 
-    dst = &rbsp->rbsp_buffer[rbsp->rbsp_buffer_size];
+    nal->rbsp_buffer = &rbsp->rbsp_buffer[rbsp->rbsp_buffer_size];
+    dst = nal->rbsp_buffer;
 
     memcpy(dst, src, i);
     si = di = i;

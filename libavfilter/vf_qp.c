@@ -182,6 +182,7 @@ static const AVFilterPad qp_inputs[] = {
         .filter_frame = filter_frame,
         .config_props = config_input,
     },
+    { NULL }
 };
 
 static const AVFilterPad qp_outputs[] = {
@@ -189,15 +190,15 @@ static const AVFilterPad qp_outputs[] = {
         .name = "default",
         .type = AVMEDIA_TYPE_VIDEO,
     },
+    { NULL }
 };
 
-const AVFilter ff_vf_qp = {
+AVFilter ff_vf_qp = {
     .name          = "qp",
     .description   = NULL_IF_CONFIG_SMALL("Change video quantization parameters."),
     .priv_size     = sizeof(QPContext),
-    FILTER_INPUTS(qp_inputs),
-    FILTER_OUTPUTS(qp_outputs),
+    .inputs        = qp_inputs,
+    .outputs       = qp_outputs,
     .priv_class    = &qp_class,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
-                     AVFILTER_FLAG_METADATA_ONLY,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
 };

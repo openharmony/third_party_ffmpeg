@@ -342,7 +342,7 @@ the_end:
     return buf_ptr - buf;
 }
 
-const AVCodec ff_mxpeg_decoder = {
+AVCodec ff_mxpeg_decoder = {
     .name           = "mxpeg",
     .long_name      = NULL_IF_CONFIG_SMALL("Mobotix MxPEG video"),
     .type           = AVMEDIA_TYPE_VIDEO,

@@ -31,7 +31,6 @@
 #include <stdint.h>
 
 #include "libavutil/avstring.h"
-#include "libavutil/channel_layout.h"
 #include "libavutil/eval.h"
 #include "libavutil/mathematics.h"
 #include "libavutil/pixdesc.h"
@@ -40,6 +39,7 @@
 #include "libavutil/fifo.h"
 #include "libavutil/parseutils.h"
 #include "libavutil/samplefmt.h"
+#include "libavutil/avassert.h"
 #include "libavutil/time.h"
 #include "libavutil/bprint.h"
 #include "libavformat/avformat.h"
@@ -59,6 +59,8 @@
 #include <SDL_thread.h>
 
 #include "cmdutils.h"
+
+#include <assert.h>
 
 const char program_name[] = "ffplay";
 const int program_birth_year = 2003;
@@ -201,7 +203,7 @@ typedef struct Decoder {
 
 typedef struct VideoState {
     SDL_Thread *read_tid;
-    const AVInputFormat *iformat;
+    AVInputFormat *iformat;
     int abort_request;
     int force_refresh;
     int paused;
@@ -306,7 +308,7 @@ typedef struct VideoState {
 } VideoState;
 
 /* options specified by the user */
-static const AVInputFormat *file_iformat;
+static AVInputFormat *file_iformat;
 static const char *input_filename;
 static const char *window_title;
 static int default_width  = 640;
@@ -963,10 +965,10 @@ static void set_sdl_yuv_conversion_mode(AVFrame *frame)
             mode = SDL_YUV_CONVERSION_JPEG;
         else if (frame->colorspace == AVCOL_SPC_BT709)
             mode = SDL_YUV_CONVERSION_BT709;
-        else if (frame->colorspace == AVCOL_SPC_BT470BG || frame->colorspace == AVCOL_SPC_SMPTE170M)
+        else if (frame->colorspace == AVCOL_SPC_BT470BG || frame->colorspace == AVCOL_SPC_SMPTE170M || frame->colorspace == AVCOL_SPC_SMPTE240M)
             mode = SDL_YUV_CONVERSION_BT601;
     }
-    SDL_SetYUVConversionMode(mode); /* FIXME: no support for linear transfer */
+    SDL_SetYUVConversionMode(mode);
 #endif
 }
 
@@ -1856,7 +1858,7 @@ static int configure_video_filters(AVFilterGraph *graph, VideoState *is, const c
     AVFilterContext *filt_src = NULL, *filt_out = NULL, *last_filter = NULL;
     AVCodecParameters *codecpar = is->video_st->codecpar;
     AVRational fr = av_guess_frame_rate(is->ic, is->video_st, NULL);
-    const AVDictionaryEntry *e = NULL;
+    AVDictionaryEntry *e = NULL;
     int nb_pix_fmts = 0;
     int i, j;
 
@@ -1925,8 +1927,7 @@ static int configure_video_filters(AVFilterGraph *graph, VideoState *is, const c
 } while (0)
 
     if (autorotate) {
-        int32_t *displaymatrix = (int32_t *)av_stream_get_side_data(is->video_st, AV_PKT_DATA_DISPLAYMATRIX, NULL);
-        double theta = get_rotation(displaymatrix);
+        double theta  = get_rotation(is->video_st);
 
         if (fabs(theta - 90) < 1.0) {
             INSERT_FILT("transpose", "clock");
@@ -1960,7 +1961,7 @@ static int configure_audio_filters(VideoState *is, const char *afilters, int for
     int channels[2] = { 0, -1 };
     AVFilterContext *filt_asrc = NULL, *filt_asink = NULL;
     char aresample_swr_opts[512] = "";
-    const AVDictionaryEntry *e = NULL;
+    AVDictionaryEntry *e = NULL;
     char asrc_args[256];
     int ret;
 
@@ -2575,7 +2576,7 @@ static int stream_component_open(VideoState *is, int stream_index)
     const AVCodec *codec;
     const char *forced_codec_name = NULL;
     AVDictionary *opts = NULL;
-    const AVDictionaryEntry *t = NULL;
+    AVDictionaryEntry *t = NULL;
     int sample_rate, nb_channels;
     int64_t channel_layout;
     int ret = 0;
@@ -2760,7 +2761,7 @@ static int read_thread(void *arg)
     AVPacket *pkt = NULL;
     int64_t stream_start_time;
     int pkt_in_play_range = 0;
-    const AVDictionaryEntry *t;
+    AVDictionaryEntry *t;
     SDL_mutex *wait_mutex = SDL_CreateMutex();
     int scan_all_pmts_set = 0;
     int64_t pkt_ts;
@@ -3074,8 +3075,7 @@ static int read_thread(void *arg)
     return 0;
 }
 
-static VideoState *stream_open(const char *filename,
-                               const AVInputFormat *iformat)
+static VideoState *stream_open(const char *filename, AVInputFormat *iformat)
 {
     VideoState *is;
 
@@ -3696,6 +3696,8 @@ int main(int argc, char **argv)
 #endif
     avformat_network_init();
 
+    init_opts();
+
     signal(SIGINT , sigterm_handler); /* Interrupt (ANSI).    */
     signal(SIGTERM, sigterm_handler); /* Termination (ANSI).  */
 
@@ -3746,10 +3748,6 @@ int main(int argc, char **argv)
             flags |= SDL_WINDOW_BORDERLESS;
         else
             flags |= SDL_WINDOW_RESIZABLE;
-
-#ifdef SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR
-        SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
-#endif
         window = SDL_CreateWindow(program_name, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, default_width, default_height, flags);
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
         if (window) {

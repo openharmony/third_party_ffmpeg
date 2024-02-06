@@ -290,13 +290,13 @@ static int alloc_buffers(AVCodecContext *avctx)
         if (s->transform_type == 0) {
             s->plane[i].idwt_size = FFALIGN(height, 8) * stride;
             s->plane[i].idwt_buf =
-                av_calloc(s->plane[i].idwt_size, sizeof(*s->plane[i].idwt_buf));
+                av_mallocz_array(s->plane[i].idwt_size, sizeof(*s->plane[i].idwt_buf));
             s->plane[i].idwt_tmp =
                 av_malloc_array(s->plane[i].idwt_size, sizeof(*s->plane[i].idwt_tmp));
         } else {
             s->plane[i].idwt_size = FFALIGN(height, 8) * stride * 2;
             s->plane[i].idwt_buf =
-                av_calloc(s->plane[i].idwt_size, sizeof(*s->plane[i].idwt_buf));
+                av_mallocz_array(s->plane[i].idwt_size, sizeof(*s->plane[i].idwt_buf));
             s->plane[i].idwt_tmp =
                 av_malloc_array(s->plane[i].idwt_size, sizeof(*s->plane[i].idwt_tmp));
         }
@@ -838,7 +838,7 @@ static int cfhd_decode(AVCodecContext *avctx, void *data, int *got_frame,
                             const uint16_t q = s->quantisation;
 
                             for (i = 0; i < run; i++) {
-                                *coeff_data |= coeff * 256U;
+                                *coeff_data |= coeff * 256;
                                 *coeff_data++ *= q;
                             }
                         } else {
@@ -869,7 +869,7 @@ static int cfhd_decode(AVCodecContext *avctx, void *data, int *got_frame,
                             const uint16_t q = s->quantisation;
 
                             for (i = 0; i < run; i++) {
-                                *coeff_data |= coeff * 256U;
+                                *coeff_data |= coeff * 256;
                                 *coeff_data++ *= q;
                             }
                         } else {
@@ -1458,7 +1458,7 @@ static int update_thread_context(AVCodecContext *dst, const AVCodecContext *src)
 }
 #endif
 
-const AVCodec ff_cfhd_decoder = {
+AVCodec ff_cfhd_decoder = {
     .name             = "cfhd",
     .long_name        = NULL_IF_CONFIG_SMALL("GoPro CineForm HD"),
     .type             = AVMEDIA_TYPE_VIDEO,

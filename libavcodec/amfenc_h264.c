@@ -377,7 +377,7 @@ static const AVClass h264_amf_class = {
     .version = LIBAVUTIL_VERSION_INT,
 };
 
-const AVCodec ff_h264_amf_encoder = {
+AVCodec ff_h264_amf_encoder = {
     .name           = "h264_amf",
     .long_name      = NULL_IF_CONFIG_SMALL("AMD AMF H.264 Encoder"),
     .type           = AVMEDIA_TYPE_VIDEO,

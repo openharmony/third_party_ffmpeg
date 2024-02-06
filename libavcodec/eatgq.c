@@ -247,7 +247,7 @@ static int tgq_decode_frame(AVCodecContext *avctx,
     return avpkt->size;
 }
 
-const AVCodec ff_eatgq_decoder = {
+AVCodec ff_eatgq_decoder = {
     .name           = "eatgq",
     .long_name      = NULL_IF_CONFIG_SMALL("Electronic Arts TGQ video"),
     .type           = AVMEDIA_TYPE_VIDEO,
@@ -256,5 +256,4 @@ const AVCodec ff_eatgq_decoder = {
     .init           = tgq_decode_init,
     .decode         = tgq_decode_frame,
     .capabilities   = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

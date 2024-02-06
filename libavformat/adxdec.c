@@ -129,7 +129,7 @@ static int adx_read_header(AVFormatContext *s)
     return 0;
 }
 
-const AVInputFormat ff_adx_demuxer = {
+AVInputFormat ff_adx_demuxer = {
     .name           = "adx",
     .long_name      = NULL_IF_CONFIG_SMALL("CRI ADX"),
     .read_probe     = adx_probe,

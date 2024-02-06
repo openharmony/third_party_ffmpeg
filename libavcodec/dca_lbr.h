@@ -129,7 +129,6 @@ typedef struct DCALbrDecoder {
 int ff_dca_lbr_parse(DCALbrDecoder *s, uint8_t *data, DCAExssAsset *asset);
 int ff_dca_lbr_filter_frame(DCALbrDecoder *s, AVFrame *frame);
 av_cold void ff_dca_lbr_flush(DCALbrDecoder *s);
-av_cold void ff_dca_lbr_init_tables(void);
 av_cold int ff_dca_lbr_init(DCALbrDecoder *s);
 av_cold void ff_dca_lbr_close(DCALbrDecoder *s);
 

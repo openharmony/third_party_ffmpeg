@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include "queue.h"
 #include "libavutil/mem.h"
+#include "libavutil/avassert.h"
 
 typedef struct QueueEntry QueueEntry;
 
