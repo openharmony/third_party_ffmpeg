@@ -26,7 +26,15 @@
         },
         "build": {
             "sub_component": [],
-            "inner_kits": [],
+            "inner_kits": [
+                {
+                    "name": "//third_party/ffmpeg:libohosffmpeg",
+                    "header": {
+                      "header_files": [],
+                      "header_base": ""
+                    }
+                }
+            ],
             "test": []
         }
     }
