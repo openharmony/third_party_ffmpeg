@@ -3639,6 +3639,53 @@ static int mov_write_string_data_tag(AVIOContext *pb, const char *data, int lang
     }
 }
 
+#ifdef OHOS_MOOV_LEVEL_META
+static int mov_write_moov_level_meta_data_tag(AVIOContext *pb, const char *data)
+{
+    size_t data_len = strlen(data);
+    int size = 0;
+    if (data_len >= 8) {
+        if (strncmp(data, "00000001", 8) == 0) {
+            size = 16 + data_len - 8;
+            avio_wb32(pb, size); /* size */
+            ffio_wfourcc(pb, "data");
+            avio_wb32(pb, 1); // string
+            avio_wb32(pb, 0);
+            avio_write(pb, data + 8, data_len - 8);
+        } else if (strncmp(data, "00000017", 8) == 0) {
+            size = 16 + 4;
+            avio_wb32(pb, size); /* size */
+            ffio_wfourcc(pb, "data");
+            avio_wb32(pb, 23); // float
+            avio_wb32(pb, 0);
+            avio_wb32(pb, av_float2int(atof(data + 8)));
+        } else if (strncmp(data, "00000043", 8) == 0) {
+            size = 16 + 4;
+            avio_wb32(pb, size); /* size */
+            ffio_wfourcc(pb, "data");
+            avio_wb32(pb, 67); // int
+            avio_wb32(pb, 0);
+            avio_wb32(pb, atoi(data + 8));
+        } else {
+            size = 16 + 4;
+            avio_wb32(pb, size); /* size */
+            ffio_wfourcc(pb, "data");
+            avio_wb32(pb, 77); // unkown
+            avio_wb32(pb, 0);
+            avio_wb32(pb, 0);
+        }
+    } else {
+        size = 16 + data_len;
+        avio_wb32(pb, size); /* size */
+        ffio_wfourcc(pb, "data");
+        avio_wb32(pb, 1); // default string
+        avio_wb32(pb, 0);
+        avio_write(pb, data, data_len);
+    }
+    return size;
+}
+#endif
+
 static int mov_write_string_tag(AVIOContext *pb, const char *name,
                                 const char *value, int lang, int long_style)
 {
@@ -3757,6 +3804,103 @@ static int mov_write_loci_tag(AVFormatContext *s, AVIOContext *pb)
 
     return update_size(pb, pos);
 }
+
+#ifdef OHOS_MOOV_LEVEL_META
+static int mov_write_geo_tag(AVFormatContext *s, AVIOContext *pb)
+{
+    int lang;
+    int64_t pos = avio_tell(pb);
+    float latitude, longitude, altitude;
+    int32_t latitudex10000, longitudex10000, altitudex10000;
+    AVDictionaryEntry *t = get_metadata_lang(s, "location", &lang);
+    const char *ptr;
+    char *end;
+    if (!t)
+        return 0;
+
+    ptr = t->value;
+    longitude = strtof(ptr, &end);
+    if (end == ptr) {
+        av_log(s, AV_LOG_WARNING, "malformed location metadata\n");
+        return 0;
+    }
+    ptr = end;
+    latitude = strtof(ptr, &end);
+    if (end == ptr) {
+        av_log(s, AV_LOG_WARNING, "malformed location metadata\n");
+        return 0;
+    }
+    ptr = end;
+    altitude = strtof(ptr, &end);
+
+    latitudex10000  = (int32_t) (10000 * latitude);
+    longitudex10000 = (int32_t) (10000 * longitude);
+    altitudex10000  = (int32_t) (10000 * altitude);
+    if (latitudex10000 < -900000 || latitudex10000 > 900000 ||
+        longitudex10000 < -1800000 || longitudex10000 > 1800000) {
+        av_log(s, AV_LOG_WARNING, "longitude or latitude is not in range\n");
+        return 0;
+    }
+
+    // calc latitude
+    int is_negative = latitudex10000 < 0;
+    char sign = is_negative? '-' : '+';
+    char latitude_str[9];
+    memset(latitude_str, 0, sizeof(latitude_str));
+    int32_t whole_part = latitudex10000 / 10000;
+    if (whole_part == 0) {
+        snprintf(latitude_str, 5, "%c%.2d.", sign, whole_part);
+    } else {
+        snprintf(latitude_str, 5, "%+.2d.", whole_part);
+    }
+    int32_t fraction_part = latitudex10000 - (whole_part * 10000);
+    if (fraction_part < 0) {
+        fraction_part = -fraction_part;
+    }
+    snprintf(&latitude_str[4], 5, "%.4d.", fraction_part);
+
+    // calc longitude
+    is_negative = longitudex10000 < 0;
+    sign = is_negative? '-' : '+';
+    char longitude_str[10];
+    memset(longitude_str, 0, sizeof(longitude_str));
+    whole_part = longitudex10000 / 10000;
+    if (whole_part == 0) {
+        snprintf(longitude_str, 6, "%c%.3d.", sign, whole_part);
+    } else {
+        snprintf(longitude_str, 6, "%+.3d.", whole_part);
+    }
+    fraction_part = longitudex10000 - (whole_part * 10000);
+    if (fraction_part < 0) {
+        fraction_part = -fraction_part;
+    }
+    snprintf(&longitude_str[5], 5, "%.4d.", fraction_part);
+
+    avio_wb32(pb, 0);         /* size */
+    ffio_wfourcc(pb, "\xA9xyz"); /* type */
+    avio_wb32(pb, 0x001215c7);
+    avio_write(pb, latitude_str, 8);
+    avio_write(pb, longitude_str, 9);
+    avio_w8(pb, 0x2F);
+    return update_size(pb, pos);
+}
+
+static int mov_write_gnre_tag(AVIOContext* pb, MOVMuxContext* mov, AVFormatContext* s)
+{
+    int64_t pos = avio_tell(pb);
+    AVDictionaryEntry *t;
+    if ((t = av_dict_get(s->metadata, "genre", NULL, 0))) {
+        avio_wb32(pb, 0); /* size */
+        ffio_wfourcc(pb, "gnre");
+        avio_wb32(pb, 0);
+        avio_wb16(pb, 0);
+        avio_write(pb, t->value, strlen(t->value) + 1);
+        avio_wb32(pb, 0);
+        avio_wb32(pb, 0);
+    }
+    return update_size(pb, pos);
+}
+#endif
 
 /* iTunes track or disc number */
 static int mov_write_trkn_tag(AVIOContext *pb, MOVMuxContext *mov,
@@ -3968,6 +4112,82 @@ static int mov_write_meta_tag(AVIOContext *pb, MOVMuxContext *mov,
     return size;
 }
 
+#ifdef OHOS_MOOV_LEVEL_META
+static int mov_write_moov_level_meta_mdta_keys_tag(AVIOContext *pb, MOVMuxContext *mov,
+                                   AVFormatContext *s)
+{
+    const AVDictionaryEntry *t = NULL;
+    int64_t pos = avio_tell(pb);
+    int64_t curpos, entry_pos;
+    int count = 0;
+
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "keys");
+    avio_wb32(pb, 0);
+    entry_pos = avio_tell(pb);
+    avio_wb32(pb, 0); /* entry count */
+
+    const char *key_tag = "moov_level_meta_key_";
+    size_t key_tag_len = strlen(key_tag);
+    while (t = av_dict_get(s->metadata, "", t, AV_DICT_IGNORE_SUFFIX)) {
+        size_t key_len = strlen(t->key);
+        if (key_len > key_tag_len && strncmp(t->key, key_tag, key_tag_len) == 0) {
+            avio_wb32(pb, key_len + 8 - key_tag_len);
+            ffio_wfourcc(pb, "mdta");
+            avio_write(pb, t->key + key_tag_len, key_len - key_tag_len);
+            count += 1;
+        }
+    }
+    curpos = avio_tell(pb);
+    avio_seek(pb, entry_pos, SEEK_SET);
+    avio_wb32(pb, count); // rewrite entry count
+    avio_seek(pb, curpos, SEEK_SET);
+
+    return update_size(pb, pos);
+}
+
+static int mov_write_moov_level_meta_mdta_ilst_tag(AVIOContext *pb, MOVMuxContext *mov,
+                                   AVFormatContext *s)
+{
+    const AVDictionaryEntry *t = NULL;
+    int64_t pos = avio_tell(pb);
+    int count = 1; /* keys are 1-index based */
+
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "ilst");
+
+    const char *key_tag = "moov_level_meta_key_";
+    size_t key_tag_len = strlen(key_tag);
+    while (t = av_dict_get(s->metadata, "", t, AV_DICT_IGNORE_SUFFIX)) {
+        size_t key_len = strlen(t->key);
+        if (key_len > key_tag_len && strncmp(t->key, key_tag, key_tag_len) == 0) {
+            int64_t entry_pos = avio_tell(pb);
+            avio_wb32(pb, 0); /* size */
+            avio_wb32(pb, count); /* key */
+            mov_write_moov_level_meta_data_tag(pb, t->value);
+            update_size(pb, entry_pos);
+            count += 1;
+        }
+    }
+    return update_size(pb, pos);
+}
+
+static int mov_write_moov_level_meta_tag(AVIOContext *pb, MOVMuxContext *mov,
+                                         AVFormatContext *s)
+{
+    int size = 0;
+    int64_t pos = avio_tell(pb);
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "meta");
+    avio_wb32(pb, 0);
+    mov_write_mdta_hdlr_tag(pb, mov, s);
+    mov_write_moov_level_meta_mdta_keys_tag(pb, mov, s);
+    mov_write_moov_level_meta_mdta_ilst_tag(pb, mov, s);
+    size = update_size(pb, pos);
+    return size;
+}
+#endif
+
 static int mov_write_raw_metadata_tag(AVFormatContext *s, AVIOContext *pb,
                                       const char *name, const char *key)
 {
@@ -4094,6 +4314,11 @@ static int mov_write_udta_tag(AVIOContext *pb, MOVMuxContext *mov,
         mov_write_string_metadata(s, pb_buf, "\251key", "keywords",    0);
         mov_write_raw_metadata_tag(s, pb_buf, "XMP_", "xmp");
     } else {
+#ifdef OHOS_MOOV_LEVEL_META
+        if (av_dict_get(s->metadata, "moov_level_meta_flag", NULL, 0)) {
+            mov_write_geo_tag(s, pb_buf);
+        }
+#endif
         /* iTunes meta data */
         mov_write_meta_tag(pb_buf, mov, s);
         mov_write_loci_tag(s, pb_buf);
@@ -4305,6 +4530,13 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
         mov_write_uuidusmt_tag(pb, s);
     else
         mov_write_udta_tag(pb, mov, s);
+
+#ifdef OHOS_MOOV_LEVEL_META
+    if (av_dict_get(s->metadata, "moov_level_meta_flag", NULL, 0)) {
+        mov_write_gnre_tag(pb, mov, s);
+        mov_write_moov_level_meta_tag(pb, mov, s);
+    }
+#endif
 
     return update_size(pb, pos);
 }

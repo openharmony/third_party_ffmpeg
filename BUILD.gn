@@ -134,6 +134,7 @@ config("ffmpeg_config") {
     "-DOHOS_HDR_VIVID",
     "-Wno-array-parameter",
     "-Wno-deprecated-pragma",
+    "-DOHOS_MOOV_LEVEL_META",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
