@@ -24,6 +24,9 @@
 #include "libavutil/avassert.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/mem.h"
+#ifdef OHOS_DRM
+#include "libavutil/encryption_info.h"
+#endif
 
 #include "avcodec.h"
 #include "bsf.h"
@@ -166,6 +169,40 @@ static int h264_mp4toannexb_init(AVBSFContext *ctx)
     return 0;
 }
 
+#ifdef OHOS_DRM
+static void h264_mp4toannexb_modify_encryption_info(AVPacket *pkt, uint64_t new_data_size, uint64_t old_data_size,
+    int copy)
+{
+    AV_DrmCencInfo *old_side_data = NULL;
+    buffer_size_t old_side_data_size = 0;
+    if ((copy == 0) || (new_data_size == old_data_size)) {
+        return;
+    }
+    old_side_data = (AV_DrmCencInfo *)av_packet_get_side_data(pkt, AV_PKT_DATA_ENCRYPTION_INFO, &old_side_data_size);
+    if ((old_side_data != NULL) && (old_side_data_size != 0)) {
+        uint64_t total_size = 0;
+        for (uint32_t i = 0; i < old_side_data->sub_sample_num; i++) {
+            total_size +=
+                (uint64_t)(old_side_data->sub_sample[i].clear_header_len + old_side_data->sub_sample[i].pay_load_len);
+            if (total_size < new_data_size) {
+                continue;
+            }
+            if (new_data_size > old_data_size) {
+                old_side_data->sub_sample[i].clear_header_len += (uint32_t)(new_data_size - old_data_size);
+            } else {
+                uint32_t diff_size = (uint32_t)(old_data_size - new_data_size);
+                if (old_side_data->sub_sample[i].clear_header_len < diff_size) {
+                    return;
+                }
+                old_side_data->sub_sample[i].clear_header_len -= diff_size;
+            }
+            break;
+        }
+    }
+    return;
+}
+#endif
+
 static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
 {
     H264BSFContext *s = ctx->priv_data;
@@ -176,6 +213,9 @@ static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
     uint8_t *out;
     uint64_t out_size;
     int ret;
+#ifdef OHOS_DRM
+    uint64_t old_out_size;
+#endif
 
     ret = ff_bsf_get_packet(ctx, &in);
     if (ret < 0)
@@ -199,6 +239,9 @@ static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
         sps_seen = s->idr_sps_seen;
         pps_seen = s->idr_pps_seen;
         out_size = 0;
+#ifdef OHOS_DRM
+        old_out_size = out_size;
+#endif
 
         do {
             uint32_t nal_size = 0;
@@ -231,6 +274,10 @@ static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
                         LOG_ONCE(ctx, AV_LOG_WARNING, "SPS not present in the stream, nor in AVCC, stream may be unreadable\n");
                     } else {
                         count_or_copy(&out, &out_size, s->sps, s->sps_size, -1, j);
+#ifdef OHOS_DRM
+                        h264_mp4toannexb_modify_encryption_info(in, out_size, old_out_size, j);
+                        old_out_size = out_size;
+#endif
                         sps_seen = 1;
                     }
                 }
@@ -247,6 +294,10 @@ static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
                 if (ctx->par_out->extradata)
                     count_or_copy(&out, &out_size, ctx->par_out->extradata,
                                   ctx->par_out->extradata_size, -1, j);
+#ifdef OHOS_DRM
+                h264_mp4toannexb_modify_encryption_info(in, out_size, old_out_size, j);
+                old_out_size = out_size;
+#endif
                 new_idr = 0;
             /* if only SPS has been seen, also insert PPS */
             } else if (new_idr && unit_type == H264_NAL_IDR_SLICE && sps_seen && !pps_seen) {
@@ -254,11 +305,20 @@ static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
                     LOG_ONCE(ctx, AV_LOG_WARNING, "PPS not present in the stream, nor in AVCC, stream may be unreadable\n");
                 } else {
                     count_or_copy(&out, &out_size, s->pps, s->pps_size, -1, j);
+#ifdef OHOS_DRM
+                    h264_mp4toannexb_modify_encryption_info(in, out_size, old_out_size, j);
+                    old_out_size = out_size;
+#endif
                 }
             }
 
             count_or_copy(&out, &out_size, buf, nal_size,
                           unit_type == H264_NAL_SPS || unit_type == H264_NAL_PPS, j);
+#ifdef OHOS_DRM
+            h264_mp4toannexb_modify_encryption_info(in, out_size,
+                (uint64_t)(nal_size + old_out_size + s->length_size), j);
+            old_out_size = out_size;
+#endif
             if (!new_idr && unit_type == H264_NAL_SLICE) {
                 new_idr  = 1;
                 sps_seen = 0;

@@ -67,6 +67,14 @@
 
 #include "qtpalette.h"
 
+#ifdef OHOS_DRM
+#define MOV_DRM_PSSH_TITLE_LEN    (8)
+
+static const uint8_t g_pssh_title_buf[] = {
+    0x70, 0x73, 0x73, 0x68
+};
+#endif
+
 /* those functions parse an atom */
 /* links atom IDs to parse functions */
 typedef struct MOVParseTableEntry {
@@ -6405,6 +6413,109 @@ static int mov_read_saio(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     return 0;
 }
 
+#ifdef OHOS_DRM
+static int mov_set_drm_info(const uint8_t *pssh_buf, uint32_t pssh_buf_size, AV_DrmInfo *side_data)
+{
+    if (pssh_buf_size < (AV_DRM_UUID_OFFSET + AV_DRM_MAX_DRM_UUID_LEN)) {
+        return AVERROR_INVALIDDATA;
+    }
+    side_data->algo = AV_DRM_ALG_CENC_UNENCRYPTED;
+    side_data->encrypt_blocks = 0;
+    side_data->skip_blocks = 0;
+    side_data->uuid_len = AV_DRM_MAX_DRM_UUID_LEN;
+    memcpy(side_data->uuid, pssh_buf + AV_DRM_UUID_OFFSET, AV_DRM_MAX_DRM_UUID_LEN);
+    side_data->pssh_len = pssh_buf_size;
+    memcpy(side_data->pssh, pssh_buf, pssh_buf_size);
+    return 0;
+}
+
+static int is_exist_pssh(const AV_DrmInfo *old_side_data, uint32_t count, AV_DrmInfo side_data_node)
+{
+    uint32_t i = 0;
+    if (count == 0) {
+        return 0;
+    }
+    for (; i < count; i++) {
+        if ((old_side_data[i].pssh_len == side_data_node.pssh_len) &&
+            (old_side_data[i].uuid_len == side_data_node.uuid_len)) {
+            if ((memcmp(old_side_data[i].pssh, side_data_node.pssh, old_side_data[i].pssh_len) == 0) &&
+                (memcmp(old_side_data[i].uuid, side_data_node.uuid, old_side_data[i].uuid_len) == 0)) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static void mov_drm_info_copy(AV_DrmInfo *new_side_data, const AV_DrmInfo *old_side_data,
+    uint32_t old_side_data_count, AV_DrmInfo side_data_node)
+{
+    uint32_t i = 0;
+    for (; i < old_side_data_count; i++) {
+        new_side_data[i].algo = old_side_data[i].algo;
+        new_side_data[i].encrypt_blocks = old_side_data[i].encrypt_blocks;
+        new_side_data[i].skip_blocks = old_side_data[i].skip_blocks;
+        new_side_data[i].uuid_len = old_side_data[i].uuid_len;
+        memcpy(new_side_data[i].uuid, old_side_data[i].uuid, old_side_data[i].uuid_len);
+        new_side_data[i].pssh_len = old_side_data[i].pssh_len;
+        memcpy(new_side_data[i].pssh, old_side_data[i].pssh, old_side_data[i].pssh_len);
+    }
+    new_side_data[i].algo = side_data_node.algo;
+    new_side_data[i].encrypt_blocks = side_data_node.encrypt_blocks;
+    new_side_data[i].skip_blocks = side_data_node.skip_blocks;
+    new_side_data[i].uuid_len = side_data_node.uuid_len;
+    memcpy(new_side_data[i].uuid, side_data_node.uuid, side_data_node.uuid_len);
+    new_side_data[i].pssh_len = side_data_node.pssh_len;
+    memcpy(new_side_data[i].pssh, side_data_node.pssh, side_data_node.pssh_len);
+    return;
+}
+
+static int mov_read_pssh_ex(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+{
+    int ret = 0;
+    AVStream *st;
+    AV_DrmInfo side_data_node;
+    AV_DrmInfo *old_side_data = NULL;
+    AV_DrmInfo *new_side_data = NULL;
+    uint8_t pssh_buf[AV_DRM_MAX_DRM_PSSH_LEN];
+    buffer_size_t old_side_data_size = 0;
+    uint32_t old_side_data_count = 0;
+    uint32_t pssh_exist_flag = 0;
+    if ((c == NULL) || (c->fc == NULL) || (c->fc->nb_streams < 1) || (c->fc->streams == NULL) || (pb == NULL) ||
+        (atom.size > (AV_DRM_MAX_DRM_PSSH_LEN - MOV_DRM_PSSH_TITLE_LEN)) || (atom.size == 0)) {
+        return 0;
+    }
+    st = c->fc->streams[c->fc->nb_streams-1];
+
+    memset(pssh_buf, 0, sizeof(pssh_buf));
+    AV_WB32(pssh_buf, (atom.size + MOV_DRM_PSSH_TITLE_LEN));
+    memcpy(pssh_buf + sizeof(uint32_t), g_pssh_title_buf, sizeof(g_pssh_title_buf));
+
+    if ((ret = ffio_read_size(pb, pssh_buf + MOV_DRM_PSSH_TITLE_LEN, atom.size)) < 0) {
+        av_log(c->fc, AV_LOG_ERROR, "Failed to read the pssh data\n");
+        return 0;
+    }
+    if ((ret = mov_set_drm_info(pssh_buf, (uint32_t)(atom.size + MOV_DRM_PSSH_TITLE_LEN), &side_data_node)) != 0) {
+        av_log(c->fc, AV_LOG_ERROR, "Failed to set drm info\n");
+        return 0;
+    }
+
+    old_side_data = (AV_DrmInfo *)av_stream_get_side_data(st, AV_PKT_DATA_ENCRYPTION_INIT_INFO, &old_side_data_size);
+    if ((old_side_data != NULL) && (old_side_data_size != 0)) {
+        old_side_data_count = old_side_data_size / sizeof(AV_DrmInfo);
+        pssh_exist_flag = is_exist_pssh(old_side_data, old_side_data_count, side_data_node);
+    }
+    if (pssh_exist_flag == 0) {
+        new_side_data = (AV_DrmInfo *)av_stream_new_side_data(st, AV_PKT_DATA_ENCRYPTION_INIT_INFO,
+            (buffer_size_t)(sizeof(AV_DrmInfo) * (old_side_data_count + 1)));
+        if (new_side_data != NULL) {
+            mov_drm_info_copy(new_side_data, old_side_data, old_side_data_count, side_data_node);
+        }
+    }
+    return 0;
+}
+#endif
+
 static int mov_read_pssh(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
     AVEncryptionInitInfo *info, *old_init_info;
@@ -6758,10 +6869,19 @@ static int cenc_filter(MOVContext *mov, AVStream* st, MOVStreamContext *sc, AVPa
             return cenc_decrypt(mov, sc, encrypted_sample, pkt->data, pkt->size);
         } else {
             size_t size;
+#ifdef OHOS_DRM
+            AV_DrmCencInfo *side_data = NULL;
+            side_data = av_encryption_info_add_side_data_ex(encrypted_sample, &size, side_data);
+#else
             uint8_t *side_data = av_encryption_info_add_side_data(encrypted_sample, &size);
+#endif
             if (!side_data)
                 return AVERROR(ENOMEM);
+#ifdef OHOS_DRM
+            ret = av_packet_add_side_data(pkt, AV_PKT_DATA_ENCRYPTION_INFO, (uint8_t *)side_data, size);
+#else
             ret = av_packet_add_side_data(pkt, AV_PKT_DATA_ENCRYPTION_INFO, side_data, size);
+#endif
             if (ret < 0)
                 av_free(side_data);
             return ret;
@@ -6990,7 +7110,11 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('s','e','n','c'), mov_read_senc },
 { MKTAG('s','a','i','z'), mov_read_saiz },
 { MKTAG('s','a','i','o'), mov_read_saio },
+#ifdef OHOS_DRM
+{ MKTAG('p','s','s','h'), mov_read_pssh_ex },
+#else
 { MKTAG('p','s','s','h'), mov_read_pssh },
+#endif
 { MKTAG('s','c','h','m'), mov_read_schm },
 { MKTAG('s','c','h','i'), mov_read_default },
 { MKTAG('t','e','n','c'), mov_read_tenc },
