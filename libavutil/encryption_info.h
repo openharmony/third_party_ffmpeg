@@ -22,6 +22,56 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef OHOS_DRM
+#define AV_DRM_KEY_ID_SIZE                    16
+#define AV_DRM_IV_SIZE                        16
+#define AV_DRM_MAX_SUB_SAMPLE_NUM             64
+#define AV_DRM_MAX_DRM_UUID_LEN               16
+#define AV_DRM_MAX_DRM_PSSH_LEN               2048
+#define AV_DRM_UUID_OFFSET                    (12)
+
+typedef enum {
+    AV_DRM_ALG_CENC_UNENCRYPTED = 0x0,
+    AV_DRM_ALG_CENC_AES_CTR = 0x1,
+    AV_DRM_ALG_CENC_AES_WV = 0x2,
+    AV_DRM_ALG_CENC_AES_CBC = 0x3,
+    AV_DRM_ALG_CENC_SM4_CBC = 0x4,
+    AV_DRM_ALG_CENC_SM4_CTR,
+} AV_DrmCencAlgorithm;
+
+struct _AV_DrmSubSample {
+    uint32_t clear_header_len;
+    uint32_t pay_load_len;
+};
+typedef struct _AV_DrmSubSample AV_DrmSubSample;
+
+struct _AV_DrmCencInfo {
+    AV_DrmCencAlgorithm algo;
+    uint8_t key_id[AV_DRM_KEY_ID_SIZE];
+    uint32_t key_id_len;
+    uint8_t iv[AV_DRM_IV_SIZE];
+    uint32_t iv_len;
+    uint32_t is_ambiguity;
+    uint32_t encrypt_blocks;
+    uint32_t skip_blocks;
+    uint32_t first_encrypt_offset;
+    AV_DrmSubSample sub_sample[AV_DRM_MAX_SUB_SAMPLE_NUM];
+    uint32_t sub_sample_num;
+};
+typedef struct _AV_DrmCencInfo AV_DrmCencInfo;
+
+struct _AV_DrmInfo {
+    AV_DrmCencAlgorithm algo;
+    uint32_t encrypt_blocks;
+    uint32_t skip_blocks;
+    uint32_t uuid_len;
+    uint8_t uuid[AV_DRM_MAX_DRM_UUID_LEN];
+    uint32_t pssh_len;
+    uint8_t pssh[AV_DRM_MAX_DRM_PSSH_LEN];
+};
+typedef struct _AV_DrmInfo AV_DrmInfo;
+#endif
+
 typedef struct AVSubsampleEncryptionInfo {
     /** The number of bytes that are clear. */
     unsigned int bytes_of_clear_data;
@@ -166,6 +216,10 @@ AVEncryptionInfo *av_encryption_info_get_side_data(const uint8_t *side_data, siz
 uint8_t *av_encryption_info_add_side_data(
       const AVEncryptionInfo *info, size_t *side_data_size);
 
+#ifdef OHOS_DRM
+AV_DrmCencInfo *av_encryption_info_add_side_data_ex(
+    const AVEncryptionInfo *info, size_t *side_data_size, AV_DrmCencInfo *cenc_info);
+#endif
 
 /**
  * Allocates an AVEncryptionInitInfo structure and sub-pointers to hold the

@@ -159,6 +159,67 @@ uint8_t *av_encryption_info_add_side_data(const AVEncryptionInfo *info, size_t *
     return buffer;
 }
 
+#ifdef OHOS_DRM
+static void av_encryption_info_set_drm_algo(uint32_t algo, AV_DrmCencInfo *cenc_info)
+{
+    switch (algo) {
+        case MKBETAG('c','e','n','c'):
+        case MKBETAG('c','e','n','s'):
+            cenc_info->algo = AV_DRM_ALG_CENC_AES_CTR;
+            break;
+        case MKBETAG('c','b','c','1'):
+        case MKBETAG('c','b','c','s'):
+            cenc_info->algo = AV_DRM_ALG_CENC_AES_CBC;
+            break;
+        case MKBETAG('s','m','4','c'):
+        case MKBETAG('s','m','4','s'):
+            cenc_info->algo = AV_DRM_ALG_CENC_SM4_CBC;
+            break;
+        case MKBETAG('s','m','4','t'):
+        case MKBETAG('s','m','4','r'):
+            cenc_info->algo = AV_DRM_ALG_CENC_SM4_CTR;
+            break;
+        default:
+            cenc_info->algo = AV_DRM_ALG_CENC_UNENCRYPTED;
+            break;
+    }
+    return;
+}
+
+AV_DrmCencInfo *av_encryption_info_add_side_data_ex(const AVEncryptionInfo *info, size_t *side_data_size,
+    AV_DrmCencInfo *cenc_info)
+{
+    uint32_t i;
+    if ((info == NULL) || (info->key_id_size != AV_DRM_KEY_ID_SIZE) || (info->iv_size > AV_DRM_IV_SIZE) ||
+        (info->iv_size == 0) || (info->subsample_count > AV_DRM_MAX_SUB_SAMPLE_NUM) || (info->key_id == NULL) ||
+        (info->iv == NULL) || (info->subsamples == NULL) || (side_data_size == NULL)) {
+        return NULL;
+    }
+
+    *side_data_size = sizeof(AV_DrmCencInfo);
+    cenc_info = av_mallocz(*side_data_size);
+    if (!cenc_info)
+        return NULL;
+
+    av_encryption_info_set_drm_algo(info->scheme, cenc_info);
+    cenc_info->key_id_len = info->key_id_size;
+    memcpy(cenc_info->key_id, info->key_id, info->key_id_size);
+    cenc_info->iv_len = info->iv_size;
+    memcpy(cenc_info->iv, info->iv, info->iv_size);
+    cenc_info->is_ambiguity = 0;
+    cenc_info->encrypt_blocks = info->crypt_byte_block;
+    cenc_info->skip_blocks = info->skip_byte_block;
+    cenc_info->first_encrypt_offset = 0;
+    cenc_info->sub_sample_num = info->subsample_count;
+
+    for (i = 0; i < cenc_info->sub_sample_num; i++) {
+        cenc_info->sub_sample[i].clear_header_len = info->subsamples[i].bytes_of_clear_data;
+        cenc_info->sub_sample[i].pay_load_len = info->subsamples[i].bytes_of_protected_data;
+    }
+    return cenc_info;
+}
+#endif
+
 // The format of the AVEncryptionInitInfo side data:
 // u32be init_info_count
 // {
