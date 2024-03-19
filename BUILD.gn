@@ -132,6 +132,7 @@ config("ffmpeg_config") {
     "-DCONFIG_AMRWB_DECODER",
     "-DOHOS_OPT_COMPAT",
     "-DOHOS_HDR_VIVID",
+    "-DOHOS_H265_DEMUXER",
     "-Wno-array-parameter",
     "-Wno-deprecated-pragma",
   ]

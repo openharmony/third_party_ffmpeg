@@ -42,7 +42,12 @@
 #define FLV_AUDIO_CODECID_MASK    0xf0
 
 #define FLV_VIDEO_CODECID_MASK    0x0f
+
+#ifdef OHOS_H265_DEMUXER
 #define FLV_VIDEO_FRAMETYPE_MASK  0x70
+#else
+#define FLV_VIDEO_FRAMETYPE_MASK  0xf0
+#endif
 
 #define AMF_END_OF_OBJECT         0x09
 
@@ -110,9 +115,12 @@ enum {
     FLV_CODECID_H264    = 7,
     FLV_CODECID_REALH263= 8,
     FLV_CODECID_MPEG4   = 9,
+#ifdef OHOS_H265_DEMUXER
     FLV_CODECID_HEVC    = 12,
+#endif
 };
 
+#ifdef OHOS_H265_DEMUXER
 enum {
     PacketTypeSequenceStart         = 0,
     PacketTypeCodedFrames           = 1,
@@ -121,6 +129,7 @@ enum {
     PacketTypeMetadata              = 4,
     PacketTypeMPEG2TSSequenceStart  = 5,
 };
+#endif
 
 enum {
     FLV_FRAME_KEY            = 1 << FLV_VIDEO_FRAMETYPE_OFFSET, ///< key frame (for AVC, a seekable frame)
