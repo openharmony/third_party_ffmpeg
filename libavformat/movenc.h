@@ -55,6 +55,7 @@ typedef struct MOVIentry {
 #define MOV_SYNC_SAMPLE         0x0001
 #define MOV_PARTIAL_SYNC_SAMPLE 0x0002
 #define MOV_DISPOSABLE_SAMPLE   0x0004
+#define MOV_DISPOSABLE_EXT_SAMPLE 0x0008
     uint32_t     flags;
     AVProducerReferenceTime prft;
 } MOVIentry;

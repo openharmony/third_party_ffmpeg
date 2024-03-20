@@ -300,6 +300,10 @@ static int mov_write_sdtp_tag(AVIOContext *pb, MOVTrack *track)
         leading = reference = redundancy = MOV_SAMPLE_DEPENDENCY_UNKNOWN;
         if (track->cluster[i].flags & MOV_DISPOSABLE_SAMPLE) {
             reference = MOV_SAMPLE_DEPENDENCY_NO;
+#ifdef OHOS_SDTP_BOX_EXT
+        } else if (track->cluster[i].flags & MOV_DISPOSABLE_EXT_SAMPLE) {
+            reference = MOV_SAMPLE_DEPENDENCY_EXT;
+#endif
         }
         if (track->cluster[i].flags & MOV_SYNC_SAMPLE) {
             dependent = MOV_SAMPLE_DEPENDENCY_NO;
@@ -6179,6 +6183,12 @@ int ff_mov_write_packet(AVFormatContext *s, AVPacket *pkt)
         trk->cluster[trk->entry].flags |= MOV_DISPOSABLE_SAMPLE;
         trk->has_disposable++;
     }
+#ifdef OHOS_SDTP_BOX_EXT
+    if (pkt->flags & AV_PKT_FLAG_DISPOSABLE_EXT) {
+        trk->cluster[trk->entry].flags |= MOV_DISPOSABLE_EXT_SAMPLE;
+        trk->has_disposable++;
+    }
+#endif
 
     prft = (AVProducerReferenceTime *)av_packet_get_side_data(pkt, AV_PKT_DATA_PRFT, &prft_size);
     if (prft && prft_size == sizeof(AVProducerReferenceTime))
