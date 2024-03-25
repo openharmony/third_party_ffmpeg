@@ -427,6 +427,12 @@ typedef struct AVPacketList {
  * be discarded by the decoder.  I.e. Non-reference frames.
  */
 #define AV_PKT_FLAG_DISPOSABLE 0x0010
+/**
+ * Indicates that the frame is an extended discardable frame. It is not on the main reference path and
+ * is referenced only by discardable frames on the branch reference path are discarded by decoder, the
+ * frame can be further discarded.
+ */
+#define AV_PKT_FLAG_DISPOSABLE_EXT 0x0020
 
 enum AVSideDataParamChangeFlags {
     AV_SIDE_DATA_PARAM_CHANGE_CHANNEL_COUNT  = 0x0001,
