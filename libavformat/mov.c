@@ -6506,10 +6506,13 @@ static int mov_read_pssh_ex(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         pssh_exist_flag = is_exist_pssh(old_side_data, old_side_data_count, side_data_node);
     }
     if (pssh_exist_flag == 0) {
-        new_side_data = (AV_DrmInfo *)av_stream_new_side_data(st, AV_PKT_DATA_ENCRYPTION_INIT_INFO,
-            (buffer_size_t)(sizeof(AV_DrmInfo) * (old_side_data_count + 1)));
+        new_side_data = (AV_DrmInfo *)av_mallocz(sizeof(AV_DrmInfo) * (old_side_data_count + 1));
         if (new_side_data != NULL) {
             mov_drm_info_copy(new_side_data, old_side_data, old_side_data_count, side_data_node);
+            ret = av_stream_add_side_data(st, AV_PKT_DATA_ENCRYPTION_INIT_INFO, (uint8_t *)new_side_data,
+                (buffer_size_t)(sizeof(AV_DrmInfo) * (old_side_data_count + 1)));
+            if (ret < 0)
+                av_free(new_side_data);
         }
     }
     return 0;
