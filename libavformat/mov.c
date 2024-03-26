@@ -477,7 +477,11 @@ retry:
     else {
         if (!raw && (data_type == 3 || (data_type == 0 && (langcode < 0x400 || langcode == 0x7fff)))) { // MAC Encoded
             mov_read_mac_string(c, pb, str_size, str, str_size_alloc);
+#ifdef OHOS_MOOV_LEVEL_META
+        } else if (data_type == 21 || data_type == 67) { // BE signed integer, variable size
+#else
         } else if (data_type == 21) { // BE signed integer, variable size
+#endif
             int val = 0;
             if (str_size == 1)
                 val = (int8_t)avio_r8(pb);
@@ -526,7 +530,34 @@ retry:
             str[str_size] = 0;
         }
         c->fc->event_flags |= AVFMT_EVENT_FLAG_METADATA_UPDATED;
+#ifdef OHOS_MOOV_LEVEL_META
+        if (!strncmp(key, "moov_level_meta_key_", 20)) {
+            char* typeStr;
+            switch(data_type) {
+            case 1:
+                typeStr = av_asprintf("%s%s", "00000001", str); // string
+                break;
+            case 21:
+                typeStr = av_asprintf("%s%s", "00000015", str); // int
+                break;
+            case 23:
+                typeStr = av_asprintf("%s%s", "00000017", str); // float
+                break;
+            case 67:
+                typeStr = av_asprintf("%s%s", "00000043", str); // int
+                break;
+            default:
+                typeStr = av_asprintf("%s%s", "0000004d", str); // unknow
+                break;
+            }
+            av_dict_set(&c->fc->metadata, key, typeStr, 0);
+            av_freep(&typeStr);
+        } else {
+            av_dict_set(&c->fc->metadata, key, str, 0);
+        }
+#else
         av_dict_set(&c->fc->metadata, key, str, 0);
+#endif
         if (*language && strcmp(language, "und")) {
             snprintf(key2, sizeof(key2), "%s-%s", key, language);
             av_dict_set(&c->fc->metadata, key2, str, 0);
@@ -4418,10 +4449,21 @@ static int mov_read_keys(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         if (type != MKTAG('m','d','t','a')) {
             avio_skip(pb, key_size);
         }
+#ifdef OHOS_MOOV_LEVEL_META
+        char* tempKey = av_mallocz(key_size + 1);
+        if (!tempKey) {
+            av_freep(&tempKey);
+            return AVERROR(ENOMEM);
+        }
+        avio_read(pb, tempKey, key_size);
+        c->meta_keys[i] = av_asprintf("%s%s", "moov_level_meta_key_", tempKey);
+        av_freep(&tempKey);
+#else
         c->meta_keys[i] = av_mallocz(key_size + 1);
         if (!c->meta_keys[i])
             return AVERROR(ENOMEM);
         avio_read(pb, c->meta_keys[i], key_size);
+#endif
     }
 
     return 0;
@@ -7032,6 +7074,28 @@ static int mov_read_dvcc_dvvc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     return 0;
 }
 
+#ifdef OHOS_MOOV_LEVEL_META
+static int mov_read_gnre(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+{
+    if (atom.size > 0) {
+        if (atom.size > FFMIN(INT_MAX, SIZE_MAX - 1))
+            return AVERROR_INVALIDDATA;
+        char* genre = av_mallocz(atom.size + 1); /* Add null terminator */
+        if (!genre)
+            return AVERROR(ENOMEM);
+
+        int ret = ffio_read_size(pb, genre, atom.size);
+        if (ret < 0) {
+            av_freep(&genre);
+            return ret;
+        }
+        av_dict_set(&c->fc->metadata, "genre", genre, AV_DICT_DONT_OVERWRITE);
+        av_freep(&genre);
+    }
+    return 0;
+}
+#endif
+
 static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('A','C','L','R'), mov_read_aclr },
 { MKTAG('A','P','R','G'), mov_read_avid },
@@ -7133,6 +7197,9 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('c','l','l','i'), mov_read_clli },
 { MKTAG('d','v','c','C'), mov_read_dvcc_dvvc },
 { MKTAG('d','v','v','C'), mov_read_dvcc_dvvc },
+#ifdef OHOS_MOOV_LEVEL_META
+{ MKTAG('g','n','r','e'), mov_read_gnre },
+#endif
 { 0, NULL }
 };
 
