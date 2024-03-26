@@ -550,8 +550,12 @@ retry:
                 typeStr = av_asprintf("%s%s", "0000004d", str); // unknow
                 break;
             }
-            av_dict_set(&c->fc->metadata, key, typeStr, 0);
-            av_freep(&typeStr);
+            if (!typeStr) {
+                av_dict_set(&c->fc->metadata, key, str, 0);
+            } else {
+                av_dict_set(&c->fc->metadata, key, typeStr, 0);
+                av_freep(&typeStr);
+            }
         } else {
             av_dict_set(&c->fc->metadata, key, str, 0);
         }
@@ -4452,7 +4456,6 @@ static int mov_read_keys(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 #ifdef OHOS_MOOV_LEVEL_META
         char* tempKey = av_mallocz(key_size + 1);
         if (!tempKey) {
-            av_freep(&tempKey);
             return AVERROR(ENOMEM);
         }
         avio_read(pb, tempKey, key_size);
