@@ -7200,9 +7200,6 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('c','l','l','i'), mov_read_clli },
 { MKTAG('d','v','c','C'), mov_read_dvcc_dvvc },
 { MKTAG('d','v','v','C'), mov_read_dvcc_dvvc },
-#ifdef OHOS_MOOV_LEVEL_META
-{ MKTAG('g','n','r','e'), mov_read_gnre },
-#endif
 { 0, NULL }
 };
 
@@ -7279,6 +7276,13 @@ static int mov_read_default(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         if (!parse && (atom.type == MKTAG('u','d','t','a') ||
                        atom.type == MKTAG('i','l','s','t')))
             parse = mov_read_udta_string;
+
+#ifdef OHOS_MOOV_LEVEL_META
+        // support moov gnre info
+        if (!parse && a.type == MKTAG('g','n','r','e')) {
+            parse = mov_read_gnre;
+        }
+#endif
 
         // Supports parsing the QuickTime Metadata Keys.
         // https://developer.apple.com/library/mac/documentation/QuickTime/QTFF/Metadata/Metadata.html
