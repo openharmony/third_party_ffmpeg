@@ -1257,7 +1257,8 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/mp3enc.c",
     # "//third_party/ffmpeg/libavformat/mpc.c",
     # "//third_party/ffmpeg/libavformat/mpc8.c",
-    # "//third_party/ffmpeg/libavformat/mpeg.c",
+    "//third_party/ffmpeg/libavformat/mpeg.c",
+
     # "//third_party/ffmpeg/libavformat/mpegenc.c",
     "//third_party/ffmpeg/libavformat/mpegts.c",
     "//third_party/ffmpeg/libavformat/mpegtsenc.c",
