@@ -39,6 +39,13 @@ typedef enum {
     AV_DRM_ALG_CENC_SM4_CTR,
 } AV_DrmCencAlgorithm;
 
+typedef enum {
+    /* key/iv/subsample set. */
+    AV_DRM_CENC_INFO_KEY_IV_SUBSAMPLES_SET = 0x0,
+    /* key/iv/subsample not set. */
+    AV_DRM_CENC_INFO_KEY_IV_SUBSAMPLES_NOT_SET = 0x1,
+} AV_DrmCencInfoMode;
+
 struct _AV_DrmSubSample {
     uint32_t clear_header_len;
     uint32_t pay_load_len;
@@ -51,19 +58,16 @@ struct _AV_DrmCencInfo {
     uint32_t key_id_len;
     uint8_t iv[AV_DRM_IV_SIZE];
     uint32_t iv_len;
-    uint32_t is_ambiguity;
     uint32_t encrypt_blocks;
     uint32_t skip_blocks;
     uint32_t first_encrypt_offset;
-    AV_DrmSubSample sub_sample[AV_DRM_MAX_SUB_SAMPLE_NUM];
+    AV_DrmSubSample sub_samples[AV_DRM_MAX_SUB_SAMPLE_NUM];
     uint32_t sub_sample_num;
+    AV_DrmCencInfoMode mode;
 };
 typedef struct _AV_DrmCencInfo AV_DrmCencInfo;
 
 struct _AV_DrmInfo {
-    AV_DrmCencAlgorithm algo;
-    uint32_t encrypt_blocks;
-    uint32_t skip_blocks;
     uint32_t uuid_len;
     uint8_t uuid[AV_DRM_MAX_DRM_UUID_LEN];
     uint32_t pssh_len;

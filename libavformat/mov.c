@@ -6464,9 +6464,6 @@ static int mov_set_drm_info(const uint8_t *pssh_buf, uint32_t pssh_buf_size, AV_
     if (pssh_buf_size < (AV_DRM_UUID_OFFSET + AV_DRM_MAX_DRM_UUID_LEN)) {
         return AVERROR_INVALIDDATA;
     }
-    side_data->algo = AV_DRM_ALG_CENC_UNENCRYPTED;
-    side_data->encrypt_blocks = 0;
-    side_data->skip_blocks = 0;
     side_data->uuid_len = AV_DRM_MAX_DRM_UUID_LEN;
     memcpy(side_data->uuid, pssh_buf + AV_DRM_UUID_OFFSET, AV_DRM_MAX_DRM_UUID_LEN);
     side_data->pssh_len = pssh_buf_size;
@@ -6474,7 +6471,7 @@ static int mov_set_drm_info(const uint8_t *pssh_buf, uint32_t pssh_buf_size, AV_
     return 0;
 }
 
-static int is_exist_pssh(const AV_DrmInfo *old_side_data, uint32_t count, AV_DrmInfo side_data_node)
+static int mov_is_exist_pssh(const AV_DrmInfo *old_side_data, uint32_t count, AV_DrmInfo side_data_node)
 {
     uint32_t i = 0;
     if (count == 0) {
@@ -6492,22 +6489,16 @@ static int is_exist_pssh(const AV_DrmInfo *old_side_data, uint32_t count, AV_Drm
     return 0;
 }
 
-static void mov_drm_info_copy(AV_DrmInfo *new_side_data, const AV_DrmInfo *old_side_data,
+static void mov_copy_drm_info(AV_DrmInfo *new_side_data, const AV_DrmInfo *old_side_data,
     uint32_t old_side_data_count, AV_DrmInfo side_data_node)
 {
     uint32_t i = 0;
     for (; i < old_side_data_count; i++) {
-        new_side_data[i].algo = old_side_data[i].algo;
-        new_side_data[i].encrypt_blocks = old_side_data[i].encrypt_blocks;
-        new_side_data[i].skip_blocks = old_side_data[i].skip_blocks;
         new_side_data[i].uuid_len = old_side_data[i].uuid_len;
         memcpy(new_side_data[i].uuid, old_side_data[i].uuid, old_side_data[i].uuid_len);
         new_side_data[i].pssh_len = old_side_data[i].pssh_len;
         memcpy(new_side_data[i].pssh, old_side_data[i].pssh, old_side_data[i].pssh_len);
     }
-    new_side_data[i].algo = side_data_node.algo;
-    new_side_data[i].encrypt_blocks = side_data_node.encrypt_blocks;
-    new_side_data[i].skip_blocks = side_data_node.skip_blocks;
     new_side_data[i].uuid_len = side_data_node.uuid_len;
     memcpy(new_side_data[i].uuid, side_data_node.uuid, side_data_node.uuid_len);
     new_side_data[i].pssh_len = side_data_node.pssh_len;
@@ -6548,12 +6539,12 @@ static int mov_read_pssh_ex(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     old_side_data = (AV_DrmInfo *)av_stream_get_side_data(st, AV_PKT_DATA_ENCRYPTION_INIT_INFO, &old_side_data_size);
     if ((old_side_data != NULL) && (old_side_data_size != 0)) {
         old_side_data_count = old_side_data_size / sizeof(AV_DrmInfo);
-        pssh_exist_flag = is_exist_pssh(old_side_data, old_side_data_count, side_data_node);
+        pssh_exist_flag = mov_is_exist_pssh(old_side_data, old_side_data_count, side_data_node);
     }
     if (pssh_exist_flag == 0) {
         new_side_data = (AV_DrmInfo *)av_mallocz(sizeof(AV_DrmInfo) * (old_side_data_count + 1));
         if (new_side_data != NULL) {
-            mov_drm_info_copy(new_side_data, old_side_data, old_side_data_count, side_data_node);
+            mov_copy_drm_info(new_side_data, old_side_data, old_side_data_count, side_data_node);
             ret = av_stream_add_side_data(st, AV_PKT_DATA_ENCRYPTION_INIT_INFO, (uint8_t *)new_side_data,
                 (buffer_size_t)(sizeof(AV_DrmInfo) * (old_side_data_count + 1)));
             if (ret < 0)

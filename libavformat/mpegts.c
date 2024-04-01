@@ -63,8 +63,7 @@
 #define DRM_AMBIGUITY_START_NUM            (0x00)
 #define DRM_AMBIGUITY_END_NUM              (0x03)
 #define DRM_MIN_DRM_INFO_LEN               (2)
-#define DRM_TS_FLAG_CRYPT_BYTE_BLOCK       (2)
-#define DRM_TS_CRYPT_BYTE_BLOCK            (1 + 2) // 2: DRM_TS_FLAG_CRYPT_BYTE_BLOCK
+#define DRM_TS_CRYPT_BYTE_BLOCK            (1)
 #define DRM_TS_SKIP_BYTE_BLOCK             (9)
 #define DRM_SHIFT_LEFT_NUM                 (1)
 #define DRM_H264_VIDEO_NAL_TYPE_UMASK_NUM  (0x1f)
@@ -77,6 +76,7 @@
 #define DRM_INVALID_START_POS              (0xffffffff)
 
 static AVMutex g_mpegts_mutex = AV_MUTEX_INITIALIZER;
+static AVMutex g_mpegts_drm_info_mutex = AV_MUTEX_INITIALIZER;
 
 static const uint8_t g_video_frame_arr[DRM_VIDEO_FRAME_ARR_LEN] = { 0x00, 0x00, 0x01 };
 static const uint8_t g_ambiguity_arr[DRM_AMBIGUITY_ARR_LEN] = { 0x00, 0x00, 0x03 };
@@ -310,28 +310,28 @@ typedef struct PESContext {
 extern AVInputFormat ff_mpegts_demuxer;
 
 #ifdef OHOS_DRM
-static void mpegts_set_drm_algo_and_blocks(uint8_t algo, AV_DrmInfo *drm_info)
+static void mpegts_set_drm_algo_and_blocks(uint8_t algo, AV_DrmCencInfo *cenc_info)
 {
     if (algo == 0x1) { // 0x1:SM4-SAMPL SM4S
-        drm_info->algo = AV_DRM_ALG_CENC_SM4_CBC;
-        drm_info->encrypt_blocks = DRM_TS_CRYPT_BYTE_BLOCK;
-        drm_info->skip_blocks = DRM_TS_SKIP_BYTE_BLOCK;
+        cenc_info->algo = AV_DRM_ALG_CENC_SM4_CBC;
+        cenc_info->encrypt_blocks = DRM_TS_CRYPT_BYTE_BLOCK;
+        cenc_info->skip_blocks = DRM_TS_SKIP_BYTE_BLOCK;
     } else if (algo == 0x2) { // 0x2:AES CBCS
-        drm_info->algo = AV_DRM_ALG_CENC_AES_CBC;
-        drm_info->encrypt_blocks = DRM_TS_CRYPT_BYTE_BLOCK;
-        drm_info->skip_blocks = DRM_TS_SKIP_BYTE_BLOCK;
+        cenc_info->algo = AV_DRM_ALG_CENC_AES_CBC;
+        cenc_info->encrypt_blocks = DRM_TS_CRYPT_BYTE_BLOCK;
+        cenc_info->skip_blocks = DRM_TS_SKIP_BYTE_BLOCK;
     } else if (algo == 0x5) { // 0x5:AES CBC1
-        drm_info->algo = AV_DRM_ALG_CENC_AES_CBC;
-        drm_info->encrypt_blocks = DRM_TS_FLAG_CRYPT_BYTE_BLOCK;
-        drm_info->skip_blocks = 0;
+        cenc_info->algo = AV_DRM_ALG_CENC_AES_CBC;
+        cenc_info->encrypt_blocks = 0;
+        cenc_info->skip_blocks = 0;
     } else if (algo == 0x3) { // 0x3:SM4-CBC SM4C
-        drm_info->algo = AV_DRM_ALG_CENC_SM4_CBC;
-        drm_info->encrypt_blocks = DRM_TS_FLAG_CRYPT_BYTE_BLOCK;
-        drm_info->skip_blocks = 0;
+        cenc_info->algo = AV_DRM_ALG_CENC_SM4_CBC;
+        cenc_info->encrypt_blocks = 0;
+        cenc_info->skip_blocks = 0;
     } else if (algo == 0x0) { // 0x0:NONE
-        drm_info->algo = AV_DRM_ALG_CENC_UNENCRYPTED;
-        drm_info->encrypt_blocks = DRM_TS_FLAG_CRYPT_BYTE_BLOCK;
-        drm_info->skip_blocks = 0;
+        cenc_info->algo = AV_DRM_ALG_CENC_UNENCRYPTED;
+        cenc_info->encrypt_blocks = 0;
+        cenc_info->skip_blocks = 0;
     }
     return;
 }
@@ -344,7 +344,7 @@ static int mpegts_get_drm_info(const uint8_t *src, uint32_t src_len, AV_DrmInfo 
         return -1;
     }
     uint8_t video_algo = src[offset] & 0x0f; // video algo offset
-    mpegts_set_drm_algo_and_blocks(video_algo, drm_info);
+    av_log(NULL, AV_LOG_DEBUG, "video_algo:%d\n", video_algo);
     offset++;
     uint8_t audio_algo = src[offset] & 0x0f; // audio algo offset
     av_log(NULL, AV_LOG_DEBUG, "audio_algo:%d\n", audio_algo);
@@ -367,26 +367,85 @@ static int mpegts_get_drm_info(const uint8_t *src, uint32_t src_len, AV_DrmInfo 
     return 0;
 }
 
-static void mpegts_avstream_drm_info_copy(AV_DrmInfo *dest, AV_DrmInfo *src)
+static int mpegts_avstream_is_exist_pssh(const AV_DrmInfo *old_side_data, uint32_t count, AV_DrmInfo *info)
 {
-    dest->algo = src->algo;
-    dest->encrypt_blocks = src->encrypt_blocks;
-    dest->skip_blocks = src->skip_blocks;
-    dest->pssh_len = src->pssh_len;
-    memcpy(dest->pssh, src->pssh, src->pssh_len);
-    dest->uuid_len = src->uuid_len;
-    memcpy(dest->uuid, src->uuid, src->uuid_len);
+    uint32_t i = 0;
+    if (count == 0) {
+        return 0;
+    }
+    for (; i < count; i++) {
+        if ((old_side_data[i].pssh_len == info->pssh_len) &&
+            (old_side_data[i].uuid_len == info->uuid_len)) {
+            if ((memcmp(old_side_data[i].pssh, info->pssh, old_side_data[i].pssh_len) == 0) &&
+                (memcmp(old_side_data[i].uuid, info->uuid, old_side_data[i].uuid_len) == 0)) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static void mpegts_avstream_copy_drm_info(AV_DrmInfo *new_side_data, const AV_DrmInfo *old_side_data,
+    uint32_t old_side_data_count, AV_DrmInfo *info)
+{
+    uint32_t i = 0;
+    for (; i < old_side_data_count; i++) {
+        new_side_data[i].uuid_len = old_side_data[i].uuid_len;
+        memcpy(new_side_data[i].uuid, old_side_data[i].uuid, old_side_data[i].uuid_len);
+        new_side_data[i].pssh_len = old_side_data[i].pssh_len;
+        memcpy(new_side_data[i].pssh, old_side_data[i].pssh, old_side_data[i].pssh_len);
+    }
+    new_side_data[i].uuid_len = info->uuid_len;
+    memcpy(new_side_data[i].uuid, info->uuid, info->uuid_len);
+    new_side_data[i].pssh_len = info->pssh_len;
+    memcpy(new_side_data[i].pssh, info->pssh, info->pssh_len);
+    return;
 }
 
 static void mpegts_avstream_set_drm_info(AVStream *avstream, AV_DrmInfo *info)
 {
-    ff_mutex_lock(&g_mpegts_mutex);
-    AV_DrmInfo *drm_info = (AV_DrmInfo *)av_stream_new_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INIT_INFO,
-        (buffer_size_t)(sizeof(AV_DrmInfo)));
-    if (drm_info != NULL) {
-        mpegts_avstream_drm_info_copy(drm_info, info);
+    AV_DrmInfo *old_side_data = NULL;
+    AV_DrmInfo *new_side_data = NULL;
+    buffer_size_t old_side_data_size = 0;
+    uint32_t old_side_data_count = 0;
+    uint32_t pssh_exist_flag = 0;
+    ff_mutex_lock(&g_mpegts_drm_info_mutex);
+    old_side_data = (AV_DrmInfo *)av_stream_get_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INIT_INFO,
+        &old_side_data_size);
+    if ((old_side_data != NULL) && (old_side_data_size != 0)) {
+        old_side_data_count = old_side_data_size / sizeof(AV_DrmInfo);
+        pssh_exist_flag = mpegts_avstream_is_exist_pssh(old_side_data, old_side_data_count, info);
     }
-    ff_mutex_unlock(&g_mpegts_mutex);
+    if (pssh_exist_flag == 0) {
+        new_side_data = (AV_DrmInfo *)av_mallocz(sizeof(AV_DrmInfo) * (old_side_data_count + 1));
+        if (new_side_data != NULL) {
+            mpegts_avstream_copy_drm_info(new_side_data, old_side_data, old_side_data_count, info);
+            int ret = av_stream_add_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INIT_INFO, (uint8_t *)new_side_data,
+                (buffer_size_t)(sizeof(AV_DrmInfo) * (old_side_data_count + 1)));
+            if (ret < 0)
+                av_free(new_side_data);
+        }
+    }
+    ff_mutex_unlock(&g_mpegts_drm_info_mutex);
+    return;
+}
+
+static void mpegts_get_cenc_info(const uint8_t *src, uint32_t src_len, AV_DrmCencInfo *cenc_info)
+{
+    uint32_t offset = 0;
+    if (src_len <= DRM_MIN_DRM_INFO_LEN) {
+        av_log(NULL, AV_LOG_ERROR, "algo not found");
+        return;
+    }
+    memset(cenc_info, 0, sizeof(AV_DrmCencInfo));
+
+    uint8_t video_algo = src[offset] & 0x0f; // video algo offset
+    mpegts_set_drm_algo_and_blocks(video_algo, cenc_info);
+    offset++;
+    uint8_t audio_algo = src[offset] & 0x0f; // audio algo offset
+    av_log(NULL, AV_LOG_DEBUG, "audio_algo:%d\n", audio_algo);
+    offset++;
+    cenc_info->mode = AV_DRM_CENC_INFO_KEY_IV_SUBSAMPLES_NOT_SET;
     return;
 }
 
@@ -521,16 +580,19 @@ static int mpegts_drm_find_cei_pos(enum AVCodecID codec_id, uint8_t *data, uint3
         if ((data[i] == g_video_frame_arr[DRM_ARR_SUBSCRIPT_ZERO]) &&
             (data[i + DRM_ARR_SUBSCRIPT_ONE] == g_video_frame_arr[DRM_ARR_SUBSCRIPT_ONE]) &&
             (data[i + DRM_ARR_SUBSCRIPT_TWO] == g_video_frame_arr[DRM_ARR_SUBSCRIPT_TWO])) {
+            uint32_t start_pos = (uint32_t)DRM_INVALID_START_POS;
             if (*cei_start_pos != (uint32_t)DRM_INVALID_START_POS) {
                 *cei_end_pos = i;
                 av_log(NULL, AV_LOG_DEBUG, "cei found, start pos:%x end pos:%x\n", *cei_start_pos, *cei_end_pos);
-                break;
             }
             /* found a nal unit, process nal to find the cei.*/
-            if (!mpegts_drm_find_cei_nal_unit(codec_id, data, data_size, cei_start_pos, i)) {
+            if (!mpegts_drm_find_cei_nal_unit(codec_id, data, data_size, &start_pos, i)) {
                 break;
             }
-            *cei_end_pos = (uint32_t)DRM_INVALID_START_POS;
+            if (start_pos != DRM_INVALID_START_POS) {
+                *cei_start_pos = start_pos;
+                *cei_end_pos = (uint32_t)DRM_INVALID_START_POS;
+            }
             i += (uint32_t)DRM_LEGACY_LEN;
         }
     }
@@ -571,15 +633,9 @@ static int mpegts_drm_get_key_id(uint8_t *data, uint32_t *data_size, uint32_t *p
     }
     uint8_t encryption_flag = (data[offset] & 0x80) >> 7; // 0x80 get encryption_flag & 7 get bits
     uint8_t next_key_id_flag = (data[offset] & 0x40) >> 6; // 0x40 get next_key_id_flag & 6 get bits
-    uint8_t drm_not_ambiguity_flag = (data[offset] & 0x10) >> 4; // 0x10 get drm_not_ambiguity_flag & 4 get bits
     *drm_descriptor_flag = (data[offset] & 0x20) >> 5; // 0x20 get drm_descriptor_flag & 5 get bits
     offset += 1; // 1 skip flag
     mpegts_drm_remove_ambiguity_bytes(data, data_size, offset);
-    if (drm_not_ambiguity_flag == 1) {
-        cenc_info->is_ambiguity = 0;
-    } else {
-        cenc_info->is_ambiguity = 1;  // 1:exist ambiguity
-    }
 
     if (encryption_flag != 0) {
         if ((offset + (uint32_t)AV_DRM_KEY_ID_SIZE) > *data_size) {
@@ -620,10 +676,12 @@ static int mpegts_drm_get_iv(uint8_t *data, uint32_t data_size, uint32_t *pos, A
     return 0;
 }
 
-static int mpegts_drm_parse_drm_descriptor(uint8_t *data, uint32_t data_size, uint32_t *pos,
-    uint8_t drm_descriptor_flag, AV_DrmCencInfo *cenc_info)
+static int mpegts_drm_parse_drm_descriptor(AVStream *avstream, uint8_t *data, uint32_t data_size, uint32_t *pos,
+    uint8_t drm_descriptor_flag)
 {
+    int ret = 0;
     uint32_t offset = *pos;
+    uint32_t drm_descriptor_len = 0;
     AV_DrmInfo drm_info;
     if (drm_descriptor_flag == 0) {
         return 0;
@@ -632,15 +690,23 @@ static int mpegts_drm_parse_drm_descriptor(uint8_t *data, uint32_t data_size, ui
         av_log(NULL, AV_LOG_ERROR, "cei data too short\n");
         return -1;
     }
-    uint8_t video_algo = data[offset + DRM_MIN_DRM_INFO_LEN] & 0x0f; // video algo offset
-    mpegts_set_drm_algo_and_blocks(video_algo, &drm_info);
-    cenc_info->algo = drm_info.algo;
-    offset = offset + DRM_MIN_DRM_INFO_LEN;
+    drm_descriptor_len = (uint32_t)(data[offset + 1]); // 1 drm descriptor len offset
+    if (offset + DRM_MIN_DRM_INFO_LEN + drm_descriptor_len > data_size) {
+        av_log(NULL, AV_LOG_ERROR, "drm descriptor data too short\n");
+        return -1;
+    }
+
+    ret = mpegts_get_drm_info(data + offset + DRM_MIN_DRM_INFO_LEN, drm_descriptor_len, &drm_info);
+    if (ret != 0) {
+        return ret;
+    }
+    mpegts_avstream_set_drm_info(avstream, &drm_info);
+    offset = offset + DRM_MIN_DRM_INFO_LEN + drm_descriptor_len;
     *pos = offset;
     return 0;
 }
 
-static int mpegts_drm_set_key_info(uint8_t *data, uint32_t data_size, uint32_t cei_start_pos,
+static int mpegts_drm_set_key_info(AVStream *avstream, uint8_t *data, uint32_t data_size, uint32_t cei_start_pos,
     AV_DrmCencInfo *cenc_info)
 {
     uint32_t total_size = data_size;
@@ -681,7 +747,7 @@ static int mpegts_drm_set_key_info(uint8_t *data, uint32_t data_size, uint32_t c
         free(cei_buf);
         return 0; // 0 iv not found
     }
-    ret = mpegts_drm_parse_drm_descriptor(cei_buf, total_size, &pos, drm_descriptor_flag, cenc_info);
+    ret = mpegts_drm_parse_drm_descriptor(avstream, cei_buf, total_size, &pos, drm_descriptor_flag);
     if (ret != 0) {
         free(cei_buf);
         return 0; // 0 drm descriptor not found
@@ -690,33 +756,35 @@ static int mpegts_drm_set_key_info(uint8_t *data, uint32_t data_size, uint32_t c
     return 1; // 1 true
 }
 
-static void mpegts_drm_cenc_info_copy(AV_DrmCencInfo *dest, AV_DrmCencInfo *src, uint32_t flag)
+static void mpegts_drm_copy_cenc_info(AV_DrmCencInfo *dest, AV_DrmCencInfo *src, uint32_t flag)
 {
     dest->algo = src->algo;
     dest->key_id_len = src->key_id_len;
     memcpy(dest->key_id, src->key_id, src->key_id_len);
     dest->iv_len = src->iv_len;
     memcpy(dest->iv, src->iv, src->iv_len);
-    dest->is_ambiguity = src->is_ambiguity;
+    dest->mode = src->mode;
     dest->encrypt_blocks = src->encrypt_blocks;
     dest->skip_blocks = src->skip_blocks;
     dest->first_encrypt_offset = src->first_encrypt_offset;
     if (flag == 1) { // 1:true
         dest->sub_sample_num = src->sub_sample_num;
         for (uint32_t i = 0; i < dest->sub_sample_num; i++) {
-            dest->sub_sample[i].clear_header_len = src->sub_sample[i].clear_header_len;
-            dest->sub_sample[i].pay_load_len = src->sub_sample[i].pay_load_len;
+            dest->sub_samples[i].clear_header_len = src->sub_samples[i].clear_header_len;
+            dest->sub_samples[i].pay_load_len = src->sub_samples[i].pay_load_len;
         }
     }
 }
 
 static void mpegts_avstream_set_cenc_info(AVStream *avstream, AV_DrmCencInfo *info)
 {
+    ff_mutex_lock(&g_mpegts_mutex);
     AV_DrmCencInfo *cenc_info = (AV_DrmCencInfo *)av_stream_new_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INFO,
         (buffer_size_t)(sizeof(AV_DrmCencInfo)));
     if (cenc_info != NULL) {
-        mpegts_drm_cenc_info_copy(cenc_info, info, 1); // 1:true
+        mpegts_drm_copy_cenc_info(cenc_info, info, 1); // 1:true
     }
+    ff_mutex_unlock(&g_mpegts_mutex);
     return;
 }
 
@@ -725,7 +793,7 @@ static void mpegts_packet_set_cenc_info(AVPacket *pkt, AV_DrmCencInfo *info)
     AV_DrmCencInfo *cenc_info = (AV_DrmCencInfo *)av_packet_new_side_data(pkt, AV_PKT_DATA_ENCRYPTION_INFO,
         (buffer_size_t)(sizeof(AV_DrmCencInfo)));
     if (cenc_info != NULL) {
-        mpegts_drm_cenc_info_copy(cenc_info, info, 1); // 1:true
+        mpegts_drm_copy_cenc_info(cenc_info, info, 1); // 1:true
     }
     return;
 }
@@ -736,33 +804,25 @@ static int mpegts_drm_get_cenc_info(AVStream *avstream, enum AVCodecID codec_id,
     int ret;
     uint32_t cei_start_pos = (uint32_t)DRM_INVALID_START_POS;
     uint32_t cei_end_pos = (uint32_t)DRM_INVALID_START_POS;
+    buffer_size_t cenc_info_size = 0;
+    AV_DrmCencInfo *cenc_info_store = NULL;
+
+    ff_mutex_lock(&g_mpegts_mutex);
+    cenc_info_store = (AV_DrmCencInfo *)av_stream_get_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INFO,
+        &cenc_info_size);
+    if ((cenc_info_store != NULL) && (cenc_info_size != 0)) {
+        mpegts_drm_copy_cenc_info(cenc_info, cenc_info_store, 0);
+    } else {
+        ff_mutex_unlock(&g_mpegts_mutex);
+        return 0;
+    }
+    ff_mutex_unlock(&g_mpegts_mutex);
 
     ret = mpegts_drm_find_cei_pos(codec_id, data, data_size, &cei_start_pos, &cei_end_pos);
     if (ret) {
-        buffer_size_t drm_info_size = 0;
-        AV_DrmInfo *drm_info = NULL;
-        ff_mutex_lock(&g_mpegts_mutex);
-        drm_info = (AV_DrmInfo *)av_stream_get_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INIT_INFO,
-            &drm_info_size);
-        if ((drm_info != NULL) && (drm_info_size != 0)) {
-            cenc_info->algo = drm_info->algo;
-            cenc_info->encrypt_blocks = drm_info->encrypt_blocks;
-            cenc_info->skip_blocks = drm_info->skip_blocks;
-        }
-        ff_mutex_unlock(&g_mpegts_mutex);
-        ret = mpegts_drm_set_key_info(data, cei_end_pos, cei_start_pos, cenc_info);
-        return ret;
-    } else {
-        buffer_size_t cenc_info_size = 0;
-        AV_DrmCencInfo *cenc_info_store = NULL;
-        cenc_info_store = (AV_DrmCencInfo *)av_stream_get_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INFO,
-            &cenc_info_size);
-        if ((cenc_info_store != NULL) && (cenc_info_size != 0)) {
-            mpegts_drm_cenc_info_copy(cenc_info, cenc_info_store, 0);
-            return 1; // 1 true
-        }
+        (void)mpegts_drm_set_key_info(avstream, data, cei_end_pos, cei_start_pos, cenc_info);
     }
-    return 0;
+    return 1;
 }
 
 static void mpegts_packet_add_cenc_info(AVFormatContext *s, AVPacket *pkt)
@@ -786,11 +846,11 @@ static void mpegts_packet_add_cenc_info(AVFormatContext *s, AVPacket *pkt)
         return;
     }
 
-    cenc_info.sub_sample[0].clear_header_len = pkt->size;
-    cenc_info.sub_sample[0].pay_load_len = 0;
+    cenc_info.sub_samples[0].clear_header_len = pkt->size;
+    cenc_info.sub_samples[0].pay_load_len = 0;
     cenc_info.sub_sample_num = 1;
     cenc_info.algo = AV_DRM_ALG_CENC_UNENCRYPTED;
-    cenc_info.is_ambiguity = 1;
+    cenc_info.mode = AV_DRM_CENC_INFO_KEY_IV_SUBSAMPLES_NOT_SET;
 
     int ret = mpegts_drm_get_cenc_info(s->streams[pkt->stream_index], codec_id, pkt->data, pkt->size, &cenc_info);
     if (ret) {
@@ -2646,7 +2706,10 @@ int ff_parse_mpeg2_descriptor(AVFormatContext *fc, AVStream *st, int stream_type
             AV_DrmInfo drm_info;
             ret = mpegts_get_drm_info(*pp, desc_len, &drm_info);
             if (ret == 0) {
+                AV_DrmCencInfo cenc_info;
                 mpegts_avstream_set_drm_info(st, &drm_info);
+                mpegts_get_cenc_info(*pp, desc_len, &cenc_info);
+                mpegts_avstream_set_cenc_info(st, &cenc_info);
             }
         }
         break;
@@ -2834,6 +2897,7 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
     struct Program *prg;
 #ifdef OHOS_DRM
     AV_DrmInfo drm_info;
+    AV_DrmCencInfo cenc_info;
 #endif
 
     int mp4_descr_count = 0;
@@ -2845,6 +2909,7 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
 
 #ifdef OHOS_DRM
     memset(&drm_info, 0, sizeof(AV_DrmInfo));
+    memset(&cenc_info, 0, sizeof(AV_DrmCencInfo));
 #endif
 
     p_end = section + section_len - 4;
@@ -2917,6 +2982,8 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
                 memset(&drm_info, 0, sizeof(AV_DrmInfo));
                 drm_info.pssh_len = 0;
                 drm_info.uuid_len = 0;
+            } else {
+                mpegts_get_cenc_info(p, (uint32_t)len, &cenc_info);
             }
 #endif
         }
@@ -3011,6 +3078,7 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
 #ifdef OHOS_DRM
         if ((drm_info.pssh_len != 0) && (drm_info.uuid_len != 0)) {
             mpegts_avstream_set_drm_info(st, &drm_info);
+            mpegts_avstream_set_cenc_info(st, &cenc_info);
         }
 #endif
 
