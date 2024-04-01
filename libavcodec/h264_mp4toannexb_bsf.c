@@ -173,28 +173,28 @@ static int h264_mp4toannexb_init(AVBSFContext *ctx)
 static void h264_mp4toannexb_modify_encryption_info(AVPacket *pkt, uint64_t new_data_size, uint64_t old_data_size,
     int copy)
 {
-    AV_DrmCencInfo *old_side_data = NULL;
-    buffer_size_t old_side_data_size = 0;
+    AV_DrmCencInfo *side_data = NULL;
+    buffer_size_t side_data_size = 0;
     if ((copy == 0) || (new_data_size == old_data_size)) {
         return;
     }
-    old_side_data = (AV_DrmCencInfo *)av_packet_get_side_data(pkt, AV_PKT_DATA_ENCRYPTION_INFO, &old_side_data_size);
-    if ((old_side_data != NULL) && (old_side_data_size != 0)) {
+    side_data = (AV_DrmCencInfo *)av_packet_get_side_data(pkt, AV_PKT_DATA_ENCRYPTION_INFO, &side_data_size);
+    if ((side_data != NULL) && (side_data_size != 0)) {
         uint64_t total_size = 0;
-        for (uint32_t i = 0; i < old_side_data->sub_sample_num; i++) {
+        for (uint32_t i = 0; i < side_data->sub_sample_num; i++) {
             total_size +=
-                (uint64_t)(old_side_data->sub_sample[i].clear_header_len + old_side_data->sub_sample[i].pay_load_len);
+                (uint64_t)(side_data->sub_samples[i].clear_header_len + side_data->sub_samples[i].pay_load_len);
             if (total_size < new_data_size) {
                 continue;
             }
             if (new_data_size > old_data_size) {
-                old_side_data->sub_sample[i].clear_header_len += (uint32_t)(new_data_size - old_data_size);
+                side_data->sub_samples[i].clear_header_len += (uint32_t)(new_data_size - old_data_size);
             } else {
                 uint32_t diff_size = (uint32_t)(old_data_size - new_data_size);
-                if (old_side_data->sub_sample[i].clear_header_len < diff_size) {
+                if (side_data->sub_samples[i].clear_header_len < diff_size) {
                     return;
                 }
-                old_side_data->sub_sample[i].clear_header_len -= diff_size;
+                side_data->sub_samples[i].clear_header_len -= diff_size;
             }
             break;
         }

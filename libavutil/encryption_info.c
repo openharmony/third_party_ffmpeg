@@ -206,15 +206,15 @@ AV_DrmCencInfo *av_encryption_info_add_side_data_ex(const AVEncryptionInfo *info
     memcpy(cenc_info->key_id, info->key_id, info->key_id_size);
     cenc_info->iv_len = info->iv_size;
     memcpy(cenc_info->iv, info->iv, info->iv_size);
-    cenc_info->is_ambiguity = 0;
+    cenc_info->mode = AV_DRM_CENC_INFO_KEY_IV_SUBSAMPLES_SET;
     cenc_info->encrypt_blocks = info->crypt_byte_block;
     cenc_info->skip_blocks = info->skip_byte_block;
     cenc_info->first_encrypt_offset = 0;
     cenc_info->sub_sample_num = info->subsample_count;
 
     for (i = 0; i < cenc_info->sub_sample_num; i++) {
-        cenc_info->sub_sample[i].clear_header_len = info->subsamples[i].bytes_of_clear_data;
-        cenc_info->sub_sample[i].pay_load_len = info->subsamples[i].bytes_of_protected_data;
+        cenc_info->sub_samples[i].clear_header_len = info->subsamples[i].bytes_of_clear_data;
+        cenc_info->sub_samples[i].pay_load_len = info->subsamples[i].bytes_of_protected_data;
     }
     return cenc_info;
 }
