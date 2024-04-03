@@ -378,10 +378,10 @@ static void read_ttag(AVFormatContext *s, AVIOContext *pb, int taglen,
             utf8[utf8len] = '\0';
             int resultLen = iso8859_convert_utf8(dst, strlen(dst), utf8, utf8len);
             if (resultLen >= 0) {
-                char* utf8Valid = av_malloc(resultLen + 1);
+                char *utf8Valid = av_malloc(resultLen + 1);
                 av_strlcpy(utf8Valid, utf8, resultLen + 1);
                 av_dict_set(metadata, key, utf8Valid, dict_flags);
-                av_freep(&utf8);    
+                av_freep(&utf8);
             } else {
                 av_dict_set(metadata, key, utf8, dict_flags);
             }
