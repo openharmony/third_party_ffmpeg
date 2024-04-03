@@ -315,17 +315,20 @@ static int decode_str(AVFormatContext *s, AVIOContext *pb, int encoding,
 
 #ifdef OHOS_OPT_COMPAT
 #include <iconv.h>
-static void iso8859_convert_utf8 (char *input, size_t inputlen, char *output, size_t outputlen)
+static int iso8859_convert_utf8(char *input, size_t inputlen, char *output, size_t outputlen)
 {
+    int resultLen = -1;
     size_t inbuferlen = inputlen;
     size_t outbuferlen = outputlen;
     iconv_t cd = iconv_open("ISO-8859-1", "UTF-8");
     if (cd != (iconv_t)-1) {
         size_t ret = iconv(cd, &input, (size_t *)&inbuferlen, &output, (size_t *)&outbuferlen);
-        (void)ret;
+        if (ret != -1) {
+            resultLen = outputlen - outbuferlen;
+        }
         iconv_close(cd);
-        return;
     }
+    return resultLen;
 }
 #endif
 
@@ -373,8 +376,15 @@ static void read_ttag(AVFormatContext *s, AVIOContext *pb, int taglen,
             const int utf8len = 256;
             char *utf8 = av_malloc(utf8len + 1);
             utf8[utf8len] = '\0';
-            iso8859_convert_utf8(dst, strlen(dst), utf8, utf8len);
-            av_dict_set(metadata, key, utf8, dict_flags);
+            int resultLen = iso8859_convert_utf8(dst, strlen(dst), utf8, utf8len);
+            if (resultLen >= 0) {
+                char* utf8Valid = av_malloc(resultLen + 1);
+                av_strlcpy(utf8Valid, utf8, resultLen + 1);
+                av_dict_set(metadata, key, utf8Valid, dict_flags);
+                av_freep(&utf8);    
+            } else {
+                av_dict_set(metadata, key, utf8, dict_flags);
+            }
             av_freep(&dst);
         } else {
             av_dict_set(metadata, key, dst, dict_flags);
