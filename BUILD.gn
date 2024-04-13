@@ -1092,7 +1092,7 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavformat/avio.c",
     "//third_party/ffmpeg/libavformat/aviobuf.c",
     "//third_party/ffmpeg/libavformat/avlanguage.c",
-    
+
     # "//third_party/ffmpeg/libavformat/avr.c",
     # "//third_party/ffmpeg/libavformat/avs.c",
     # "//third_party/ffmpeg/libavformat/bethsoftvid.c",
