@@ -3800,8 +3800,14 @@ static int mov_write_loci_tag(AVFormatContext *s, AVIOContext *pb)
     avio_wb16(pb, lang);
     avio_write(pb, place, strlen(place) + 1);
     avio_w8(pb, 0);           /* role of place (0 == shooting location, 1 == real location, 2 == fictional location) */
+#ifdef OHOS_MOOV_LEVEL_META
+    /* fix save order, refer to 3GPP TS 26.244, ffmpeg7.0*/
+    avio_wb32(pb, longitude_fix);
+    avio_wb32(pb, latitude_fix);
+#else
     avio_wb32(pb, latitude_fix);
     avio_wb32(pb, longitude_fix);
+#endif
     avio_wb32(pb, altitude_fix);
     avio_write(pb, astronomical_body, strlen(astronomical_body) + 1);
     avio_w8(pb, 0);           /* additional notes, null terminated string */
