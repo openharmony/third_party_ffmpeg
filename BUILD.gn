@@ -1639,7 +1639,7 @@ ohos_source_set("ffmpeg_dynamic") {
 }
 
 action("gen_config_header") {
-  if (current_os == "ios") {
+  if (host_os == "mac") {
     script = "//third_party/ffmpeg/ios_config.sh"
   } else {
     script = "//third_party/ffmpeg/ohos_config.sh"
