@@ -2008,7 +2008,7 @@ static int mov_read_glbl(MOVContext *c, AVIOContext *pb, MOVAtom atom)
            the hvcC extradata box available as specified,
            set codec to HEVC */
         st->codecpar->codec_id = AV_CODEC_ID_HEVC;
-    if (atom.type == MKTAG('v','v','c','C') && st->codecpar->codec_tag == MKTAG('d','v','h','1'))
+    if (atom.type == MKTAG('v','v','c','C'))
         st->codecpar->codec_id = AV_CODEC_ID_VVC;
 
     return 0;
