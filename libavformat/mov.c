@@ -1979,7 +1979,12 @@ static int mov_read_glbl(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     if ((uint64_t)atom.size > (1<<30))
         return AVERROR_INVALIDDATA;
-
+#ifdef OHOS_OPT_COMPAT
+    if (atom.type == MKTAG('v','v','c','C')) {
+        avio_rb32(pb);
+        atom.size -= 4;
+    }
+#endif
     if (atom.size >= 10) {
         // Broken files created by legacy versions of libavformat will
         // wrap a whole fiel atom inside of a glbl atom.
@@ -2003,7 +2008,10 @@ static int mov_read_glbl(MOVContext *c, AVIOContext *pb, MOVAtom atom)
            the hvcC extradata box available as specified,
            set codec to HEVC */
         st->codecpar->codec_id = AV_CODEC_ID_HEVC;
-
+#ifdef OHOS_OPT_COMPAT
+    if (atom.type == MKTAG('v','v','c','C'))
+        st->codecpar->codec_id = AV_CODEC_ID_VVC;
+#endif
     return 0;
 }
 
@@ -7162,6 +7170,9 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('d','v','c','1'), mov_read_dvc1 },
 { MKTAG('s','b','g','p'), mov_read_sbgp },
 { MKTAG('h','v','c','C'), mov_read_glbl },
+#ifdef OHOS_OPT_COMPAT
+{ MKTAG('v','v','c','C'), mov_read_glbl },
+#endif
 { MKTAG('u','u','i','d'), mov_read_uuid },
 { MKTAG('C','i','n', 0x8e), mov_read_targa_y216 },
 { MKTAG('f','r','e','e'), mov_read_free },
