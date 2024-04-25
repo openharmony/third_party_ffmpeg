@@ -20,7 +20,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "config_components.h"
+
 #include "avcodec.h"
+#include "internal.h"
 #include "mpegvideo.h"
 #include "nvdec.h"
 #include "decode.h"
@@ -80,8 +83,9 @@ static int nvdec_mpeg12_start_frame(AVCodecContext *avctx, const uint8_t *buffer
     };
 
     for (i = 0; i < 64; ++i) {
-        ppc->QuantMatrixIntra[i] = s->intra_matrix[i];
-        ppc->QuantMatrixInter[i] = s->inter_matrix[i];
+        int n = s->idsp.idct_permutation[i];
+        ppc->QuantMatrixIntra[i] = s->intra_matrix[n];
+        ppc->QuantMatrixInter[i] = s->inter_matrix[n];
     }
 
     return 0;

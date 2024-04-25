@@ -89,6 +89,8 @@ const AVCodecTag ff_codec_movvideo_tags[] = {
 
     { AV_CODEC_ID_DVVIDEO, MKTAG('d', 'v', 'c', 'p') }, /* DV PAL */
     { AV_CODEC_ID_DVVIDEO, MKTAG('d', 'v', 'c', ' ') }, /* DV NTSC */
+    { AV_CODEC_ID_DVVIDEO, MKTAG('d', 'v', 'l', 'p') }, /* DV PAL 16:9 produced by Radius SoftDV */
+    { AV_CODEC_ID_DVVIDEO, MKTAG('d', 'v', 'l', ' ') }, /* DV NTSC 16:9 produced by Radius SoftDV */
     { AV_CODEC_ID_DVVIDEO, MKTAG('d', 'v', 'p', 'p') }, /* DVCPRO PAL produced by FCP */
     { AV_CODEC_ID_DVVIDEO, MKTAG('d', 'v', '5', 'p') }, /* DVCPRO50 PAL produced by FCP */
     { AV_CODEC_ID_DVVIDEO, MKTAG('d', 'v', '5', 'n') }, /* DVCPRO50 NTSC produced by FCP */
@@ -120,7 +122,10 @@ const AVCodecTag ff_codec_movvideo_tags[] = {
     { AV_CODEC_ID_HEVC, MKTAG('h', 'v', 'c', '1') }, /* HEVC/H.265 which indicates parameter sets shall not be in ES */
     { AV_CODEC_ID_HEVC, MKTAG('d', 'v', 'h', 'e') }, /* HEVC-based Dolby Vision derived from hev1 */
                                                      /* dvh1 is handled within mov.c */
-
+#ifdef OHOS_OPT_COMPAT
+    { AV_CODEC_ID_VVC, MKTAG('v', 'v', 'i', '1') },  /* VVC/H.266 which indicates parameter sets may be in ES */
+    { AV_CODEC_ID_VVC, MKTAG('v', 'v', 'c', '1') },  /* VVC/H.266 which indicates parameter shall not be in ES */
+#endif
     { AV_CODEC_ID_H264, MKTAG('a', 'v', 'c', '1') }, /* AVC-1/H.264 */
     { AV_CODEC_ID_H264, MKTAG('a', 'v', 'c', '2') },
     { AV_CODEC_ID_H264, MKTAG('a', 'v', 'c', '3') },
@@ -312,6 +317,8 @@ const AVCodecTag ff_codec_movaudio_tags[] = {
     { AV_CODEC_ID_PCM_S16LE,       MKTAG('s', 'o', 'w', 't') },
     { AV_CODEC_ID_PCM_S16BE,       MKTAG('l', 'p', 'c', 'm') },
     { AV_CODEC_ID_PCM_S16LE,       MKTAG('l', 'p', 'c', 'm') },
+    { AV_CODEC_ID_PCM_S16BE,       MKTAG('i', 'p', 'c', 'm') },
+    { AV_CODEC_ID_PCM_S16LE,       MKTAG('i', 'p', 'c', 'm') },
     { AV_CODEC_ID_PCM_S24BE,       MKTAG('i', 'n', '2', '4') },
     { AV_CODEC_ID_PCM_S24LE,       MKTAG('i', 'n', '2', '4') },
     { AV_CODEC_ID_PCM_S32BE,       MKTAG('i', 'n', '3', '2') },

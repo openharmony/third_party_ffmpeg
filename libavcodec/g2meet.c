@@ -35,6 +35,7 @@
 #include "avcodec.h"
 #include "blockdsp.h"
 #include "bytestream.h"
+#include "codec_internal.h"
 #include "elsdec.h"
 #include "get_bits.h"
 #include "idctdsp.h"
@@ -145,7 +146,8 @@ typedef struct G2MContext {
     int        got_header;
 
     uint8_t    *framebuf;
-    int        framebuf_stride, old_width, old_height;
+    int        framebuf_stride;
+    unsigned int framebuf_allocated;
 
     uint8_t    *synth_tile, *jpeg_tile, *epic_buf, *epic_buf_base;
     int        tile_stride, epic_buf_stride, old_tile_w, old_tile_h;
@@ -164,20 +166,20 @@ static av_cold int jpg_init(AVCodecContext *avctx, JPGContext *c)
 {
     int ret;
 
-    ret = ff_mjpeg_build_vlc(&c->dc_vlc[0], avpriv_mjpeg_bits_dc_luminance,
-                             avpriv_mjpeg_val_dc, 0, avctx);
+    ret = ff_mjpeg_build_vlc(&c->dc_vlc[0], ff_mjpeg_bits_dc_luminance,
+                             ff_mjpeg_val_dc, 0, avctx);
     if (ret)
         return ret;
-    ret = ff_mjpeg_build_vlc(&c->dc_vlc[1], avpriv_mjpeg_bits_dc_chrominance,
-                             avpriv_mjpeg_val_dc, 0, avctx);
+    ret = ff_mjpeg_build_vlc(&c->dc_vlc[1], ff_mjpeg_bits_dc_chrominance,
+                             ff_mjpeg_val_dc, 0, avctx);
     if (ret)
         return ret;
-    ret = ff_mjpeg_build_vlc(&c->ac_vlc[0], avpriv_mjpeg_bits_ac_luminance,
-                             avpriv_mjpeg_val_ac_luminance, 1, avctx);
+    ret = ff_mjpeg_build_vlc(&c->ac_vlc[0], ff_mjpeg_bits_ac_luminance,
+                             ff_mjpeg_val_ac_luminance, 1, avctx);
     if (ret)
         return ret;
-    ret = ff_mjpeg_build_vlc(&c->ac_vlc[1], avpriv_mjpeg_bits_ac_chrominance,
-                             avpriv_mjpeg_val_ac_chrominance, 1, avctx);
+    ret = ff_mjpeg_build_vlc(&c->ac_vlc[1], ff_mjpeg_bits_ac_chrominance,
+                             ff_mjpeg_val_ac_chrominance, 1, avctx);
     if (ret)
         return ret;
 
@@ -1160,14 +1162,13 @@ static int g2m_init_buffers(G2MContext *c)
 {
     int aligned_height;
 
-    if (!c->framebuf || c->old_width < c->width || c->old_height < c->height) {
-        c->framebuf_stride = FFALIGN(c->width + 15, 16) * 3;
-        aligned_height     = c->height + 15;
-        av_free(c->framebuf);
-        c->framebuf = av_mallocz_array(c->framebuf_stride, aligned_height);
-        if (!c->framebuf)
-            return AVERROR(ENOMEM);
-    }
+    c->framebuf_stride = FFALIGN(c->width + 15, 16) * 3;
+    aligned_height = c->height + 15;
+
+    av_fast_mallocz(&c->framebuf, &c->framebuf_allocated, c->framebuf_stride * aligned_height);
+    if (!c->framebuf)
+        return AVERROR(ENOMEM);
+
     if (!c->synth_tile || !c->jpeg_tile ||
         (c->compression == 2 && !c->epic_buf_base) ||
         c->old_tile_w < c->tile_width ||
@@ -1371,13 +1372,12 @@ static void g2m_paint_cursor(G2MContext *c, uint8_t *dst, int stride)
     }
 }
 
-static int g2m_decode_frame(AVCodecContext *avctx, void *data,
+static int g2m_decode_frame(AVCodecContext *avctx, AVFrame *pic,
                             int *got_picture_ptr, AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     G2MContext *c = avctx->priv_data;
-    AVFrame *pic = data;
     GetByteContext bc, tbc;
     int magic;
     int got_header = 0;
@@ -1592,7 +1592,6 @@ static av_cold int g2m_decode_init(AVCodecContext *avctx)
 
     if ((ret = jpg_init(avctx, &c->jc)) != 0) {
         av_log(avctx, AV_LOG_ERROR, "Cannot initialise VLCs\n");
-        jpg_free_context(&c->jc);
         return AVERROR(ENOMEM);
     }
 
@@ -1619,19 +1618,20 @@ static av_cold int g2m_decode_end(AVCodecContext *avctx)
     av_freep(&c->jpeg_tile);
     av_freep(&c->cursor);
     av_freep(&c->framebuf);
+    c->framebuf_allocated = 0;
 
     return 0;
 }
 
-AVCodec ff_g2m_decoder = {
-    .name           = "g2m",
-    .long_name      = NULL_IF_CONFIG_SMALL("Go2Meeting"),
-    .type           = AVMEDIA_TYPE_VIDEO,
-    .id             = AV_CODEC_ID_G2M,
+const FFCodec ff_g2m_decoder = {
+    .p.name         = "g2m",
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Go2Meeting"),
+    .p.type         = AVMEDIA_TYPE_VIDEO,
+    .p.id           = AV_CODEC_ID_G2M,
     .priv_data_size = sizeof(G2MContext),
     .init           = g2m_decode_init,
     .close          = g2m_decode_end,
-    .decode         = g2m_decode_frame,
-    .capabilities   = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
+    FF_CODEC_DECODE_CB(g2m_decode_frame),
+    .p.capabilities = AV_CODEC_CAP_DR1,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
 };
