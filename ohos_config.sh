@@ -21,7 +21,6 @@ FF_CONFIG_OPTIONS="
     --disable-avfilter
     --disable-network
     --disable-dwt
-    --disable-lzo
     --disable-faan
     --disable-pixelutils
     --disable-bsfs
@@ -108,7 +107,6 @@ FF_CONFIG_OPTIONS="
     --disable-avfilter
     --disable-network
     --disable-dwt
-    --disable-lzo
     --disable-faan
     --disable-pixelutils
     --disable-bsfs

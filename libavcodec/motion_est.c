@@ -32,11 +32,10 @@
 #include <limits.h>
 
 #include "avcodec.h"
-#include "internal.h"
 #include "mathops.h"
 #include "motion_est.h"
 #include "mpegutils.h"
-#include "mpegvideo.h"
+#include "mpegvideoenc.h"
 
 #define P_LEFT P[1]
 #define P_TOP P[2]
@@ -307,6 +306,7 @@ int ff_init_me(MpegEncContext *s){
     MotionEstContext * const c= &s->me;
     int cache_size= FFMIN(ME_MAP_SIZE>>ME_MAP_SHIFT, 1<<ME_MAP_SHIFT);
     int dia_size= FFMAX(FFABS(s->avctx->dia_size)&255, FFABS(s->avctx->pre_dia_size)&255);
+    int ret;
 
     if(FFMIN(s->avctx->dia_size, s->avctx->pre_dia_size) < -FFMIN(ME_MAP_SIZE, MAX_SAB_SIZE)){
         av_log(s->avctx, AV_LOG_ERROR, "ME_MAP size is too small for SAB diamond\n");
@@ -322,10 +322,12 @@ int ff_init_me(MpegEncContext *s){
         av_log(s->avctx, AV_LOG_INFO, "ME_MAP size may be a little small for the selected diamond size\n");
     }
 
-    ff_set_cmp(&s->mecc, s->mecc.me_pre_cmp, c->avctx->me_pre_cmp);
-    ff_set_cmp(&s->mecc, s->mecc.me_cmp,     c->avctx->me_cmp);
-    ff_set_cmp(&s->mecc, s->mecc.me_sub_cmp, c->avctx->me_sub_cmp);
-    ff_set_cmp(&s->mecc, s->mecc.mb_cmp,     c->avctx->mb_cmp);
+    ret  = ff_set_cmp(&s->mecc, s->mecc.me_pre_cmp, c->avctx->me_pre_cmp);
+    ret |= ff_set_cmp(&s->mecc, s->mecc.me_cmp,     c->avctx->me_cmp);
+    ret |= ff_set_cmp(&s->mecc, s->mecc.me_sub_cmp, c->avctx->me_sub_cmp);
+    ret |= ff_set_cmp(&s->mecc, s->mecc.mb_cmp,     c->avctx->mb_cmp);
+    if (ret < 0)
+        return ret;
 
     c->flags    = get_flags(c, 0, c->avctx->me_cmp    &FF_CMP_CHROMA);
     c->sub_flags= get_flags(c, 0, c->avctx->me_sub_cmp&FF_CMP_CHROMA);
@@ -681,7 +683,7 @@ static inline int h263_mv4_search(MpegEncContext *s, int mx, int my, int shift)
 
     if (s->mecc.me_sub_cmp[0] != s->mecc.mb_cmp[0]) {
         dmin_sum += s->mecc.mb_cmp[0](s,
-                                      s->new_picture.f->data[0] +
+                                      s->new_picture->data[0] +
                                       s->mb_x * 16 + s->mb_y * 16 * stride,
                                       c->scratchpad, stride, 16);
     }
@@ -705,8 +707,8 @@ static inline int h263_mv4_search(MpegEncContext *s, int mx, int my, int shift)
             s->hdsp.put_pixels_tab       [1][dxy](c->scratchpad + 8, s->last_picture.f->data[2] + offset, s->uvlinesize, 8);
         }
 
-        dmin_sum += s->mecc.mb_cmp[1](s, s->new_picture.f->data[1] + s->mb_x * 8 + s->mb_y * 8 * s->uvlinesize, c->scratchpad,     s->uvlinesize, 8);
-        dmin_sum += s->mecc.mb_cmp[1](s, s->new_picture.f->data[2] + s->mb_x * 8 + s->mb_y * 8 * s->uvlinesize, c->scratchpad + 8, s->uvlinesize, 8);
+        dmin_sum += s->mecc.mb_cmp[1](s, s->new_picture->data[1] + s->mb_x * 8 + s->mb_y * 8 * s->uvlinesize, c->scratchpad,     s->uvlinesize, 8);
+        dmin_sum += s->mecc.mb_cmp[1](s, s->new_picture->data[2] + s->mb_x * 8 + s->mb_y * 8 * s->uvlinesize, c->scratchpad + 8, s->uvlinesize, 8);
     }
 
     c->pred_x= mx;
@@ -895,7 +897,7 @@ void ff_estimate_p_frame_motion(MpegEncContext * s,
     int mb_type=0;
     Picture * const pic= &s->current_picture;
 
-    init_ref(c, s->new_picture.f->data, s->last_picture.f->data, NULL, 16*mb_x, 16*mb_y, 0);
+    init_ref(c, s->new_picture->data, s->last_picture.f->data, NULL, 16*mb_x, 16*mb_y, 0);
 
     av_assert0(s->quarter_sample==0 || s->quarter_sample==1);
     av_assert0(s->linesize == c->stride);
@@ -1066,7 +1068,7 @@ int ff_pre_estimate_p_frame_motion(MpegEncContext * s,
     int P[10][2];
     const int shift= 1+s->quarter_sample;
     const int xy= mb_x + mb_y*s->mb_stride;
-    init_ref(c, s->new_picture.f->data, s->last_picture.f->data, NULL, 16*mb_x, 16*mb_y, 0);
+    init_ref(c, s->new_picture->data, s->last_picture.f->data, NULL, 16*mb_x, 16*mb_y, 0);
 
     av_assert0(s->quarter_sample==0 || s->quarter_sample==1);
 
@@ -1495,7 +1497,7 @@ void ff_estimate_b_frame_motion(MpegEncContext * s,
     int fmin, bmin, dmin, fbmin, bimin, fimin;
     int type=0;
     const int xy = mb_y*s->mb_stride + mb_x;
-    init_ref(c, s->new_picture.f->data, s->last_picture.f->data,
+    init_ref(c, s->new_picture->data, s->last_picture.f->data,
              s->next_picture.f->data, 16 * mb_x, 16 * mb_y, 2);
 
     get_limits(s, 16*mb_x, 16*mb_y);
@@ -1595,7 +1597,7 @@ void ff_estimate_b_frame_motion(MpegEncContext * s,
 }
 
 /* find best f_code for ME which do unlimited searches */
-int ff_get_best_fcode(MpegEncContext * s, int16_t (*mv_table)[2], int type)
+int ff_get_best_fcode(MpegEncContext * s, const int16_t (*mv_table)[2], int type)
 {
     if (s->motion_est != FF_ME_ZERO) {
         int score[8];
@@ -1614,7 +1616,7 @@ int ff_get_best_fcode(MpegEncContext * s, int16_t (*mv_table)[2], int type)
         for(y=0; y<s->mb_height; y++){
             int x;
             int xy= y*s->mb_stride;
-            for(x=0; x<s->mb_width; x++){
+            for(x=0; x<s->mb_width; x++, xy++){
                 if(s->mb_type[xy] & type){
                     int mx= mv_table[xy][0];
                     int my= mv_table[xy][1];
@@ -1622,16 +1624,15 @@ int ff_get_best_fcode(MpegEncContext * s, int16_t (*mv_table)[2], int type)
                                      fcode_tab[my + MAX_MV]);
                     int j;
 
-                        if(mx >= range || mx < -range ||
-                           my >= range || my < -range)
-                            continue;
+                    if (mx >= range || mx < -range ||
+                        my >= range || my < -range)
+                        continue;
 
                     for(j=0; j<fcode && j<8; j++){
                         if(s->pict_type==AV_PICTURE_TYPE_B || s->current_picture.mc_mb_var[xy] < s->current_picture.mb_var[xy])
                             score[j]-= 170;
                     }
                 }
-                xy++;
             }
         }
 

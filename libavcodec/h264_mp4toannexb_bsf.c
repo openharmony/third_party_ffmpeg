@@ -28,10 +28,10 @@
 #include "libavutil/encryption_info.h"
 #endif
 
-#include "avcodec.h"
 #include "bsf.h"
 #include "bsf_internal.h"
 #include "bytestream.h"
+#include "defs.h"
 #include "h264.h"
 
 typedef struct H264BSFContext {
@@ -174,7 +174,7 @@ static void h264_mp4toannexb_modify_encryption_info(AVPacket *pkt, uint64_t new_
     int copy)
 {
     AV_DrmCencInfo *side_data = NULL;
-    buffer_size_t side_data_size = 0;
+    size_t side_data_size = 0;
     if ((copy == 0) || (new_data_size == old_data_size)) {
         return;
     }
@@ -372,11 +372,11 @@ static const enum AVCodecID codec_ids[] = {
     AV_CODEC_ID_H264, AV_CODEC_ID_NONE,
 };
 
-const AVBitStreamFilter ff_h264_mp4toannexb_bsf = {
-    .name           = "h264_mp4toannexb",
+const FFBitStreamFilter ff_h264_mp4toannexb_bsf = {
+    .p.name         = "h264_mp4toannexb",
+    .p.codec_ids    = codec_ids,
     .priv_data_size = sizeof(H264BSFContext),
     .init           = h264_mp4toannexb_init,
     .filter         = h264_mp4toannexb_filter,
     .flush          = h264_mp4toannexb_flush,
-    .codec_ids      = codec_ids,
 };
