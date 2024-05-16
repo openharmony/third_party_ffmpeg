@@ -945,4 +945,3 @@ int ff_hwframe_map_replace(AVFrame *dst, const AVFrame *src)
     av_frame_unref(hwmap->source);
     return av_frame_ref(hwmap->source, src);
 }
-
