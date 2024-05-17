@@ -7780,13 +7780,11 @@ static int mov_read_gnre(MOVContext *c, AVIOContext *pb, MOVAtom atom)
             return ret;
         }
         for (i = 0; i < atom.size; ++i) {
-            if (0 == genre[i]) {
-            } else {
-	        break;
-	    }
+            if (genre[i] != 0) {
+	            break;
+            }
         }
-        char* activeGenre = genre + i;
-        av_dict_set(&c->fc->metadata, "genre", activeGenre, AV_DICT_DONT_OVERWRITE);
+        av_dict_set(&c->fc->metadata, "genre", genre + i, AV_DICT_DONT_OVERWRITE);
         av_freep(&genre);
     }
     return 0;
