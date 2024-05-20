@@ -7779,6 +7779,7 @@ static int mov_read_gnre(MOVContext *c, AVIOContext *pb, MOVAtom atom)
             av_freep(&genre);
             return ret;
         }
+        /* skip zero at head of genre from dual frame video */
         for (i = 0; i < atom.size; ++i) {
             if (genre[i] != 0) {
 	            break;
