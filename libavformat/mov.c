@@ -7766,6 +7766,7 @@ static int mov_read_iloc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 #ifdef OHOS_MOOV_LEVEL_META
 static int mov_read_gnre(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
+    int32_t i = 0;
     if (atom.size > 0) {
         if (atom.size > FFMIN(INT_MAX, SIZE_MAX - 1))
             return AVERROR_INVALIDDATA;
@@ -7778,7 +7779,13 @@ static int mov_read_gnre(MOVContext *c, AVIOContext *pb, MOVAtom atom)
             av_freep(&genre);
             return ret;
         }
-        av_dict_set(&c->fc->metadata, "genre", genre, AV_DICT_DONT_OVERWRITE);
+        /* skip zero at head of genre from dual frame video */
+        for (i = 0; i < atom.size; ++i) {
+            if (genre[i] != 0) {
+	            break;
+            }
+        }
+        av_dict_set(&c->fc->metadata, "genre", genre + i, AV_DICT_DONT_OVERWRITE);
         av_freep(&genre);
     }
     return 0;
