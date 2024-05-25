@@ -68,6 +68,9 @@ static int kvag_read_header(AVFormatContext *s)
     hdr.sample_rate             = AV_RL32(buf +  8);
     hdr.stereo                  = AV_RL16(buf + 12);
 
+    if (hdr.sample_rate <= 0)
+        return AVERROR_INVALIDDATA;
+
     par                         = st->codecpar;
     par->codec_type             = AVMEDIA_TYPE_AUDIO;
     par->codec_id               = AV_CODEC_ID_ADPCM_IMA_SSI;
