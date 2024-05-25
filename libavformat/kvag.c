@@ -36,7 +36,7 @@
 typedef struct KVAGHeader {
     uint32_t    magic;
     uint32_t    data_size;
-    uint32_t    sample_rate;
+    int    sample_rate;
     uint16_t    stereo;
 } KVAGHeader;
 
