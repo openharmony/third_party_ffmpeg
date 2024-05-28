@@ -1060,6 +1060,10 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavfilter/graphparser.c",
     "//third_party/ffmpeg/libavfilter/pthread.c",
     "//third_party/ffmpeg/libavfilter/transform.c",
+    "//third_party/ffmpeg/libavfilter/vf_crop.c",
+    "//third_party/ffmpeg/libavfilter/vf_hflip.c",
+    "//third_party/ffmpeg/libavfilter/vf_transpose.c",
+    "//third_party/ffmpeg/libavfilter/vf_vflip.c",
     "//third_party/ffmpeg/libavfilter/video.c",
 
     # "//third_party/ffmpeg/libavformat/3dostr.c",

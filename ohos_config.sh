@@ -18,7 +18,6 @@ FF_CONFIG_OPTIONS="
     --disable-programs
     --disable-avdevice
     --disable-postproc
-    --disable-avfilter
     --disable-network
     --disable-dwt
     --disable-faan
@@ -65,6 +64,7 @@ FF_CONFIG_OPTIONS="
     --enable-cross-compile
     --enable-shared
     --enable-lsp
+    --enable-filter=crop,transpose,vflip,hflip
     --cc=${LLVM_PATH}/bin/clang
     --ld=${LLVM_PATH}/bin/clang
     --strip=${LLVM_PATH}/bin/llvm-strip
@@ -104,7 +104,6 @@ FF_CONFIG_OPTIONS="
     --disable-programs
     --disable-avdevice
     --disable-postproc
-    --disable-avfilter
     --disable-network
     --disable-dwt
     --disable-faan
@@ -149,6 +148,7 @@ FF_CONFIG_OPTIONS="
     --enable-bsf=h264_mp4toannexb
     --enable-protocol=file
     --enable-lsp
+    --enable-filter=crop,transpose,vflip,hflip
 "
 
 FF_CONFIG_OPTIONS=`echo $FF_CONFIG_OPTIONS`
