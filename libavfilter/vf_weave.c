@@ -121,7 +121,7 @@ static int weave_slice(AVFilterContext *ctx, void *arg, int jobnr, int nb_jobs)
                             out->linesize[i] * 2,
                             s->prev->data[i] + start * s->prev->linesize[i],
                             s->prev->linesize[i],
-                            s->linesize[i], end - start - compensation * field1);
+                            s->linesize[i], end - start - compensation * field2);
     }
 
     return 0;
