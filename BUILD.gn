@@ -7,6 +7,7 @@ print("current_cpu = ${current_cpu}")
 print("current_os = ${current_os}")
 print("host_os = ${host_os}")
 print("is_mingw = ${is_mingw}")
+is_cross_platform_build = defined(is_arkui_x) && is_arkui_x
 
 ffmpeg_selected_platform = ""
 if (current_cpu == "arm64" && current_os == "ohos") {
@@ -1679,10 +1680,18 @@ ohos_source_set("ffmpeg_dynamic") {
 }
 
 action("gen_config_header") {
-  script = "//third_party/ffmpeg/ohos_config.sh"
-
-  if (ffmpeg_selected_platform == "aarch64") {
-    deps = [ "//third_party/musl:musl_libs" ]
+  if (current_os == "ios") {
+    script = "//third_party/ffmpeg/ios_config.sh"
+  } else if (current_os == "android" && host_os == "mac") {
+    script = "//third_party/ffmpeg/android_mac_config.sh"
+  } else {
+    script = "//third_party/ffmpeg/ohos_config.sh"
+  }
+  if (!is_cross_platform_build) {
+    if (ffmpeg_selected_platform == "aarch64") {
+      print("third_party:ffmpeg # deps //third_party/musl:musl_libs")
+      deps = [ "//third_party/musl:musl_libs" ]
+    }
   }
 
   ucc = "false"
@@ -1703,6 +1712,19 @@ action("gen_config_header") {
 }
 
 ohos_shared_library("libohosffmpeg") {
+  sanitize = {
+    integer_overflow = true
+    boundary_sanitize = true
+  }
+  deps = [ ":ffmpeg_dynamic" ]
+  public_configs = [ ":libohosffmpeg_public_config" ]
+  part_name = "ffmpeg"
+  subsystem_name = "thirdparty"
+  cflags = [ "-Wno-array-parameter" ]
+  ldflags = ldflags_asm
+}
+
+ohos_static_library("libohosffmpeg_static") {
   sanitize = {
     integer_overflow = true
     boundary_sanitize = true
