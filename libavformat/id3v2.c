@@ -271,18 +271,43 @@ static int decode_str(AVFormatContext *s, AVIOContext *pb, int encoding,
             *dst = NULL;
             return AVERROR_INVALIDDATA;
         }
-        switch (avio_rb16(pb)) {
-        case 0xfffe:
-            get = avio_rl16;
-        case 0xfeff:
-            break;
-        default:
-            av_log(s, AV_LOG_ERROR, "Incorrect BOM value\n");
-            ffio_free_dyn_buf(&dynbuf);
-            *dst = NULL;
-            *maxread = left;
-            return AVERROR_INVALIDDATA;
+        
+#ifdef OHOS_NONSTANDARD_BOM
+        char buffer[2];
+        avio_read_partial(pb, buffer, 2);
+        
+        unsigned int value = (buffer[0] << 8) + buffer[1];
+        avio_seek(pb, -2, SEEK_CUR);
+              
+        switch (value) {
+            case 0xfffe:
+                av_log(s, AV_LOG_INFO, "BOM 0xfffe\n");
+                avio_rb16(pb);
+                get = avio_rl16;
+                break;
+            case 0xfeff:
+                av_log(s, AV_LOG_INFO, "BOM 0xfeff\n");
+                avio_rb16(pb);
+                break;
+            default:
+                av_log(s, AV_LOG_ERROR, "Notstandard BOM value\n");
+                left +=2;
+                get = avio_rl16;
         }
+#else
+        switch(avio_rb16(pb)) {
+            case 0xfffe:
+                get = avio_rl16;
+            case 0xfeff:
+                break;
+            default:
+                av_log(s, AV_LOG_ERROR, "Incorrect BOM value\n");
+        ffio_free_dyn_buf(&dynbuf);
+        *dst = NULL;
+        *maxread = left;
+        return AVERROR_INVALIDDATA;
+        }
+#endif
         // fall-through
 
     case ID3v2_ENCODING_UTF16BE:
