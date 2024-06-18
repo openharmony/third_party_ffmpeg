@@ -743,7 +743,6 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/options.c",
     "//third_party/ffmpeg/libavcodec/opus.c",
     "//third_party/ffmpeg/libavcodec/opus_celt.c",
-
     "//third_party/ffmpeg/libavcodec/opus_parser.c",
     "//third_party/ffmpeg/libavcodec/opus_pvq.c",
     "//third_party/ffmpeg/libavcodec/opus_rc.c",
