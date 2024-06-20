@@ -9,13 +9,7 @@ FFMPEG_PLAT=$3
 LLVM_PATH=$4
 SYSROOT_PATH=$5
 USE_CLANG_COVERAGE=$6
-oldPath=`pwd`
 
-FFMPEG_PATH=${oldPath}/${FFMPEG_PATH}
-FFMPEG_OUT_PATH=${oldPath}/${FFMPEG_OUT_PATH}
-currentPath=${oldPath}/${FFMPEG_OUT_PATH}tmp
-mkdir -p ${currentPath}
-cd ${currentPath}
 if [ ${FFMPEG_PLAT} = "aarch64" ]; then
 
 FF_CONFIG_OPTIONS="
@@ -105,6 +99,14 @@ FF_CONFIG_OPTIONS=`echo $FF_CONFIG_OPTIONS`
 ${FFMPEG_PATH}/configure ${FF_CONFIG_OPTIONS} --extra-cflags="${EXTRA_CFLAGS}" --extra-ldflags="${EXTRA_LDFLAGS}"
 
 else
+
+oldPath=`pwd`
+
+FFMPEG_PATH=${oldPath}/${FFMPEG_PATH}
+FFMPEG_OUT_PATH=${oldPath}/${FFMPEG_OUT_PATH}
+currentPath=${oldPath}/${FFMPEG_OUT_PATH}tmp
+mkdir -p ${currentPath}
+cd ${currentPath}
 
 FF_CONFIG_OPTIONS="
     --disable-programs
@@ -233,8 +235,10 @@ mv -f libavdevice ${FFMPEG_OUT_PATH}
 rm -rf ${FFMPEG_OUT_PATH}/libavfilter
 mv -f libavfilter ${FFMPEG_OUT_PATH}
 rm -rf ./ffbuild
+if [ ${FFMPEG_PLAT} != "aarch64" ]; then
 cd $oldPath
 rm -rf ${currentPath}
+fi
 
 ## other work need to be done manually
 cat <<!EOF
