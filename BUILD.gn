@@ -1204,6 +1204,8 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/gxf.c",
     # "//third_party/ffmpeg/libavformat/gxfenc.c",
     # "//third_party/ffmpeg/libavformat/h263dec.c",
+    "//third_party/ffmpeg/libavformat/h264dec.c",
+
     # "//third_party/ffmpeg/libavformat/hashenc.c",
     # "//third_party/ffmpeg/libavformat/hdsenc.c",
     "//third_party/ffmpeg/libavformat/hevc.c",
