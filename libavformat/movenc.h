@@ -119,7 +119,12 @@ typedef struct MOVTrack {
     int         audio_vbr;
     int         height; ///< active picture (w/o VBI) height for D-10/IMX
     uint32_t    tref_tag;
+#ifdef OHOS_TIMED_META_TRACK
+    int         ref_track_count;
+    int         *tref_ids; ///< trackIDs of the referenced tracks
+#else
     int         tref_id; ///< trackID of the referenced track
+#endif
     int64_t     start_dts;
     int64_t     start_cts;
     int64_t     end_pts;
@@ -192,6 +197,9 @@ typedef struct MOVMuxContext {
     int     nb_streams;
     int     nb_meta_tmcd;  ///< number of new created tmcd track based on metadata (aka not data copy)
     int     chapter_track; ///< qt chapter track number
+#ifdef OHOS_TIMED_META_TRACK
+    int     nb_timed_metadata_track; ///< number of timed metadata track
+#endif
     int64_t mdat_pos;
     uint64_t mdat_size;
     MOVTrack *tracks;
@@ -276,6 +284,9 @@ typedef struct MOVMuxContext {
 #define FF_MOV_FLAG_SKIP_SIDX             (1 << 21)
 #define FF_MOV_FLAG_CMAF                  (1 << 22)
 #define FF_MOV_FLAG_PREFER_ICC            (1 << 23)
+#ifdef OHOS_TIMED_META_TRACK
+#define FF_MOV_FLAG_TIMED_METADATA        (1 << 24)
+#endif
 
 int ff_mov_write_packet(AVFormatContext *s, AVPacket *pkt);
 
