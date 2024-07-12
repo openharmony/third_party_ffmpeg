@@ -203,6 +203,7 @@ enum AVMediaType {
     AVMEDIA_TYPE_DATA,          ///< Opaque data information usually continuous
     AVMEDIA_TYPE_SUBTITLE,
     AVMEDIA_TYPE_ATTACHMENT,    ///< Opaque data information usually sparse
+    AVMEDIA_TYPE_TIMEDMETA,     ///< Opaque data information usually for timed meta data
     AVMEDIA_TYPE_NB
 };
 
