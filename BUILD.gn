@@ -1538,8 +1538,8 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavformat/to_upper4.c",
     "//third_party/ffmpeg/libavformat/w64.c",
     "//third_party/ffmpeg/libavformat/wavdec.c",
+    "//third_party/ffmpeg/libavformat/wavenc.c",
 
-    # "//third_party/ffmpeg/libavformat/wavenc.c",
     # "//third_party/ffmpeg/libavformat/wc3movie.c",
     # "//third_party/ffmpeg/libavformat/webm_chunk.c",
     # "//third_party/ffmpeg/libavformat/webmdashenc.c",
