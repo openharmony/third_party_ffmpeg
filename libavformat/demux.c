@@ -119,6 +119,9 @@ static int set_codec_from_probe_data(AVFormatContext *s, AVStream *st,
         { "mp3",        AV_CODEC_ID_MP3,          AVMEDIA_TYPE_AUDIO    },
         { "mpegvideo",  AV_CODEC_ID_MPEG2VIDEO,   AVMEDIA_TYPE_VIDEO    },
         { "truehd",     AV_CODEC_ID_TRUEHD,       AVMEDIA_TYPE_AUDIO    },
+#ifdef OHOS_OPT_COMPAT
+        { "vvc",        AV_CODEC_ID_VVC,          AVMEDIA_TYPE_VIDEO },
+#endif
         { 0 }
     };
     int score;
@@ -741,8 +744,14 @@ static PacketListEntry *get_next_pkt(AVFormatContext *s, AVStream *st,
 static int64_t select_from_pts_buffer(AVStream *st, int64_t *pts_buffer, int64_t dts)
 {
     FFStream *const sti = ffstream(st);
+#ifdef OHOS_OPT_COMPAT
+    int onein_oneout = st->codecpar->codec_id != AV_CODEC_ID_H264 &&
+                       st->codecpar->codec_id != AV_CODEC_ID_HEVC &&
+                       st->codecpar->codec_id != AV_CODEC_ID_VVC;
+#else
     int onein_oneout = st->codecpar->codec_id != AV_CODEC_ID_H264 &&
                        st->codecpar->codec_id != AV_CODEC_ID_HEVC;
+#endif
     if (!onein_oneout) {
         int delay = sti->avctx->has_b_frames;
 
@@ -930,8 +939,14 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
     int num, den, presentation_delayed, delay;
     int64_t offset;
     AVRational duration;
+#ifdef OHOS_OPT_COMPAT
+    int onein_oneout = st->codecpar->codec_id != AV_CODEC_ID_H264 &&
+                       st->codecpar->codec_id != AV_CODEC_ID_HEVC &&
+                       st->codecpar->codec_id != AV_CODEC_ID_VVC;
+#else
     int onein_oneout = st->codecpar->codec_id != AV_CODEC_ID_H264 &&
                        st->codecpar->codec_id != AV_CODEC_ID_HEVC;
+#endif
     if (s->flags & AVFMT_FLAG_NOFILLIN)
         return;
 

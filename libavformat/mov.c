@@ -2009,6 +2009,12 @@ static int mov_read_glbl(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     if ((uint64_t)atom.size > (1<<30))
         return AVERROR_INVALIDDATA;
+#ifdef OHOS_OPT_COMPAT
+    if (atom.type == MKTAG('v','v','c','C')) {
+        avio_rb32(pb);
+        atom.size -= 4;
+    }
+#endif
     if (atom.size >= 10) {
         // Broken files created by legacy versions of libavformat will
         // wrap a whole fiel atom inside of a glbl atom.
@@ -2034,6 +2040,10 @@ static int mov_read_glbl(MOVContext *c, AVIOContext *pb, MOVAtom atom)
            the hvcC extradata box available as specified,
            set codec to HEVC */
         st->codecpar->codec_id = AV_CODEC_ID_HEVC;
+#ifdef OHOS_OPT_COMPAT
+    if (atom.type == MKTAG('v','v','c','C'))
+        st->codecpar->codec_id = AV_CODEC_ID_VVC;
+#endif
     return 0;
 }
 
@@ -2171,7 +2181,7 @@ static int mov_codec_id(AVStream *st, uint32_t format)
                 id = ff_codec_get_id(ff_codec_movdata_tags, format);
 #ifdef OHOS_TIMED_META_TRACK
         } else if (st->codecpar->codec_type == AVMEDIA_TYPE_TIMEDMETA) {
-            id = AV_CODEC_ID_FFMETADATA; 
+            id = AV_CODEC_ID_FFMETADATA;
         }
 #else
         }
@@ -2420,7 +2430,8 @@ static int mov_rewrite_dvd_sub_extradata(AVStream *st)
     return 0;
 }
 #ifdef OHOS_TIMED_META_TRACK
-static int mov_parse_mebx_keyd(MOVContext *c, AVIOContext *pb, AVStream *st){
+static int mov_parse_mebx_keyd(MOVContext *c, AVIOContext *pb, AVStream *st)
+{
     int atom_size = avio_rb32(pb);
     avio_rb32(pb);  // local key id
     int keyd_size = avio_rb32(pb);
@@ -2443,7 +2454,8 @@ static int mov_parse_mebx_keyd(MOVContext *c, AVIOContext *pb, AVStream *st){
     return atom_size;
 }
 static int mov_parse_mebx_data(MOVContext *c, AVIOContext *pb,
-                               AVStream *st, int64_t size){
+                               AVStream *st, int64_t size)
+{
     int read_size = 0;
 
     if (c->fc->nb_streams < 1)
@@ -2726,7 +2738,7 @@ int ff_mov_read_stsd_entries(MOVContext *c, AVIOContext *pb, int entries)
 #else
                 ret = mov_parse_mebx_data(c, pb, st,
                                           size - (avio_tell(pb) - start_pos));
-                if(ret < 0)
+                if (ret < 0)
                 return ret;
 #endif
         }
@@ -7945,6 +7957,9 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('s','g','p','d'), mov_read_sgpd },
 { MKTAG('s','b','g','p'), mov_read_sbgp },
 { MKTAG('h','v','c','C'), mov_read_glbl },
+#ifdef OHOS_OPT_COMPAT
+{ MKTAG('v','v','c','C'), mov_read_glbl },
+#endif
 { MKTAG('u','u','i','d'), mov_read_uuid },
 { MKTAG('C','i','n', 0x8e), mov_read_targa_y216 },
 { MKTAG('f','r','e','e'), mov_read_free },
