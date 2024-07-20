@@ -801,7 +801,7 @@ static int mov_read_hdlr(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
     else if (type == MKTAG('m','1','a',' '))
         st->codecpar->codec_id = AV_CODEC_ID_MP2;
-    else if ((type == MKTAG('s','u','b','p')) || (type == MKTAG('c','l','c','p')))
+    else if ((type == MKTAG('s','u','b','p')) || (type == MKTAG('c','l','c','p')) || (type == MKTAG('t','e','x','t')))
         st->codecpar->codec_type = AVMEDIA_TYPE_SUBTITLE;
 #ifdef OHOS_TIMED_META_TRACK
     else if (type == MKTAG('m', 'e', 't', 'a'))
@@ -9020,6 +9020,38 @@ static int mov_read_packet(AVFormatContext *s, AVPacket *pkt)
                 mov_current_sample_dec(sc);
             }
             return ret;
+        }
+        if (st->codecpar->codec_id == AV_CODEC_ID_WEBVTT) {
+            if (pkt->size >= 8) {
+                uint32_t type = AV_RL32(pkt->data + 4);
+                int payload_size = pkt->size - 8;
+                if (type == MKTAG('v', 't', 't', 'e')) {
+                    pkt->size = 0;
+                } else if (type == MKTAG('v', 't', 't', 'c')) {
+                    uint8_t *payload_data = pkt->data + 8;
+                    while (payload_size >= 8) {
+                        int64_t temp_size = AV_RB32(payload_data);
+                        uint32_t temp_type = AV_RL32(payload_data + 4);
+                        if (temp_type == MKTAG('p', 'a', 'y', 'l')) {
+                            payload_data += 8;
+                            payload_size -= 8;
+                            int move_size = payload_size;
+                            if (pkt->size < move_size) {
+                                move_size = pkt->size;
+                            }
+                            memmove(pkt->data, payload_data, move_size);
+                            pkt->size = payload_size;
+                            break;
+                        } else {
+                            if (temp_size > payload_size) {
+                                break;
+                            }
+                            payload_data += temp_size;
+                            payload_size -= temp_size;
+                        }
+                    }
+                }
+            }
         }
 #if CONFIG_DV_DEMUXER
         if (mov->dv_demux && sc->dv_audio_container) {
