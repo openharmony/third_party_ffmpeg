@@ -143,6 +143,7 @@ config("ffmpeg_config") {
     "-DOHOS_MOOV_LEVEL_META",
     "-DOHOS_SDTP_BOX_EXT",
     "-DOHOS_NONSTANDARD_BOM",
+    "-DOHOS_TIMED_META_TRACK",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
@@ -1204,6 +1205,8 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/gxf.c",
     # "//third_party/ffmpeg/libavformat/gxfenc.c",
     # "//third_party/ffmpeg/libavformat/h263dec.c",
+    "//third_party/ffmpeg/libavformat/h264dec.c",
+
     # "//third_party/ffmpeg/libavformat/hashenc.c",
     # "//third_party/ffmpeg/libavformat/hdsenc.c",
     "//third_party/ffmpeg/libavformat/hevc.c",
@@ -1535,8 +1538,8 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavformat/to_upper4.c",
     "//third_party/ffmpeg/libavformat/w64.c",
     "//third_party/ffmpeg/libavformat/wavdec.c",
+    "//third_party/ffmpeg/libavformat/wavenc.c",
 
-    # "//third_party/ffmpeg/libavformat/wavenc.c",
     # "//third_party/ffmpeg/libavformat/wc3movie.c",
     # "//third_party/ffmpeg/libavformat/webm_chunk.c",
     # "//third_party/ffmpeg/libavformat/webmdashenc.c",

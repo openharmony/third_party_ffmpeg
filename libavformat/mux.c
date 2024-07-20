@@ -375,6 +375,11 @@ static int init_pts(AVFormatContext *s)
         case AVMEDIA_TYPE_VIDEO:
             den = (int64_t)st->time_base.num * st->time_base.den;
             break;
+#ifdef OHOS_TIMED_META_TRACK
+        case AVMEDIA_TYPE_TIMEDMETA:
+            den = (int64_t)st->time_base.num * st->time_base.den;
+            break;
+#endif
         default:
             break;
         }

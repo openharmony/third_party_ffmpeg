@@ -803,7 +803,10 @@ static int mov_read_hdlr(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         st->codecpar->codec_id = AV_CODEC_ID_MP2;
     else if ((type == MKTAG('s','u','b','p')) || (type == MKTAG('c','l','c','p')))
         st->codecpar->codec_type = AVMEDIA_TYPE_SUBTITLE;
-
+#ifdef OHOS_TIMED_META_TRACK
+    else if (type == MKTAG('m', 'e', 't', 'a'))
+        st->codecpar->codec_type = AVMEDIA_TYPE_TIMEDMETA;
+#endif
     avio_rb32(pb); /* component  manufacture */
     avio_rb32(pb); /* component flags */
     avio_rb32(pb); /* component flags mask */
@@ -2006,6 +2009,12 @@ static int mov_read_glbl(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     if ((uint64_t)atom.size > (1<<30))
         return AVERROR_INVALIDDATA;
+#ifdef OHOS_OPT_COMPAT
+    if (atom.type == MKTAG('v','v','c','C')) {
+        avio_rb32(pb);
+        atom.size -= 4;
+    }
+#endif
     if (atom.size >= 10) {
         // Broken files created by legacy versions of libavformat will
         // wrap a whole fiel atom inside of a glbl atom.
@@ -2031,6 +2040,10 @@ static int mov_read_glbl(MOVContext *c, AVIOContext *pb, MOVAtom atom)
            the hvcC extradata box available as specified,
            set codec to HEVC */
         st->codecpar->codec_id = AV_CODEC_ID_HEVC;
+#ifdef OHOS_OPT_COMPAT
+    if (atom.type == MKTAG('v','v','c','C'))
+        st->codecpar->codec_id = AV_CODEC_ID_VVC;
+#endif
     return 0;
 }
 
@@ -2166,7 +2179,13 @@ static int mov_codec_id(AVStream *st, uint32_t format)
                 st->codecpar->codec_type = AVMEDIA_TYPE_SUBTITLE;
             else
                 id = ff_codec_get_id(ff_codec_movdata_tags, format);
+#ifdef OHOS_TIMED_META_TRACK
+        } else if (st->codecpar->codec_type == AVMEDIA_TYPE_TIMEDMETA) {
+            id = AV_CODEC_ID_FFMETADATA;
         }
+#else
+        }
+#endif
     }
 
     st->codecpar->codec_tag = format;
@@ -2410,6 +2429,69 @@ static int mov_rewrite_dvd_sub_extradata(AVStream *st)
 
     return 0;
 }
+#ifdef OHOS_TIMED_META_TRACK
+static int mov_parse_mebx_keyd(MOVContext *c, AVIOContext *pb, AVStream *st)
+{
+    int atom_size = avio_rb32(pb);
+    avio_rb32(pb);  // local key id
+    int keyd_size = avio_rb32(pb);
+    avio_rb32(pb);  // keyd
+    avio_rb32(pb);  // mdta
+    int key_value_size = keyd_size - 12;  // 12 bytes to skip
+
+    unsigned char* buf = av_malloc(key_value_size + 1);
+    if (!buf)
+        return AVERROR(ENOMEM);
+    int ret = ffio_read_size(pb, buf, key_value_size);
+    if (ret < 0) {
+        av_freep(&buf);
+        av_log(c->fc, AV_LOG_WARNING, "failed to read key value\n");
+        return ret;
+    }
+    buf[key_value_size] = 0;
+    av_dict_set(&st->metadata, "timed_metadata_key", buf, 0);
+    av_freep(&buf);
+    return atom_size;
+}
+static int mov_parse_mebx_data(MOVContext *c, AVIOContext *pb,
+                               AVStream *st, int64_t size)
+{
+    int read_size = 0;
+
+    if (c->fc->nb_streams < 1)
+        return 0;
+    st = c->fc->streams[c->fc->nb_streams-1];
+
+    int size_keys = avio_rb32(pb);  // size of keys
+    avio_rb32(pb);  // keys
+    const int read_counts = 8;
+    read_size += read_counts;
+    while (read_size < size_keys) {
+        int atom_size = mov_parse_mebx_keyd(c, pb, st);
+        if (atom_size < 0) {
+            return atom_size;
+        }
+        read_size += atom_size;
+    }
+    return 0;
+}
+static int mov_read_cdsc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+{
+    AVStream *st;
+
+    if (c->fc->nb_streams < 1)
+        return 0;
+    st = c->fc->streams[c->fc->nb_streams - 1];
+    int src_track_id = avio_rb32(pb);
+    char* metaKeyStr;
+    metaKeyStr = av_d2str(src_track_id - 1);
+    if (!metaKeyStr)
+        return AVERROR(ENOMEM);
+    av_dict_set(&st->metadata, "src_track_id", metaKeyStr, 0);
+    av_freep(&metaKeyStr);
+    return 0;
+}
+#endif
 
 static int mov_parse_stsd_data(MOVContext *c, AVIOContext *pb,
                                 AVStream *st, MOVStreamContext *sc,
@@ -2579,6 +2661,7 @@ static int mov_skip_multiple_stsd(MOVContext *c, AVIOContext *pb,
 
 int ff_mov_read_stsd_entries(MOVContext *c, AVIOContext *pb, int entries)
 {
+    av_log(c->fc, AV_LOG_INFO, "enter\n");
     AVStream *st;
     MOVStreamContext *sc;
     int pseudo_stream_id;
@@ -2597,6 +2680,7 @@ int ff_mov_read_stsd_entries(MOVContext *c, AVIOContext *pb, int entries)
         int64_t start_pos = avio_tell(pb);
         int64_t size    = avio_rb32(pb); /* size */
         uint32_t format = avio_rl32(pb); /* data format */
+        av_log(c->fc, AV_LOG_INFO, "stsd_entries, size:%ld, format:%u\n", size, format);
 
         if (size >= 16) {
             avio_rb32(pb); /* reserved */
@@ -2615,7 +2699,7 @@ int ff_mov_read_stsd_entries(MOVContext *c, AVIOContext *pb, int entries)
         }
 
         sc->pseudo_stream_id = st->codecpar->codec_tag ? -1 : pseudo_stream_id;
-        sc->dref_id= dref_id;
+        sc->dref_id = dref_id;
         sc->format = format;
 
         id = mov_codec_id(st, format);
@@ -2641,13 +2725,26 @@ int ff_mov_read_stsd_entries(MOVContext *c, AVIOContext *pb, int entries)
             mov_parse_stsd_subtitle(c, pb, st, sc,
                                     size - (avio_tell(pb) - start_pos));
         } else {
+#ifdef OHOS_TIMED_META_TRACK
+            if (st->codecpar->codec_type != AVMEDIA_TYPE_TIMEDMETA) {
             ret = mov_parse_stsd_data(c, pb, st, sc,
-                                      size - (avio_tell(pb) - start_pos));
+                                          size - (avio_tell(pb) - start_pos));
+            } else {
+                ret = mov_parse_mebx_data(c, pb, st,
+                                          size - (avio_tell(pb) - start_pos));
+            }
             if (ret < 0)
                 return ret;
+#else
+                ret = mov_parse_mebx_data(c, pb, st,
+                                          size - (avio_tell(pb) - start_pos));
+                if (ret < 0)
+                return ret;
+#endif
         }
         /* this will read extra atoms at the end (wave, alac, damr, avcC, hvcC, SMI ...) */
         a.size = size - (avio_tell(pb) - start_pos);
+        av_log(c->fc, AV_LOG_INFO, "stsd_entries, a.size:%d\n", a.size);
         if (a.size > 8) {
             if ((ret = mov_read_default(c, pb, a)) < 0)
                 return ret;
@@ -3357,6 +3454,10 @@ static int get_edit_list_entry(MOVContext *mov,
     }
     *edit_list_duration = av_rescale(*edit_list_duration, msc->time_scale,
                                      global_timescale);
+
+    if (*edit_list_duration + (uint64_t)*edit_list_media_time > INT64_MAX)
+        *edit_list_duration = 0;
+
     return 1;
 }
 
@@ -7733,7 +7834,8 @@ static int mov_read_iloc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         }
         for (int j = 0; j < extent_count; j++) {
             if (rb_size(pb, &extent_offset, offset_size) < 0 ||
-                rb_size(pb, &extent_length, length_size) < 0)
+                rb_size(pb, &extent_length, length_size) < 0 ||
+                base_offset > INT64_MAX - extent_offset)
                 return AVERROR_INVALIDDATA;
             if (item_id == c->primary_item_id) {
                 sc->sample_sizes[0] = extent_length;
@@ -7855,6 +7957,9 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('s','g','p','d'), mov_read_sgpd },
 { MKTAG('s','b','g','p'), mov_read_sbgp },
 { MKTAG('h','v','c','C'), mov_read_glbl },
+#ifdef OHOS_OPT_COMPAT
+{ MKTAG('v','v','c','C'), mov_read_glbl },
+#endif
 { MKTAG('u','u','i','d'), mov_read_uuid },
 { MKTAG('C','i','n', 0x8e), mov_read_targa_y216 },
 { MKTAG('f','r','e','e'), mov_read_free },
@@ -7891,6 +7996,9 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('i','l','o','c'), mov_read_iloc },
 { MKTAG('p','c','m','C'), mov_read_pcmc }, /* PCM configuration box */
 { MKTAG('p','i','t','m'), mov_read_pitm },
+#ifdef OHOS_TIMED_META_TRACK
+{ MKTAG('c','d','s','c'), mov_read_cdsc },
+#endif
 { 0, NULL }
 };
 

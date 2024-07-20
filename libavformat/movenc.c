@@ -94,6 +94,9 @@ static const AVOption options[] = {
     { "use_metadata_tags", "Use mdta atom for metadata.", 0, AV_OPT_TYPE_CONST, {.i64 = FF_MOV_FLAG_USE_MDTA}, INT_MIN, INT_MAX, AV_OPT_FLAG_ENCODING_PARAM, "movflags" },
     { "skip_trailer", "Skip writing the mfra/tfra/mfro trailer for fragmented files", 0, AV_OPT_TYPE_CONST, {.i64 = FF_MOV_FLAG_SKIP_TRAILER}, INT_MIN, INT_MAX, AV_OPT_FLAG_ENCODING_PARAM, "movflags" },
     { "negative_cts_offsets", "Use negative CTS offsets (reducing the need for edit lists)", 0, AV_OPT_TYPE_CONST, {.i64 = FF_MOV_FLAG_NEGATIVE_CTS_OFFSETS}, INT_MIN, INT_MAX, AV_OPT_FLAG_ENCODING_PARAM, "movflags" },
+#ifdef OHOS_TIMED_META_TRACK
+    { "use_timed_meta_track", "Use timed meta data track for linking metadata to another track", 0, AV_OPT_TYPE_CONST, {.i64 = FF_MOV_FLAG_TIMED_METADATA}, INT_MIN, INT_MAX, AV_OPT_FLAG_ENCODING_PARAM, "movflags" },
+#endif
     FF_RTP_FLAG_OPTS(MOVMuxContext, rtp_flags),
     { "skip_iods", "Skip writing iods atom.", offsetof(MOVMuxContext, iods_skip), AV_OPT_TYPE_BOOL, {.i64 = 1}, 0, 1, AV_OPT_FLAG_ENCODING_PARAM},
     { "iods_audio_profile", "iods audio profile atom.", offsetof(MOVMuxContext, iods_audio_profile), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 255, AV_OPT_FLAG_ENCODING_PARAM},
@@ -2243,6 +2246,90 @@ static CuvaConfig mov_get_cuva_from_metadata(AVFormatContext *s, MOVMuxContext *
 }
 #endif
 
+#ifdef OHOS_TIMED_META_TRACK
+static int mov_write_metadata_setup_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext *mov, MOVTrack *track)
+{
+    int64_t pos = avio_tell(pb);
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "setu");
+    AVDictionaryEntry* key_val = av_dict_get(track->st->metadata, "setup_key", NULL, 0);
+    if (key_val) {
+        size_t key_len = strlen(key_val->value);
+        avio_write(pb, key_val->value, key_len);
+    }
+    return update_size(pb, pos);
+}
+
+static int mov_write_metadata_locale_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext *mov, MOVTrack *track)
+{
+    int64_t pos = avio_tell(pb);
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "loca");
+    AVDictionaryEntry* key_val = av_dict_get(track->st->metadata, "locale_key", NULL, 0);
+    if (key_val) {
+        size_t key_len = strlen(key_val->value);
+        avio_write(pb, key_val->value, key_len);
+    }
+    return update_size(pb, pos);
+}
+
+static int mov_write_metadata_keyd_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext *mov, const char *metadata)
+{
+    int64_t pos = avio_tell(pb);
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "keyd");
+    size_t key_len = strlen(metadata);
+    ffio_wfourcc(pb, "mdta");
+    avio_write(pb, metadata, key_len);
+    return update_size(pb, pos);
+}
+
+static int mov_write_metadata_keys_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext *mov, MOVTrack *track)
+{
+    int ret = AVERROR_BUG;
+    const AVDictionaryEntry *t = NULL;
+    avio_wb32(pb, 0); /* Reserved */
+    avio_wb16(pb, 0); /* Reserved */
+    avio_wb16(pb, 1); /* Data-reference index */
+    int64_t pos = avio_tell(pb);
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "keys");
+    int count = 0;
+
+    const char *key_tag = "com.openharmony.timed_metadata";
+    size_t key_tag_len = strlen(key_tag);
+    // key atoms table
+    while (t = av_dict_get(track->st->metadata, "", t, AV_DICT_IGNORE_SUFFIX)) {
+        size_t key_len = strlen(t->key);
+        if (key_len > key_tag_len && strncmp(t->key, key_tag, key_tag_len) == 0) {
+            int64_t entry_pos = avio_tell(pb);
+            avio_wb32(pb, 0); /* size */
+            avio_wb32(pb, count + 1); /* local key id, 0 and 0xFFFFFFFF reserved */
+            ret = mov_write_metadata_keyd_tag(s, pb, mov, t->value);
+            if (ret < 0)
+                return ret;
+            update_size(pb, entry_pos);
+            count += 1;
+        }
+    }
+
+    return update_size(pb, pos);
+}
+
+static int mov_write_mebx_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext *mov, MOVTrack *track)
+{
+    int ret = AVERROR_BUG;
+    int64_t pos = avio_tell(pb);
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "mebx");
+    ret = mov_write_metadata_keys_tag(s, pb, mov, track);
+    if (ret < 0)
+        return ret;
+
+    return update_size(pb, pos);
+}
+#endif
+
 static int mov_write_video_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext *mov, MOVTrack *track)
 {
     int ret = AVERROR_BUG;
@@ -2566,6 +2653,10 @@ static int mov_write_stsd_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext
         ret = mov_write_tmcd_tag(pb, track);
     else if (track->par->codec_tag == MKTAG('g','p','m','d'))
         ret = mov_write_gpmd_tag(pb, track);
+#ifdef OHOS_TIMED_META_TRACK
+    else if (track->par->codec_type == AVMEDIA_TYPE_TIMEDMETA)
+        ret = mov_write_mebx_tag(s, pb, mov, track);
+#endif
 
     if (ret < 0)
         return ret;
@@ -2782,7 +2873,12 @@ static int mov_write_stbl_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext
     if ((track->par->codec_type == AVMEDIA_TYPE_VIDEO ||
          track->par->codec_id == AV_CODEC_ID_TRUEHD ||
          track->par->codec_id == AV_CODEC_ID_MPEGH_3D_AUDIO ||
+#ifdef OHOS_TIMED_META_TRACK
+         track->par->codec_tag == MKTAG('r','t','p',' ') ||
+         track->par->codec_type == AVMEDIA_TYPE_TIMEDMETA) &&
+#else
          track->par->codec_tag == MKTAG('r','t','p',' ')) &&
+#endif
         track->has_keyframes && track->has_keyframes < track->entry)
         mov_write_stss_tag(pb, track, MOV_SYNC_SAMPLE);
     if (track->par->codec_type == AVMEDIA_TYPE_VIDEO && track->has_disposable)
@@ -2980,6 +3076,10 @@ static int mov_write_hdlr_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
         } else if (track->par->codec_tag == MKTAG('g','p','m','d')) {
             hdlr_type = "meta";
             descr = "GoPro MET"; // GoPro Metadata
+#ifdef OHOS_TIMED_META_TRACK
+        } else if (track->par->codec_type == AVMEDIA_TYPE_TIMEDMETA) {
+            hdlr_type = "meta";
+#endif
         } else {
             av_log(s, AV_LOG_WARNING,
                    "Unknown hdlr_type for %s, writing dummy values\n",
@@ -3237,7 +3337,12 @@ static int mov_write_minf_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext
 static void get_pts_range(MOVMuxContext *mov, MOVTrack *track,
                           int64_t *start, int64_t *end)
 {
+#ifdef OHOS_TIMED_META_TRACK
+    if ((track->tag == MKTAG('t','m','c','d') && mov->nb_meta_tmcd) ||
+        (track->tag == MKTAG('c','d','s','c'))) {
+#else
     if (track->tag == MKTAG('t','m','c','d') && mov->nb_meta_tmcd) {
+#endif
         // tmcd tracks gets track_duration set in mov_write_moov_tag from
         // another track's duration, while the end_pts may be left at zero.
         // Calculate the pts duration for that track instead.
@@ -3575,12 +3680,27 @@ static int mov_write_edts_tag(AVIOContext *pb, MOVMuxContext *mov,
 
 static int mov_write_tref_tag(AVIOContext *pb, MOVTrack *track)
 {
+#ifdef OHOS_TIMED_META_TRACK
+    int64_t pos = avio_tell(pb);
+    int tref_index;
+    avio_wb32(pb, 0);
+    ffio_wfourcc(pb, "tref");
+    int64_t pos_cdsc = avio_tell(pb);
+    avio_wb32(pb, 0);
+    avio_wl32(pb, track->tref_tag);
+    for (tref_index = 0; tref_index < track->ref_track_count; tref_index++) {
+        avio_wb32(pb, track->tref_ids[tref_index]);
+    }
+    update_size(pb, pos_cdsc);
+    return update_size(pb, pos);
+#else
     avio_wb32(pb, 20);   // size
     ffio_wfourcc(pb, "tref");
     avio_wb32(pb, 12);   // size (subatom)
     avio_wl32(pb, track->tref_tag);
     avio_wb32(pb, track->tref_id);
     return 20;
+#endif
 }
 
 // goes at the end of each track!  ... Critical for PSP playback ("Incompatible data" without it)
@@ -4780,13 +4900,23 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
     if (mov->chapter_track)
         for (i = 0; i < s->nb_streams; i++) {
             mov->tracks[i].tref_tag = MKTAG('c','h','a','p');
+#ifdef OHOS_TIMED_META_TRACK
+            mov->tracks[i].ref_track_count++;
+            mov->tracks[i].tref_ids[0]  = mov->tracks[mov->chapter_track].track_id;
+#else
             mov->tracks[i].tref_id  = mov->tracks[mov->chapter_track].track_id;
+#endif
         }
     for (i = 0; i < mov->nb_streams; i++) {
         MOVTrack *track = &mov->tracks[i];
         if (track->tag == MKTAG('r','t','p',' ')) {
             track->tref_tag = MKTAG('h','i','n','t');
+#ifdef OHOS_TIMED_META_TRACK
+            track->ref_track_count++;
+            track->tref_ids[0] = mov->tracks[track->src_track].track_id;
+#else
             track->tref_id = mov->tracks[track->src_track].track_id;
+#endif
         } else if (track->par->codec_type == AVMEDIA_TYPE_AUDIO) {
             size_t size;
             int *fallback;
@@ -4796,7 +4926,12 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
             if (fallback != NULL && size == sizeof(int)) {
                 if (*fallback >= 0 && *fallback < mov->nb_streams) {
                     track->tref_tag = MKTAG('f','a','l','l');
+#ifdef OHOS_TIMED_META_TRACK
+                    track->ref_track_count++;
+                    track->tref_ids[0] = mov->tracks[*fallback].track_id;
+#else
                     track->tref_id = mov->tracks[*fallback].track_id;
+#endif
                 }
             }
         }
@@ -4805,13 +4940,31 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
         if (mov->tracks[i].tag == MKTAG('t','m','c','d')) {
             int src_trk = mov->tracks[i].src_track;
             mov->tracks[src_trk].tref_tag = mov->tracks[i].tag;
+#ifdef OHOS_TIMED_META_TRACK
+            mov->tracks[src_trk].ref_track_count++;
+            mov->tracks[src_trk].tref_ids[0]  = mov->tracks[i].track_id;
+#else
             mov->tracks[src_trk].tref_id  = mov->tracks[i].track_id;
+#endif
             //src_trk may have a different timescale than the tmcd track
             mov->tracks[i].track_duration = av_rescale(mov->tracks[src_trk].track_duration,
                                                        mov->tracks[i].timescale,
                                                        mov->tracks[src_trk].timescale);
         }
     }
+#ifdef OHOS_TIMED_META_TRACK
+    for (i = 0; i < mov->nb_streams; i++) {
+        if (mov->tracks[i].tag == MKTAG('c','d','s','c')) {
+            int src_trk = mov->tracks[i].src_track;
+            mov->tracks[i].track_duration = av_rescale(mov->tracks[src_trk].track_duration,
+                                                       mov->tracks[i].timescale,
+                                                       mov->tracks[src_trk].timescale);
+            for (int j = 0; j < mov->tracks[i].ref_track_count; j++) {
+                mov->tracks[i].tref_ids[j] = mov->tracks[src_trk].track_id;
+            }
+        }
+    }
+#endif
 
     mov_write_mvhd_tag(pb, mov);
     if (mov->mode != MODE_MOV && mov->mode != MODE_AVIF && !mov->iods_skip)
@@ -6984,6 +7137,49 @@ static int mov_create_timecode_track(AVFormatContext *s, int index, int src_inde
     return ret;
 }
 
+#ifdef OHOS_TIMED_META_TRACK
+static int mov_create_timed_metadata_track(AVFormatContext *s, int index, int src_index)
+{
+    MOVMuxContext *mov  = s->priv_data;
+    MOVTrack *track     = &mov->tracks[index];
+    AVStream *src_st    = s->streams[src_index];
+    AVRational rate = src_st->avg_frame_rate;
+    int ret;
+    int track_tag = MKTAG('c','d','s','c');
+
+    /* timed metadata track based on video stream */
+    track->mode      = mov->mode;
+    /* if the timed metadata track describes characteristics of the whole movie,
+     * there should be no track reference of type 'cdsc'.
+     */
+    if (src_index >= 0) {
+        MOVTrack *src_track     = &mov->tracks[src_index];
+        track->tag       = track_tag;
+        track->tref_tag  = track_tag;
+        track->src_track = src_index;
+        track->timescale = mov->tracks[src_index].timescale;
+        int new_track_count = track->ref_track_count + 1;
+        ret = av_reallocp_array(&track->tref_ids, new_track_count, sizeof(track->tref_ids));
+        if (ret < 0)
+            return ret;
+        track->ref_track_count = new_track_count;
+        track->tref_ids[track->ref_track_count - 1] = src_track->track_id;
+    }
+
+    /* set st to src_st for metadata access*/
+    track->st = s->streams[index];
+
+    track->par = avcodec_parameters_alloc();
+    if (!track->par)
+        return AVERROR(ENOMEM);
+    track->par->codec_type = AVMEDIA_TYPE_TIMEDMETA;
+    track->par->codec_id = AV_CODEC_ID_FFMETADATA;
+    track->par->codec_tag  = track_tag;
+    track->st->avg_frame_rate = av_inv_q(rate);
+    return 0;
+}
+#endif
+
 /*
  * st->disposition controls the "enabled" flag in the tkhd tag.
  * QuickTime will not play a track if it is not enabled.  So make sure
@@ -7072,6 +7268,9 @@ static void mov_free(AVFormatContext *s)
         ffio_free_dyn_buf(&track->mdat_buf);
 
         avpriv_packet_list_free(&track->squashed_packet_queue);
+#ifdef OHOS_TIMED_META_TRACK
+        av_freep(&track->tref_ids);
+#endif
     }
 
     av_freep(&mov->tracks);
@@ -7328,6 +7527,15 @@ static int mov_init(AVFormatContext *s)
         mov->nb_streams += mov->nb_meta_tmcd;
     }
 
+#ifdef OHOS_TIMED_META_TRACK
+    if (mov->flags & FF_MOV_FLAG_TIMED_METADATA) {
+        for (i = 0; i < s->nb_streams; i++) {
+            AVStream *st = s->streams[i];
+            if (st->codecpar->codec_type == AVMEDIA_TYPE_TIMEDMETA)
+                mov->nb_timed_metadata_track++;
+        }
+    }
+#endif
     // Reserve an extra stream for chapters for the case where chapters
     // are written in the trailer
     mov->tracks = av_calloc(mov->nb_streams + 1, sizeof(*mov->tracks));
@@ -7693,6 +7901,26 @@ static int mov_write_header(AVFormatContext *s)
             }
         }
     }
+#ifdef OHOS_TIMED_META_TRACK
+    if (mov->flags & FF_MOV_FLAG_TIMED_METADATA) {
+        for (i = 0; i < s->nb_streams; i++) {
+            AVStream *st = s->streams[i];
+            if (st->codecpar->codec_type == AVMEDIA_TYPE_TIMEDMETA) {
+                const AVDictionaryEntry *t = av_dict_get(st->metadata, "src_track_id", NULL, 0);
+                if (!t)
+                    continue;
+                size_t id_len = strlen(t->value);
+                int track_id = 0;
+                const int base = 10;
+                const char start = '0';
+                for (int j = 0; j < id_len; j++)
+                    track_id = track_id * base + t->value[j] - start;
+                if ((ret = mov_create_timed_metadata_track(s, i, track_id)) < 0)
+                    return ret;
+            }
+        }
+    }
+#endif
 
     avio_flush(pb);
 
@@ -7950,7 +8178,11 @@ static int avif_write_trailer(AVFormatContext *s)
         // For animated avif with alpha channel, we need to write a tref tag
         // with type "auxl".
         mov->tracks[1].tref_tag = MKTAG('a', 'u', 'x', 'l');
+#ifdef OHOS_TIMED_META_TRACK
+        mov->tracks[1].tref_ids[0] = 1;
+#else
         mov->tracks[1].tref_id = 1;
+#endif
     }
     mov_write_identification(pb, s);
     mov_write_meta_tag(pb, mov, s);
@@ -8041,6 +8273,9 @@ static const AVCodecTag codec_mp4_tags[] = {
     { AV_CODEC_ID_MPEGH_3D_AUDIO,  MKTAG('m', 'h', 'm', '1') },
     { AV_CODEC_ID_TTML,            MOV_MP4_TTML_TAG          },
     { AV_CODEC_ID_TTML,            MOV_ISMV_TTML_TAG         },
+#ifdef OHOS_TIMED_META_TRACK
+    { AV_CODEC_ID_FFMETADATA,      MKTAG('c', 'd', 's', 'c') },
+#endif
     { AV_CODEC_ID_NONE,               0 },
 };
 #if CONFIG_MP4_MUXER || CONFIG_PSP_MUXER
