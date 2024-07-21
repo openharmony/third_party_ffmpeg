@@ -1178,9 +1178,9 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/fitsenc.c",
     "//third_party/ffmpeg/libavformat/flac_picture.c",
     "//third_party/ffmpeg/libavformat/flacdec.c",
+    "//third_party/ffmpeg/libavformat/flacenc.c",
+    "//third_party/ffmpeg/libavformat/flacenc_header.c",
 
-    # "//third_party/ffmpeg/libavformat/flacenc.c",
-    # "//third_party/ffmpeg/libavformat/flacenc_header.c",
     # "//third_party/ffmpeg/libavformat/flic.c",
     "//third_party/ffmpeg/libavformat/flvdec.c",
 
