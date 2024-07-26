@@ -79,7 +79,9 @@ const AVCodecTag ff_codec_movsubtitle_tags[] = {
     { AV_CODEC_ID_MOV_TEXT, MKTAG('t', 'e', 'x', 't') },
     { AV_CODEC_ID_MOV_TEXT, MKTAG('t', 'x', '3', 'g') },
     { AV_CODEC_ID_EIA_608,  MKTAG('c', '6', '0', '8') },
+#ifdef OHOS_SUBTITLE_DEMUXER
     { AV_CODEC_ID_WEBVTT, MKTAG('w', 'v', 't', 't') },
+#endif
     { AV_CODEC_ID_NONE, 0 },
 };
 

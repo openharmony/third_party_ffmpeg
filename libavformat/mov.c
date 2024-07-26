@@ -801,7 +801,11 @@ static int mov_read_hdlr(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
     else if (type == MKTAG('m','1','a',' '))
         st->codecpar->codec_id = AV_CODEC_ID_MP2;
+#ifdef OHOS_SUBTITLE_DEMUXER
     else if ((type == MKTAG('s','u','b','p')) || (type == MKTAG('c','l','c','p')) || (type == MKTAG('t','e','x','t')))
+#else
+    else if ((type == MKTAG('s','u','b','p')) || (type == MKTAG('c','l','c','p')))
+#endif
         st->codecpar->codec_type = AVMEDIA_TYPE_SUBTITLE;
 #ifdef OHOS_TIMED_META_TRACK
     else if (type == MKTAG('m', 'e', 't', 'a'))
@@ -9021,6 +9025,7 @@ static int mov_read_packet(AVFormatContext *s, AVPacket *pkt)
             }
             return ret;
         }
+#ifdef OHOS_SUBTITLE_DEMUXER
         if (st->codecpar->codec_id == AV_CODEC_ID_WEBVTT) {
             if (pkt->size >= 8) {
                 uint32_t type = AV_RL32(pkt->data + 4);
@@ -9041,6 +9046,7 @@ static int mov_read_packet(AVFormatContext *s, AVPacket *pkt)
                             }
                             memmove(pkt->data, payload_data, move_size);
                             pkt->size = payload_size;
+                            pkt->data[pkt->size] = '\0';
                             break;
                         } else {
                             if (temp_size > payload_size) {
@@ -9053,6 +9059,7 @@ static int mov_read_packet(AVFormatContext *s, AVPacket *pkt)
                 }
             }
         }
+#endif
 #if CONFIG_DV_DEMUXER
         if (mov->dv_demux && sc->dv_audio_container) {
             ret = avpriv_dv_produce_packet(mov->dv_demux, pkt, pkt->data, pkt->size, pkt->pos);
