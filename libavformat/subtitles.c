@@ -288,6 +288,22 @@ int ff_subtitles_queue_seek(FFDemuxSubtitlesQueue *q, AVFormatContext *s, int st
                 break;
         }
 
+#ifdef OHOS_SUBTITLE_DEMUXER
+        if (q->subs[idx]->pts + q->subs[idx]->duration < ts) {
+            if (idx < 1)
+                idx = 1;
+            for (i = idx - 1; i < q->nb_subs; i++) {
+                int64_t pts = q->subs[i]->pts;
+                if (q->subs[i]->duration <= 0 ||
+                    (stream_index != -1 && q->subs[i]->stream_index != stream_index))
+                    continue;
+                if (pts + q->subs[i]->duration >= ts) {
+                    idx = i;
+                    break;
+                }
+            }
+        }
+#endif
         /* If the queue is used to store multiple subtitles streams (like with
          * VobSub) and the stream index is not specified, we need to make sure
          * to focus on the smallest file position offset for a same timestamp;
