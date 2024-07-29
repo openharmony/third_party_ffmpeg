@@ -807,10 +807,6 @@ static int mov_read_hdlr(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     else if ((type == MKTAG('s','u','b','p')) || (type == MKTAG('c','l','c','p')))
 #endif
         st->codecpar->codec_type = AVMEDIA_TYPE_SUBTITLE;
-#ifdef OHOS_TIMED_META_TRACK
-    else if (type == MKTAG('m', 'e', 't', 'a'))
-        st->codecpar->codec_type = AVMEDIA_TYPE_TIMEDMETA;
-#endif
     avio_rb32(pb); /* component  manufacture */
     avio_rb32(pb); /* component flags */
     avio_rb32(pb); /* component flags mask */
@@ -833,6 +829,11 @@ static int mov_read_hdlr(MOVContext *c, AVIOContext *pb, MOVAtom atom)
             int off = (!c->isom && title_str[0] == title_size - 1);
             // flag added so as to not set stream handler name if already set from mdia->hdlr
             av_dict_set(&st->metadata, "handler_name", title_str + off, AV_DICT_DONT_OVERWRITE);
+#ifdef OHOS_TIMED_META_TRACK
+            if (!strncmp(title_str + off, "timed_metadata", 14) && type == MKTAG('m', 'e', 't' ,'a')) {
+                st->codecpar->codec_type = AVMEDIA_TYPE_TIMEDMETA;
+            }
+#endif
         }
         av_freep(&title_str);
     }
@@ -2731,7 +2732,7 @@ int ff_mov_read_stsd_entries(MOVContext *c, AVIOContext *pb, int entries)
         } else {
 #ifdef OHOS_TIMED_META_TRACK
             if (st->codecpar->codec_type != AVMEDIA_TYPE_TIMEDMETA) {
-            ret = mov_parse_stsd_data(c, pb, st, sc,
+                ret = mov_parse_stsd_data(c, pb, st, sc,
                                           size - (avio_tell(pb) - start_pos));
             } else {
                 ret = mov_parse_mebx_data(c, pb, st,
@@ -2740,9 +2741,9 @@ int ff_mov_read_stsd_entries(MOVContext *c, AVIOContext *pb, int entries)
             if (ret < 0)
                 return ret;
 #else
-                ret = mov_parse_mebx_data(c, pb, st,
-                                          size - (avio_tell(pb) - start_pos));
-                if (ret < 0)
+            ret = mov_parse_stsd_data(c, pb, st, sc,
+                                      size - (avio_tell(pb) - start_pos));
+            if (ret < 0)
                 return ret;
 #endif
         }
