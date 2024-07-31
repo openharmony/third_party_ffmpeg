@@ -7410,7 +7410,7 @@ static int cenc_filter(MOVContext *mov, AVStream* st, MOVStreamContext *sc, AVPa
             size_t size;
 #ifdef OHOS_DRM
             AV_DrmCencInfo *side_data = NULL;
-            side_data = av_encryption_info_add_side_data_ex(encrypted_sample, &size, side_data);
+            side_data = av_encryption_info_add_side_data_ex(encrypted_sample, &size, side_data, pkt->size);
 #else
             uint8_t *side_data = av_encryption_info_add_side_data(encrypted_sample, &size);
 #endif
