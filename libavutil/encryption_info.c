@@ -187,7 +187,7 @@ static void av_encryption_info_set_drm_algo(uint32_t algo, AV_DrmCencInfo *cenc_
 }
 
 AV_DrmCencInfo *av_encryption_info_add_side_data_ex(const AVEncryptionInfo *info, size_t *side_data_size,
-    AV_DrmCencInfo *cenc_info)
+    AV_DrmCencInfo *cenc_info, int pkt_data_size)
 {
     uint32_t i;
     if ((info == NULL) || (info->key_id_size != AV_DRM_KEY_ID_SIZE) || (info->iv_size > AV_DRM_IV_SIZE) ||
@@ -215,6 +215,17 @@ AV_DrmCencInfo *av_encryption_info_add_side_data_ex(const AVEncryptionInfo *info
     for (i = 0; i < cenc_info->sub_sample_num; i++) {
         cenc_info->sub_samples[i].clear_header_len = info->subsamples[i].bytes_of_clear_data;
         cenc_info->sub_samples[i].pay_load_len = info->subsamples[i].bytes_of_protected_data;
+    }
+    if ((info->subsample_count == 0) && (info->crypt_byte_block == 0) && (info->skip_byte_block == 0) &&
+        ((info->scheme == MKBETAG('c','e','n','s')) || (info->scheme == MKBETAG('s','m','4','r')))) {
+        cenc_info->sub_sample_num = 1; // 1: sub_sample num
+        cenc_info->sub_samples[0].clear_header_len = 0;
+        cenc_info->sub_samples[0].pay_load_len = (pkt_data_size / 16) * 16; // 16: block size
+        if ((pkt_data_size % 16) != 0) { // 16: block size
+            cenc_info->sub_sample_num = 2; // 2: sub_sample num
+            cenc_info->sub_samples[1].clear_header_len = pkt_data_size % 16; // 16: block size
+            cenc_info->sub_samples[1].pay_load_len = 0;
+        }
     }
     return cenc_info;
 }

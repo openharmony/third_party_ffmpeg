@@ -222,7 +222,7 @@ uint8_t *av_encryption_info_add_side_data(
 
 #ifdef OHOS_DRM
 AV_DrmCencInfo *av_encryption_info_add_side_data_ex(
-    const AVEncryptionInfo *info, size_t *side_data_size, AV_DrmCencInfo *cenc_info);
+    const AVEncryptionInfo *info, size_t *side_data_size, AV_DrmCencInfo *cenc_info, int pkt_data_size);
 #endif
 
 /**
