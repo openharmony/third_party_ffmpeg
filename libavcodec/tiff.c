@@ -1267,12 +1267,12 @@ static int tiff_decode_tag(TiffContext *s, AVFrame *frame)
         s->is_thumbnail = (value != 0);
         break;
     case TIFF_WIDTH:
-        if (value > INTMAX)
+        if (value > INT_MAX)
             return AVERROR_INVALIDDATA;
         s->width = value;
         break;
     case TIFF_HEIGHT:
-        if (value > INTMAX)
+        if (value > INT_MAX)
             return AVERROR_INVALIDDATA;
         s->height = value;
         break;
@@ -1405,17 +1405,17 @@ static int tiff_decode_tag(TiffContext *s, AVFrame *frame)
         s->tile_byte_counts_offset = off;
         break;
     case TIFF_TILE_LENGTH:
-        if (value > INTMAX)
+        if (value > INT_MAX)
             return AVERROR_INVALIDDATA;
         s->tile_length = value;
         break;
     case TIFF_TILE_WIDTH:
-        if (value > INTMAX) 
+        if (value > INT_MAX) 
             return AVERROR_INVALIDDATA;
         s->tile_width = value;
         break;
     case TIFF_PREDICTOR:
-        if (value > INTMAX)
+        if (value > INT_MAX)
             return AVERROR_INVALIDDATA;
         s->predictor = value;
         break;
@@ -1548,14 +1548,14 @@ static int tiff_decode_tag(TiffContext *s, AVFrame *frame)
         break;
     case TIFF_T4OPTIONS:
         if (s->compr == TIFF_G3) {
-            if (value > INTMAX)
+            if (value > INT_MAX)
                 return AVERROR_INVALIDDATA;
             s->fax_opts = value;
         }
         break;
     case TIFF_T6OPTIONS:
         if (s->compr == TIFF_G4) {
-            if (value > INTMAX)
+            if (value > INT_MAX)
                 return AVERROR_INVALIDDATA;
             s->fax_opts = value;
         }
