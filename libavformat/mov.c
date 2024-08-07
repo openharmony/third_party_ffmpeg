@@ -1542,7 +1542,7 @@ static int mov_read_mdhd(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     if (ff_mov_lang_to_iso639(lang, language))
         av_dict_set(&st->metadata, "language", language, 0);
     avio_rb16(pb); /* quality */
-    
+
 #ifdef OHOS_EXPAND_MP4_INFO
     st->time_scale = sc->time_scale;
 #endif
@@ -3130,15 +3130,6 @@ static int mov_read_stts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     st = c->fc->streams[c->fc->nb_streams-1];
     sc = st->priv_data;
 
-#ifdef OHOS_EXPAND_MP4_INFO
-    st->stts_data_head = (struct AVCodecMOVStts *)malloc(sizeof(struct AVCodecMOVStts));
-    st->stts_data_head->next = NULL;
-    st->ctts_data_head = (struct AVCodecMOVCtts *)malloc(sizeof(struct AVCodecMOVCtts));
-    st->ctts_data_head->next = NULL;
-    struct AVCodecMOVStts *tail;
-    tail = st->stts_data_head;
-#endif
-
     avio_r8(pb); /* version */
     avio_rb24(pb); /* flags */
     entries = avio_rb32(pb);
@@ -3167,23 +3158,11 @@ static int mov_read_stts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         sc->stts_count = min_entries;
         sc->stts_data = stts_data;
 
-#ifdef OHOS_EXPAND_MP4_INFO
-        struct AVCodecMOVStts *tmp = (struct AVCodecMOVStts *)malloc(sizeof(struct AVCodecMOVStts));
-#endif
-
         sample_count    = avio_rb32(pb);
         sample_duration = avio_rb32(pb);
 
         sc->stts_data[i].count= sample_count;
         sc->stts_data[i].duration= sample_duration;
-
-#ifdef OHOS_EXPAND_MP4_INFO
-        tmp->count = sample_count;
-        tmp->duration = sample_duration;
-        tail->next = tmp;
-        tmp->next = NULL;
-        tail = tmp;
-#endif
 
         av_log(c->fc, AV_LOG_TRACE, "sample_count=%u, sample_duration=%u\n",
                 sample_count, sample_duration);
@@ -3216,6 +3195,17 @@ static int mov_read_stts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     }
 
     sc->stts_count = i;
+
+#ifdef OHOS_EXPAND_MP4_INFO
+    st->stts_count = sc->stts_count;
+    st->stts_data = malloc(st->stts_count * sizeof(AVMOVStts));
+    if (st->stts_data != NULL) {
+        memcpy(st->stts_data, sc->stts_data, st->stts_count * sizeof(AVMOVStts));
+    } else {
+        av_freep(&st->stts_data);
+        return AVERROR(ENOMEM);
+    }
+#endif
 
     if (duration > 0 &&
         duration <= INT64_MAX - sc->duration_for_fps &&
@@ -3292,11 +3282,6 @@ static int mov_read_ctts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     st = c->fc->streams[c->fc->nb_streams-1];
     sc = st->priv_data;
 
-#ifdef OHOS_EXPAND_MP4_INFO
-    struct AVCodecMOVCtts *tail;
-    tail = st->ctts_data_head;
-#endif
-
     avio_r8(pb); /* version */
     avio_rb24(pb); /* flags */
     entries = avio_rb32(pb);
@@ -3313,10 +3298,6 @@ static int mov_read_ctts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         return AVERROR(ENOMEM);
 
     for (i = 0; i < entries && !pb->eof_reached; i++) {
-#ifdef OHOS_EXPAND_MP4_INFO
-        struct AVCodecMOVCtts *tmp = (struct AVCodecMOVCtts *)malloc(sizeof(struct AVCodecMOVCtts));
-#endif
-
         int count    = avio_rb32(pb);
         int duration = avio_rb32(pb);
 
@@ -3329,14 +3310,6 @@ static int mov_read_ctts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
         add_ctts_entry(&sc->ctts_data, &ctts_count, &sc->ctts_allocated_size,
                        count, duration);
-
-#ifdef OHOS_EXPAND_MP4_INFO
-        tmp->count = count;
-        tmp->duration = duration;
-        tail->next = tmp;
-        tmp->next = NULL;
-        tail = tmp;
-#endif
 
         av_log(c->fc, AV_LOG_TRACE, "count=%d, duration=%d\n",
                 count, duration);
@@ -3353,6 +3326,17 @@ static int mov_read_ctts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     }
 
     sc->ctts_count = ctts_count;
+
+#ifdef OHOS_EXPAND_MP4_INFO
+    st->ctts_count = sc->ctts_count;
+    st->ctts_data = malloc(st->ctts_count * sizeof(AVMOVCtts));
+    if (st->ctts_data != NULL) {
+        memcpy(st->ctts_data, sc->ctts_data, st->ctts_count * sizeof(AVMOVCtts));
+    } else {
+        av_freep(&st->ctts_data);
+        return AVERROR(ENOMEM);
+    }
+#endif
 
     if (pb->eof_reached) {
         av_log(c->fc, AV_LOG_WARNING, "reached eof, corrupted CTTS atom\n");
@@ -8476,33 +8460,8 @@ static int mov_read_close(AVFormatContext *s)
         MOVStreamContext *sc = st->priv_data;
         
 #ifdef OHOS_EXPAND_MP4_INFO
-        struct AVCodecMOVStts * cur_stts_node = st->stts_data_head;
-        while (cur_stts_node != NULL && cur_stts_node->next != NULL) {
-            struct AVCodecMOVStts * next = cur_stts_node->next;
-            free(cur_stts_node);
-            cur_stts_node = NULL;
-            cur_stts_node = next;
-        }
-        if (cur_stts_node != NULL) {
-            free(cur_stts_node);
-            cur_stts_node = NULL;
-        }
-        struct AVCodecMOVCtts * cur_ctts_node = st->ctts_data_head;
-        if (cur_ctts_node != NULL && cur_ctts_node->next == cur_ctts_node) {
-            free(cur_ctts_node);
-            cur_ctts_node = NULL;
-        } else {
-            while (cur_ctts_node!= NULL && cur_ctts_node->next != NULL) {
-                struct AVCodecMOVStts * next = cur_ctts_node->next;
-                free(cur_ctts_node);
-                cur_ctts_node = NULL;
-                cur_ctts_node = next;
-            }
-            if (cur_ctts_node != NULL) {
-                free(cur_ctts_node);
-                cur_ctts_node = NULL;
-            }
-        }
+        av_freep(&st->stts_data);
+        av_freep(&st->ctts_data);
 #endif
 
         if (!sc)

@@ -940,17 +940,15 @@ const char *av_disposition_to_string(int disposition);
 #define AV_PTS_WRAP_ADD_OFFSET  1   ///< add the format specific offset on wrap detection
 #define AV_PTS_WRAP_SUB_OFFSET  -1  ///< subtract the format specific offset on wrap detection
 
-typedef struct AVCodecMOVStts {
+typedef struct AVMOVStts {
     unsigned int count;
     unsigned int duration;
-    struct AVCodecMOVStts *next;
-} AVCodecMOVStts;
+} AVMOVStts;
 
-typedef struct AVCodecMOVCtts {
+typedef struct AVMOVCtts {
     unsigned int count;
     int duration;
-    struct AVCodecMOVCtts *next;
-} AVCodecMOVCtts;
+} AVMOVCtts;
 
 /**
  * Stream structure.
@@ -1129,18 +1127,19 @@ typedef struct AVStream {
      *
      */
     int pts_wrap_bits;
+    
+    /**
+     * Array derived from ffmpeg
+     *
+     * used to fetch stts_data and ctts_data of mov files
+     */
+    unsigned int stts_count;
+    AVMOVStts *stts_data;
 
-    struct AVCodecMOVStts *stts_data_head;
-
-    struct AVCodecMOVCtts *ctts_data_head;
+    unsigned int ctts_count;
+    AVMOVCtts *ctts_data;
 
     int time_scale;
-
-    /**
-     * Headnodes derived from ffmpeg
-     *
-     * used to calculate pts and realize the function of pts&index convertng
-     */
 } AVStream;
 
 struct AVCodecParserContext *av_stream_get_parser(const AVStream *s);
