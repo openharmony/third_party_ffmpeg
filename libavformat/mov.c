@@ -3197,7 +3197,7 @@ static int mov_read_stts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     sc->stts_count = i;
 
 #ifdef OHOS_EXPAND_MP4_INFO
-    if (sc->stts_count > 0 ) {
+    if (sc->stts_count > 0) {
         st->stts_count = sc->stts_count;
         st->stts_data = malloc(st->stts_count * sizeof(AVMOVStts));
         if (st->stts_data != NULL) {
