@@ -35,7 +35,8 @@
                       "header_base": "//third_party/ffmpeg"
                     }
                 }
-            ]
+            ],
+	    "test": []
         }
     }
 }
