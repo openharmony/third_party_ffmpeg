@@ -3197,13 +3197,15 @@ static int mov_read_stts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     sc->stts_count = i;
 
 #ifdef OHOS_EXPAND_MP4_INFO
-    st->stts_count = sc->stts_count;
-    st->stts_data = malloc(st->stts_count * sizeof(AVMOVStts));
-    if (st->stts_data != NULL) {
-        memcpy(st->stts_data, sc->stts_data, st->stts_count * sizeof(AVMOVStts));
-    } else {
-        av_log(c->fc, AV_LOG_WARNING, "st->stts_data malloc failed\n");
-        st->stts_count = 0;
+    if (sc->stts_count > 0 ) {
+        st->stts_count = sc->stts_count;
+        st->stts_data = malloc(st->stts_count * sizeof(AVMOVStts));
+        if (st->stts_data != NULL) {
+            memcpy(st->stts_data, sc->stts_data, st->stts_count * sizeof(AVMOVStts));
+        } else {
+            av_log(c->fc, AV_LOG_WARNING, "st->stts_data malloc failed\n");
+            st->stts_count = 0;
+        }
     }
 #endif
 
@@ -3328,13 +3330,15 @@ static int mov_read_ctts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     sc->ctts_count = ctts_count;
 
 #ifdef OHOS_EXPAND_MP4_INFO
-    st->ctts_count = sc->ctts_count;
-    st->ctts_data = malloc(st->ctts_count * sizeof(AVMOVCtts));
-    if (st->ctts_data != NULL) {
-        memcpy(st->ctts_data, sc->ctts_data, st->ctts_count * sizeof(AVMOVCtts));
-    } else {
-        av_log(c->fc, AV_LOG_WARNING, "st->ctts_data malloc failed\n");
-        st->ctts_count = 0;
+    if (sc->ctts_count > 0) {
+        st->ctts_count = sc->ctts_count;
+        st->ctts_data = malloc(st->ctts_count * sizeof(AVMOVCtts));
+        if (st->ctts_data != NULL) {
+            memcpy(st->ctts_data, sc->ctts_data, st->ctts_count * sizeof(AVMOVCtts));
+        } else {
+            av_log(c->fc, AV_LOG_WARNING, "st->ctts_data malloc failed\n");
+            st->ctts_count = 0;
+        }
     }
 #endif
 
