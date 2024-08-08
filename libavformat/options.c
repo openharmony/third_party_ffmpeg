@@ -295,6 +295,15 @@ AVStream *avformat_new_stream(AVFormatContext *s, const AVCodec *c)
     st->start_time = AV_NOPTS_VALUE;
     st->duration   = AV_NOPTS_VALUE;
     sti->first_dts     = AV_NOPTS_VALUE;
+
+#ifdef OHOS_EXPAND_MP4_INFO
+    st->stts_count = 0;
+    st->stts_data = NULL;
+    st->ctts_count = 0;
+    st->ctts_data = NULL;
+    st->time_scale = 0;
+#endif
+
     sti->probe_packets = s->max_probe_packets;
     sti->pts_wrap_reference = AV_NOPTS_VALUE;
     sti->pts_wrap_behavior  = AV_PTS_WRAP_IGNORE;
