@@ -1720,9 +1720,7 @@ ohos_shared_library("libohosffmpeg") {
     integer_overflow = true
     boundary_sanitize = true
   }
-  innerapi_tags = [
-    "chipsetsdk"
-  ]
+  innerapi_tags = [ "chipsetsdk" ]
   deps = [ ":ffmpeg_dynamic" ]
   public_configs = [ ":libohosffmpeg_public_config" ]
   part_name = "ffmpeg"
