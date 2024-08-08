@@ -3202,8 +3202,8 @@ static int mov_read_stts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     if (st->stts_data != NULL) {
         memcpy(st->stts_data, sc->stts_data, st->stts_count * sizeof(AVMOVStts));
     } else {
-        av_freep(&st->stts_data);
-        return AVERROR(ENOMEM);
+        av_log(c->fc, AV_LOG_WARNING, "st->stts_data malloc failed\n");
+        st->stts_count = 0;
     }
 #endif
 
@@ -3333,8 +3333,8 @@ static int mov_read_ctts(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     if (st->ctts_data != NULL) {
         memcpy(st->ctts_data, sc->ctts_data, st->ctts_count * sizeof(AVMOVCtts));
     } else {
-        av_freep(&st->ctts_data);
-        return AVERROR(ENOMEM);
+        av_log(c->fc, AV_LOG_WARNING, "st->ctts_data malloc failed\n");
+        st->ctts_count = 0;
     }
 #endif
 
@@ -8460,8 +8460,15 @@ static int mov_read_close(AVFormatContext *s)
         MOVStreamContext *sc = st->priv_data;
         
 #ifdef OHOS_EXPAND_MP4_INFO
-        av_freep(&st->stts_data);
-        av_freep(&st->ctts_data);
+        if (st->stts_data != NULL) {
+             free(st->stts_data);
+             st->stts_data = NULL;
+        }
+        
+        if (st->ctts_data != NULL) {
+             free(st->ctts_data);
+             st->ctts_data = NULL;
+        }
 #endif
 
         if (!sc)
