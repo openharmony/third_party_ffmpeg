@@ -1127,7 +1127,7 @@ typedef struct AVStream {
      *
      */
     int pts_wrap_bits;
-    
+
     /**
      * Array derived from ffmpeg
      *

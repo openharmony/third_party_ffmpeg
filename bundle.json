@@ -28,11 +28,11 @@
             "sub_component": ["//third_party/ffmpeg:libohosffmpeg"],
             "inner_kits": [
                 {
+                    "type": "so",
                     "name": "//third_party/ffmpeg:libohosffmpeg",
                     "header": {
-                        "header_files": [
-                        ],
-                        "header_base": "//third_party/ffmpeg"
+                      "header_files": [],
+                      "header_base": "//third_party/ffmpeg"
                     }
                 }
             ],
