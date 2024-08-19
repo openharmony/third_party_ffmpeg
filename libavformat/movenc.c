@@ -7733,6 +7733,10 @@ static int mov_init(AVFormatContext *s)
             }
         } else if (st->codecpar->codec_type == AVMEDIA_TYPE_DATA) {
             track->timescale = st->time_base.den;
+#ifdef OHOS_TIMED_META_TRACK
+        } else if (st->codecpar->codec_type == AVMEDIA_TYPE_TIMEDMETA) {
+            track->timescale = st->time_base.den;
+#endif
         } else {
             track->timescale = mov->movie_timescale;
         }
