@@ -1694,7 +1694,8 @@ action("gen_config_header") {
   }
   if (!is_cross_platform_build) {
     if (ffmpeg_selected_platform == "aarch64") {
-      print("third_party:ffmpeg # external_deps //third_party/musl:soft_libc_musl_static")
+      print(
+          "third_party:ffmpeg # external_deps //third_party/musl:soft_libc_musl_static")
       external_deps = [ "musl:soft_libc_musl_static" ]
     }
   }
