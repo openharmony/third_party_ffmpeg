@@ -506,7 +506,7 @@ static int mpegts_drm_find_hevc_cei_nal_unit(uint8_t *data, uint32_t data_size, 
         /* sei is not after frame data. */
         av_log(NULL, AV_LOG_DEBUG, "h265 frame found\n");
         return 0;
-    } else if (nal_type == 39) { // 39: SEI nal unit
+    } else if ((nal_type == 39) && (i + DRM_H265_PAYLOAD_TYPE_OFFSET < data_size)) { // 39: SEI nal unit
         if (data[i + DRM_H265_PAYLOAD_TYPE_OFFSET] == DRM_USER_DATA_UNREGISTERED_TAG) {
             *cei_start_pos = i;
         }
@@ -600,7 +600,8 @@ static int mpegts_drm_find_cei_pos(enum AVCodecID codec_id, uint8_t *data, uint3
             i += (uint32_t)DRM_LEGACY_LEN;
         }
     }
-    if ((*cei_start_pos != (uint32_t)DRM_INVALID_START_POS) && (*cei_end_pos != (uint32_t)DRM_INVALID_START_POS)) {
+    if ((*cei_start_pos != (uint32_t)DRM_INVALID_START_POS) && (*cei_end_pos != (uint32_t)DRM_INVALID_START_POS) &&
+        (*cei_start_pos < *cei_end_pos) && (*cei_end_pos <= data_size)) {
         return 1; // 1 true
     }
     return 0;
