@@ -191,7 +191,7 @@ static int avgblur_opencl_filter_frame(AVFilterLink *inlink, AVFrame *input)
         goto fail;
     }
 
-    for (p = 0; p < FF_ARRAY_ELEMS(output->data); p++) {
+    for (p = 0; p < FF_MIN(FF_ARRAY_ELEMS(output->data), 4); p++) {
         src = (cl_mem) input->data[p];
         dst = (cl_mem) output->data[p];
         inter = (cl_mem)intermediate->data[p];
