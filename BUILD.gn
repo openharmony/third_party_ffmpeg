@@ -1718,7 +1718,7 @@ action("gen_config_header") {
 }
 
 ohos_shared_library("libohosffmpeg") {
-  branch_protector_ret= "pac_ret"
+  branch_protector_ret = "pac_ret"
 
   sanitize = {
     integer_overflow = true
