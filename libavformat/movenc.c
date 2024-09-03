@@ -4956,9 +4956,6 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
     for (i = 0; i < mov->nb_streams; i++) {
         if (mov->tracks[i].tag == MKTAG('c','d','s','c')) {
             int src_trk = mov->tracks[i].src_track;
-            mov->tracks[i].track_duration = av_rescale(mov->tracks[src_trk].track_duration,
-                                                       mov->tracks[i].timescale,
-                                                       mov->tracks[src_trk].timescale);
             for (int j = 0; j < mov->tracks[i].ref_track_count; j++) {
                 mov->tracks[i].tref_ids[j] = mov->tracks[src_trk].track_id;
             }
