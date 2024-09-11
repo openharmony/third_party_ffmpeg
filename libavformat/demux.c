@@ -1977,7 +1977,7 @@ static int has_codec_parameters(const AVStream *st, const char **errmsg_ptr)
     case AVMEDIA_TYPE_VIDEO:
         if (!avctx->width)
 #ifdef DOHOS_OPTIMIZE_DELAY
-        if (!st->codecpar->codec_id == AV_CODEC_ID_HEVC &&
+        if (!(st->codecpar->codec_id == AV_CODEC_ID_HEVC) &&
             !(st->disposition & AV_DISPOSITION_ATTACHED_PIC))
 #endif
             FAIL("unspecified size");
