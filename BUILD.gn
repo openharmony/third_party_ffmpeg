@@ -146,6 +146,7 @@ config("ffmpeg_config") {
     "-DOHOS_TIMED_META_TRACK",
     "-DOHOS_SUBTITLE_DEMUXER",
     "-DOHOS_EXPAND_MP4_INFO",
+    "-DOHOS_OPTIMIZE_DELAY",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
