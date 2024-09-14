@@ -1976,6 +1976,10 @@ static int has_codec_parameters(const AVStream *st, const char **errmsg_ptr)
         break;
     case AVMEDIA_TYPE_VIDEO:
         if (!avctx->width)
+#ifdef DOHOS_OPTIMIZE_DELAY
+        if (!(st->codecpar->codec_id == AV_CODEC_ID_HEVC) &&
+            !(st->disposition & AV_DISPOSITION_ATTACHED_PIC))
+#endif
             FAIL("unspecified size");
         if (sti->info->found_decoder >= 0 && avctx->pix_fmt == AV_PIX_FMT_NONE)
             FAIL("unspecified pixel format");
