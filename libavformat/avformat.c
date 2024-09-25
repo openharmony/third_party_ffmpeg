@@ -788,3 +788,63 @@ int ff_format_io_close(AVFormatContext *s, AVIOContext **pb)
     *pb = NULL;
     return ret;
 }
+
+/**
+ * Get the frame position for every key frame.
+ *
+ * @param st                  input stream to extract the position for every key frame
+ * @param key_frame_pos_list  output list which carry the frame position for every key frame
+ */
+
+int av_get_key_frame_pos_from_stream(const AVStream *st, struct KeyFrameNode **key_frame_pos_list)
+{
+    if ((st == NULL) || (key_frame_pos_list == NULL)) {
+        av_log(NULL, AV_LOG_ERROR, "st or key_frame_pos_list is NULL\n");
+        return 1;
+    }
+    struct KeyFrameNode *head = NULL; // head pointer
+    struct KeyFrameNode *cur = NULL; // current pointer
+    struct KeyFrameNode *tail = NULL; // tail pointer
+    FFStream *sti = ffstream(st);
+    if (sti == NULL) {
+        av_log(NULL, AV_LOG_ERROR, "ffstream(st) return NULL\n");
+        return 1;
+    }
+    for (int i = 0; i < sti->nb_index_entries; i++) {
+        if (sti->index_entries[i].flags & AVINDEX_KEYFRAME) {
+            cur = (struct KeyFrameNode *)malloc(sizeof(struct KeyFrameNode));
+            if (cur == NULL) {
+                av_destory_key_frame_pos_list(head);
+                return 1;
+            }
+            cur->pos = i;
+            cur->next = NULL;
+            if (head != NULL) {
+                tail->next = cur;
+            } else {
+                head = cur;
+            }
+            tail = cur;
+        }
+    }
+    *key_frame_pos_list = head;
+    return 0;
+}
+
+/**
+ * Destroy the list which is created by av_get_key_frame_pos_from_stream function.
+ *
+ * This function is useful after doing av_get_key_frame_pos_from_stream to release resource.
+ *
+ * @param key_frame_pos_list  input list which carry the frame position for every key frame
+ */
+void av_destory_key_frame_pos_list(struct KeyFrameNode *key_frame_pos_list)
+{
+    struct KeyFrameNode *cur = key_frame_pos_list;
+    struct KeyFrameNode *next;
+    while (cur != NULL) {
+        next = cur->next;
+        free(cur);
+        cur = next;
+    }
+}
