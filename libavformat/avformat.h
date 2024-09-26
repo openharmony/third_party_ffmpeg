@@ -2923,6 +2923,30 @@ int avformat_transfer_internal_stream_timing_info(const AVOutputFormat *ofmt,
  */
 AVRational av_stream_get_codec_timebase(const AVStream *st);
 
+struct KeyFrameNode
+{
+    int pos;
+    struct KeyFrameNode *next;
+};
+
+/**
+ * Get the frame position for every key frame.
+ *
+ * @param st                  input stream to extract the position for every key frame
+ * @param key_frame_pos_list  output list which carry the frame position for every key frame
+ */
+
+int av_get_key_frame_pos_from_stream(const AVStream *st, struct KeyFrameNode **key_frame_pos_list);
+
+/**
+ * Destroy the list which is created by av_get_key_frame_pos_from_stream function.
+ *
+ * This function is useful after doing av_get_key_frame_pos_from_stream to release resource.
+ *
+ * @param key_frame_pos_list  input list which carry the frame position for every key frame
+ */
+void av_destory_key_frame_pos_list(struct KeyFrameNode *key_frame_pos_list);
+
 /**
  * @}
  */
