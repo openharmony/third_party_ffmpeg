@@ -19,10 +19,8 @@
         "rom": "",
         "ram": "",
         "deps": {
-            "components": [],
-            "third_party": [
-                "musl"
-            ]
+            "components": ["musl"],
+            "third_party": []
         },
         "build": {
             "sub_component": ["//third_party/ffmpeg:libohosffmpeg"],
