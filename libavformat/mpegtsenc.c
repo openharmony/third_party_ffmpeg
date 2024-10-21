@@ -409,6 +409,9 @@ static int get_dvb_stream_type(AVFormatContext *s, AVStream *st)
     case AV_CODEC_ID_DTS:
         stream_type = STREAM_TYPE_AUDIO_DTS;
         break;
+    case AV_CODEC_ID_PCM_S16BE:
+        stream_type = 0x83;
+        break;
     case AV_CODEC_ID_TRUEHD:
         stream_type = STREAM_TYPE_AUDIO_TRUEHD;
         break;
@@ -468,6 +471,9 @@ static int get_m2ts_stream_type(AVFormatContext *s, AVStream *st)
         break;
     case AV_CODEC_ID_DTS:
         stream_type = (st->codecpar->ch_layout.nb_channels > 6) ? 0x85 : 0x82;
+        break;
+    case AV_CODEC_ID_PCM_S16BE:
+        stream_type = 0x83;
         break;
     case AV_CODEC_ID_TRUEHD:
         stream_type = 0x83;
@@ -556,6 +562,19 @@ static int mpegts_write_pmt(AVFormatContext *s, MpegTSService *service)
         /* write optional descriptors here */
         switch (st->codecpar->codec_type) {
         case AVMEDIA_TYPE_AUDIO:
+            if (codec_id == AV_CODEC_ID_PCM_S16BE) {
+                *q++ = 0x83;  // descriptor_tag
+                *q++ = 2;  // descriptor_length
+
+                unsigned sampling_frequency = 2;    // 1 - 44.1k, 2 - 48k
+                *q++ = (sampling_frequency << 5)    // sampling_frequency
+                        | (3 << 1)                  // reserved
+                        | 0;                        // emphasis_flag
+
+                *q++ =
+                    (1 << 5)    // 1 - number_of_channels = stereo
+                    | 0xf;      // reserved
+            }
             if (codec_id == AV_CODEC_ID_AC3)
                 put_registration_descriptor(&q, MKTAG('A', 'C', '-', '3'));
             if (codec_id == AV_CODEC_ID_EAC3)
@@ -1475,6 +1494,7 @@ static void mpegts_write_pes(AVFormatContext *s, AVStream *st,
     int afc_len, stuffing_len;
     int is_dvb_subtitle = (st->codecpar->codec_id == AV_CODEC_ID_DVB_SUBTITLE);
     int is_dvb_teletext = (st->codecpar->codec_id == AV_CODEC_ID_DVB_TELETEXT);
+    int is_audio_pcm = (st->codecpar->codec_id == AV_CODEC_ID_PCM_S16BE);
     int64_t delay = av_rescale(s->max_delay, 90000, AV_TIME_BASE);
     int force_pat = st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && key && !ts_st->prev_payload_key;
     int force_sdt = 0;
@@ -1640,6 +1660,10 @@ static void mpegts_write_pes(AVFormatContext *s, AVStream *st,
                     pes_header_stuffing_bytes = 0x24 - header_len;
                     header_len = 0x24;
                 }
+                else if(is_audio_pcm){
+                    pes_header_stuffing_bytes = 2;
+                    header_len += 2;
+                }
                 len = payload_size + header_len + 3;
                 /* 3 extra bytes should be added to DVB subtitle payload: 0x20 0x00 at the beginning and trailing 0xff */
                 if (is_dvb_subtitle) {
@@ -1694,7 +1718,7 @@ static void mpegts_write_pes(AVFormatContext *s, AVStream *st,
                     *q++ = 0x20;
                     *q++ = 0x00;
                 }
-                if (is_dvb_teletext) {
+                if (is_dvb_teletext || is_audio_pcm) {
                     memset(q, 0xff, pes_header_stuffing_bytes);
                     q += pes_header_stuffing_bytes;
                 }
