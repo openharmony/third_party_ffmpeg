@@ -1410,7 +1410,7 @@ static int tiff_decode_tag(TiffContext *s, AVFrame *frame)
         s->tile_length = value;
         break;
     case TIFF_TILE_WIDTH:
-        if (value > INT_MAX)
+        if (value > INT_MAX) 
             return AVERROR_INVALIDDATA;
         s->tile_width = value;
         break;
@@ -1550,14 +1550,14 @@ static int tiff_decode_tag(TiffContext *s, AVFrame *frame)
         if (s->compr == TIFF_G3) {
             if (value > INT_MAX)
                 return AVERROR_INVALIDDATA;
-             s->fax_opts = value;
+            s->fax_opts = value;
         }
         break;
     case TIFF_T6OPTIONS:
         if (s->compr == TIFF_G4) {
             if (value > INT_MAX)
                 return AVERROR_INVALIDDATA;
-             s->fax_opts = value;
+            s->fax_opts = value;
         }
         break;
 #define ADD_METADATA(count, name, sep)\

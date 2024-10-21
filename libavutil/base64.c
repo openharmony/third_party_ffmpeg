@@ -126,11 +126,11 @@ validity_check:
         in++;
     }
 
- out3:
+out3:
     if (end - dst)
         *dst++ = v >> 10;
-     v <<= 2;
- out2:
+    v <<= 2;
+out2:
     if (end - dst)
         *dst++ = v >> 4;
 out1:
