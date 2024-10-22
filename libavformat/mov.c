@@ -2462,6 +2462,7 @@ static int mov_parse_mebx_keyd(MOVContext *c, AVIOContext *pb, AVStream *st)
     av_freep(&buf);
     return atom_size;
 }
+
 static int mov_parse_mebx_data(MOVContext *c, AVIOContext *pb,
                                AVStream *st, int64_t size)
 {
@@ -2484,6 +2485,7 @@ static int mov_parse_mebx_data(MOVContext *c, AVIOContext *pb,
     }
     return 0;
 }
+
 static int mov_read_cdsc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
     AVStream *st;
@@ -6299,7 +6301,7 @@ static int mov_read_free(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     if (atom.size < 8)
         return 0;
 
-    ret = avio_read(pb, content, FFMIN(sizeof(content), atom.size));
+    ret = ffio_read_size(pb, content, FFMIN(sizeof(content), atom.size));
     if (ret < 0)
         return ret;
 
