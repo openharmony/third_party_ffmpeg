@@ -28,8 +28,7 @@
                 {
                     "name": "//third_party/ffmpeg:libohosffmpeg",
                     "header": {
-                        "header_files": [
-                        ],
+                        "header_files": [],
                         "header_base": "//third_party/ffmpeg"
                     }
                 }

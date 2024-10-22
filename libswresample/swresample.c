@@ -227,7 +227,7 @@ av_cold int swr_init(struct SwrContext *s){
             s->in_ch_layout.order       = AV_CHANNEL_ORDER_UNSPEC;
             s->in_ch_layout.nb_channels = s->user_in_ch_count;
         }
-    } else
+    } else if (av_channel_layout_check(&s->user_in_chlayout))
         av_channel_layout_copy(&s->in_ch_layout, &s->user_in_chlayout);
 
     if ((s->user_out_ch_count && s->user_out_ch_count != s->user_out_chlayout.nb_channels) ||
