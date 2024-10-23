@@ -49,8 +49,11 @@ typedef struct H264BSFContext {
 static void count_or_copy(uint8_t **out, uint64_t *out_size,
                           const uint8_t *in, int in_size, int ps, int copy)
 {
+#ifdef OHOS_OPT_COMPAT
+    uint8_t start_code_size = ps < 0 ? 0 : 4;
+#else
     uint8_t start_code_size = ps < 0 ? 0 : *out_size == 0 || ps ? 4 : 3;
-
+#endif
     if (copy) {
         memcpy(*out + start_code_size, in, in_size);
         if (start_code_size == 4) {
