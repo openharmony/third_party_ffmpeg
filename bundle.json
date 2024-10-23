@@ -26,6 +26,7 @@
             "sub_component": ["//third_party/ffmpeg:libohosffmpeg"],
             "inner_kits": [
                 {
+                    "type":"so",
                     "name": "//third_party/ffmpeg:libohosffmpeg",
                     "header": {
                         "header_files": [],
