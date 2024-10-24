@@ -293,6 +293,7 @@ static int decode_str(AVFormatContext *s, AVIOContext *pb, int encoding,
             av_log(s, AV_LOG_ERROR, "Notstandard BOM value\n");
             left += 2;
             get = avio_rl16;
+            break;
         }
 #else
         switch (avio_rb16(pb)) {
