@@ -192,7 +192,7 @@ AV_DrmCencInfo *av_encryption_info_add_side_data_ex(const AVEncryptionInfo *info
     uint32_t i;
     if ((info == NULL) || (info->key_id_size != AV_DRM_KEY_ID_SIZE) || (info->iv_size > AV_DRM_IV_SIZE) ||
         (info->iv_size == 0) || (info->subsample_count > AV_DRM_MAX_SUB_SAMPLE_NUM) || (info->key_id == NULL) ||
-        (info->iv == NULL) || (info->subsamples == NULL) || (side_data_size == NULL)) {
+        (info->iv == NULL) || (info->subsamples == NULL) || (side_data_size == NULL) || (pkt_data_size <= 0)) {
         return NULL;
     }
 
@@ -220,10 +220,10 @@ AV_DrmCencInfo *av_encryption_info_add_side_data_ex(const AVEncryptionInfo *info
         ((info->scheme == MKBETAG('c','e','n','s')) || (info->scheme == MKBETAG('s','m','4','r')))) {
         cenc_info->sub_sample_num = 1; // 1: sub_sample num
         cenc_info->sub_samples[0].clear_header_len = 0;
-        cenc_info->sub_samples[0].pay_load_len = (pkt_data_size / 16) * 16; // 16: block size
+        cenc_info->sub_samples[0].pay_load_len = (uint32_t)((pkt_data_size / 16) * 16); // 16: block size
         if ((pkt_data_size % 16) != 0) { // 16: block size
             cenc_info->sub_sample_num = 2; // 2: sub_sample num
-            cenc_info->sub_samples[1].clear_header_len = pkt_data_size % 16; // 16: block size
+            cenc_info->sub_samples[1].clear_header_len = (uint32_t)(pkt_data_size % 16); // 16: block size
             cenc_info->sub_samples[1].pay_load_len = 0;
         }
     }
