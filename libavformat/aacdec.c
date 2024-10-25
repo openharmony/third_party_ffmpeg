@@ -220,7 +220,7 @@ static void adts_aac_get_duration(AVFormatContext *s, AVStream *st)
     }
 
     st->codecpar->channels = channel;
-    st->codecpar->sample_rate = sr;
+    st->codecpar->sample_rate = (int)sr;
     avpriv_set_pts_info(st, 64, 1, st->codecpar->sample_rate);
 
     int frame_size = 0;
