@@ -1119,8 +1119,8 @@ retry:
         flags    = avio_r8(s->pb);
         size--;
 #ifdef OHOS_H265_DEMUXER
-        video_codec_id = flags & FLV_VIDEO_CODECID_MASK;
-        enhanced_flv = (flags >> 7) & 1;
+        video_codec_id = (unsigned int)flags & FLV_VIDEO_CODECID_MASK;
+        enhanced_flv = ((unsigned int)flags >> 7) & 1;
         if (enhanced_flv) {
             video_codec_id = avio_rb32(s->pb);
             size -= 4;
