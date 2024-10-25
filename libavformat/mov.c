@@ -74,7 +74,7 @@
 #ifdef OHOS_DRM
 #define MOV_DRM_PSSH_TITLE_LEN    (8)
 
-static const uint8_t g_pssh_title_buf[] = {
+static const uint8_t g_pssh_title_buf[4] = { // 4:bufSize
     0x70, 0x73, 0x73, 0x68
 };
 #endif
@@ -6836,12 +6836,15 @@ static int mov_read_pssh_ex(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     uint8_t pssh_buf[AV_DRM_MAX_DRM_PSSH_LEN];
     size_t old_side_data_size = 0;
     uint32_t old_side_data_count = 0;
-    uint32_t pssh_exist_flag = 0;
+    int pssh_exist_flag = 0;
     if ((c == NULL) || (c->fc == NULL) || (c->fc->nb_streams < 1) || (c->fc->streams == NULL) || (pb == NULL) ||
-        (atom.size > (AV_DRM_MAX_DRM_PSSH_LEN - MOV_DRM_PSSH_TITLE_LEN)) || (atom.size == 0)) {
+        (atom.size > (AV_DRM_MAX_DRM_PSSH_LEN - MOV_DRM_PSSH_TITLE_LEN)) || (atom.size <= 0)) {
         return 0;
     }
     st = c->fc->streams[c->fc->nb_streams-1];
+    if (st == NULL) {
+        return 0;
+    }
 
     memset(pssh_buf, 0, sizeof(pssh_buf));
     AV_WB32(pssh_buf, (atom.size + MOV_DRM_PSSH_TITLE_LEN));
