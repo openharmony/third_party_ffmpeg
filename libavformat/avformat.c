@@ -811,7 +811,8 @@ int av_get_key_frame_pos_from_stream(const AVStream *st, struct KeyFrameNode **k
         return 1;
     }
     for (int i = 0; i < sti->nb_index_entries; i++) {
-        if (sti->index_entries[i].flags & AVINDEX_KEYFRAME) {
+        uint32_t flags = (uint32_t)sti->index_entries[i].flags;
+        if (flags & AVINDEX_KEYFRAME == 1) {
             cur = (struct KeyFrameNode *)malloc(sizeof(struct KeyFrameNode));
             if (cur == NULL) {
                 av_destory_key_frame_pos_list(head);
