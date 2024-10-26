@@ -2441,9 +2441,9 @@ static int mov_rewrite_dvd_sub_extradata(AVStream *st)
 #ifdef OHOS_TIMED_META_TRACK
 static int mov_parse_mebx_keyd(MOVContext *c, AVIOContext *pb, AVStream *st)
 {
-    int atom_size = avio_rb32(pb);
+    int atom_size = (int)avio_rb32(pb);
     avio_rb32(pb);  // local key id
-    int keyd_size = avio_rb32(pb);
+    int keyd_size = (int)avio_rb32(pb);
     avio_rb32(pb);  // keyd
     avio_rb32(pb);  // mdta
     int key_value_size = keyd_size - 12;  // 12 bytes to skip
@@ -2471,7 +2471,7 @@ static int mov_parse_mebx_data(MOVContext *c, AVIOContext *pb,
         return 0;
     st = c->fc->streams[c->fc->nb_streams-1];
 
-    int size_keys = avio_rb32(pb);  // size of keys
+    int size_keys = (int)avio_rb32(pb);  // size of keys
     avio_rb32(pb);  // keys
     const int read_counts = 8;
     read_size += read_counts;
@@ -2491,7 +2491,7 @@ static int mov_read_cdsc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     if (c->fc->nb_streams < 1)
         return 0;
     st = c->fc->streams[c->fc->nb_streams - 1];
-    int src_track_id = avio_rb32(pb);
+    unsigned int src_track_id = avio_rb32(pb);
     char* metaKeyStr;
     metaKeyStr = av_d2str(src_track_id - 1);
     if (!metaKeyStr)
