@@ -255,8 +255,9 @@ static int read_av3a_frame_header(AVS3AHeaderInfo *hdf, const uint8_t *buf, cons
 
     // 4 bits for sampling index
     uint8_t samping_rate_index = get_bits(&gb, 4);
-    if (samping_rate_index >= AVS3_SIZE_FS_TABLE)
+    if (samping_rate_index >= AVS3_SIZE_FS_TABLE) {
         return AVERROR_INVALIDDATA;
+    }
 
     // skip 8 bits for CRC first part
     skip_bits(&gb, 8);
