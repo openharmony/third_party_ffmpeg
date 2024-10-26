@@ -266,7 +266,7 @@ static int read_av3a_frame_header(AVS3AHeaderInfo *hdf, const uint8_t *buf, cons
 
         // 7 bits for mono/stereo/MC
         num_chan_index = get_bits(&gb, 7);
-        if (num_chan_index >= 14) {
+        if (num_chan_index >= CHANNEL_CONFIG_UNKNOWN) {
             return AVERROR_INVALIDDATA;
         }
 
@@ -332,7 +332,7 @@ static int read_av3a_frame_header(AVS3AHeaderInfo *hdf, const uint8_t *buf, cons
             // for MC + objs
             // channel number index, 7 bits
             num_chan_index = get_bits(&gb, 7);
-            if (num_chan_index >= 14) {
+            if (num_chan_index >= CHANNEL_CONFIG_UNKNOWN) {
                 return AVERROR_INVALIDDATA;
             }
 
