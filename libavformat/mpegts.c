@@ -343,7 +343,7 @@ static void mpegts_set_drm_algo_and_blocks(uint8_t algo, AV_DrmCencInfo *cenc_in
 static int mpegts_get_drm_info(const uint8_t *src, uint32_t src_len, AV_DrmInfo *drm_info)
 {
     uint32_t offset = 0;
-    if (src_len <= DRM_MIN_DRM_INFO_LEN) {
+    if (src == NULL || src_len <= DRM_MIN_DRM_INFO_LEN) {
         av_log(NULL, AV_LOG_ERROR, "algo not found");
         return -1;
     }
@@ -412,7 +412,7 @@ static void mpegts_avstream_set_drm_info(AVStream *avstream, AV_DrmInfo *info)
     AV_DrmInfo *new_side_data = NULL;
     size_t old_side_data_size = 0;
     uint32_t old_side_data_count = 0;
-    uint32_t pssh_exist_flag = 0;
+    int pssh_exist_flag = 0;
     ff_mutex_lock(&g_mpegts_drm_info_mutex);
     old_side_data = (AV_DrmInfo *)av_stream_get_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INIT_INFO,
         &old_side_data_size);
@@ -437,7 +437,7 @@ static void mpegts_avstream_set_drm_info(AVStream *avstream, AV_DrmInfo *info)
 static void mpegts_get_cenc_info(const uint8_t *src, uint32_t src_len, AV_DrmCencInfo *cenc_info)
 {
     uint32_t offset = 0;
-    if (src_len <= DRM_MIN_DRM_INFO_LEN) {
+    if (src == NULL || src_len <= DRM_MIN_DRM_INFO_LEN) {
         av_log(NULL, AV_LOG_ERROR, "algo not found");
         return;
     }
@@ -833,11 +833,11 @@ static int mpegts_drm_get_cenc_info(AVStream *avstream, enum AVCodecID codec_id,
 static void mpegts_packet_add_cenc_info(AVFormatContext *s, AVPacket *pkt)
 {
     AV_DrmCencInfo cenc_info;
-    if (pkt == NULL || pkt->data == NULL || pkt->size == 0) {
+    if (pkt == NULL || pkt->data == NULL || pkt->size <= 0 || pkt->stream_index < 0) {
         av_log(NULL, AV_LOG_ERROR, "pkt parameter err\n");
         return;
     }
-    if ((s == NULL) || (s->streams == NULL) || (pkt->stream_index >= s->nb_streams) ||
+    if ((s == NULL) || (s->streams == NULL) || ((uint32_t)(pkt->stream_index) >= s->nb_streams) ||
         (s->streams[pkt->stream_index] == NULL) || (s->streams[pkt->stream_index]->codecpar == NULL)) {
         av_log(NULL, AV_LOG_ERROR, "s parameter err\n");
         return;
@@ -851,7 +851,7 @@ static void mpegts_packet_add_cenc_info(AVFormatContext *s, AVPacket *pkt)
         return;
     }
 
-    cenc_info.sub_samples[0].clear_header_len = pkt->size;
+    cenc_info.sub_samples[0].clear_header_len = (uint32_t)(pkt->size);
     cenc_info.sub_samples[0].pay_load_len = 0;
     cenc_info.sub_sample_num = 1;
     cenc_info.algo = AV_DRM_ALG_CENC_UNENCRYPTED;
