@@ -351,7 +351,7 @@ static int iso8859_convert_utf8(char *input, size_t inputlen, char *output, size
     if (cd != (iconv_t)-1) {
         size_t ret = iconv(cd, &input, (size_t *)&inbuferlen, &output, (size_t *)&outbuferlen);
         if (ret != -1) {
-            resultLen = (int)(outputlen - outbuferlen);;
+            resultLen = (int)(outputlen - outbuferlen);
         }
         iconv_close(cd);
     }
