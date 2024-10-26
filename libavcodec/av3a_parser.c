@@ -208,7 +208,7 @@ static const CodecBitrateConfig codecBitrateConfigTable[CHANNEL_CONFIG_UNKNOWN] 
 static int read_av3a_frame_header(AVS3AHeaderInfo *hdf, const uint8_t *buf, const int32_t byte_size)
 {
     GetBitContext gb;
-    AVS3AChannelConfig channel_config;
+    AVS3AChannelConfig channel_config = CHANNEL_CONFIG_MONO;
 
     uint8_t content_type = 0;
     uint8_t hoa_order = 0;
@@ -458,6 +458,7 @@ static int32_t raw_av3a_parse(AVCodecParserContext *s, AVCodecContext *avctx, co
 {
     uint8_t header[MAX_NBYTES_FRAME_HEADER];
     AVS3AHeaderInfo hdf;
+    hdf.channel_layout = AV_CH_LAYOUT_MONO;
 
     if (buf_size < MAX_NBYTES_FRAME_HEADER) {
         return buf_size;
