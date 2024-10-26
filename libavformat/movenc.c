@@ -2233,7 +2233,7 @@ static CuvaConfig mov_get_cuva_from_metadata(AVFormatContext *s, MOVMuxContext *
         av_log(mov->fc, AV_LOG_WARNING, "Not cuva info. The track is not in the mov!\n");
         return cuva;
     }
-    AVStream *st = i < s->nb_streams ? s->streams[i] : NULL;
+    AVStream *st = i < (int)s->nb_streams ? s->streams[i] : NULL;
     if (st && st->metadata) {
         AVDictionaryEntry *rot = av_dict_get(st->metadata, "hdr_type", NULL, 0);
         if (rot && rot->value && strcmp(rot->value, "hdr_vivid") == 0) {
@@ -4046,7 +4046,7 @@ static int mov_write_string_data_tag(AVIOContext *pb, const char *data, int lang
 #ifdef OHOS_MOOV_LEVEL_META
 static int mov_write_moov_level_meta_data_tag(AVIOContext *pb, const char *data)
 {
-    size_t data_len = strlen(data);
+    int data_len = (int)strlen(data);
     int size = 0;
     if (data_len >= 8) {
         if (strncmp(data, "00000001", 8) == 0) {
@@ -6733,7 +6733,7 @@ int ff_mov_write_packet(AVFormatContext *s, AVPacket *pkt)
     }
 
 #ifdef OHOS_SDTP_BOX_EXT
-    if (pkt->flags & AV_PKT_FLAG_DISPOSABLE_EXT) {
+    if ((unsigned int)pkt->flags & AV_PKT_FLAG_DISPOSABLE_EXT) {
         trk->cluster[trk->entry].flags |= MOV_DISPOSABLE_EXT_SAMPLE;
         trk->has_disposable++;
     }
@@ -7152,11 +7152,11 @@ static int mov_create_timed_metadata_track(AVFormatContext *s, int index, int sr
     if (src_index >= 0) {
         MOVTrack *src_track     = &mov->tracks[src_index];
         track->tag       = track_tag;
-        track->tref_tag  = track_tag;
+        track->tref_tag  = (unsigned int)track_tag;
         track->src_track = src_index;
         track->timescale = mov->tracks[src_index].timescale;
         int new_track_count = track->ref_track_count + 1;
-        ret = av_reallocp_array(&track->tref_ids, new_track_count, sizeof(track->tref_ids));
+        ret = av_reallocp_array(&track->tref_ids, new_track_count, sizeof(int)); // track->tref_ids为int数组
         if (ret < 0)
             return ret;
         track->ref_track_count = new_track_count;
@@ -7171,7 +7171,7 @@ static int mov_create_timed_metadata_track(AVFormatContext *s, int index, int sr
         return AVERROR(ENOMEM);
     track->par->codec_type = AVMEDIA_TYPE_TIMEDMETA;
     track->par->codec_id = AV_CODEC_ID_FFMETADATA;
-    track->par->codec_tag  = track_tag;
+    track->par->codec_tag  = (unsigned int)track_tag;
     track->st->avg_frame_rate = av_inv_q(rate);
     return 0;
 }
@@ -7525,8 +7525,8 @@ static int mov_init(AVFormatContext *s)
     }
 
 #ifdef OHOS_TIMED_META_TRACK
-    if (mov->flags & FF_MOV_FLAG_TIMED_METADATA) {
-        for (i = 0; i < s->nb_streams; i++) {
+    if ((unsigned int)mov->flags & FF_MOV_FLAG_TIMED_METADATA) {
+        for (i = 0; i < (int)s->nb_streams; i++) {
             AVStream *st = s->streams[i];
             if (st->codecpar->codec_type == AVMEDIA_TYPE_TIMEDMETA)
                 mov->nb_timed_metadata_track++;
@@ -7732,7 +7732,7 @@ static int mov_init(AVFormatContext *s)
             track->timescale = st->time_base.den;
 #ifdef OHOS_TIMED_META_TRACK
         } else if (st->codecpar->codec_type == AVMEDIA_TYPE_TIMEDMETA) {
-            track->timescale = st->time_base.den;
+            track->timescale = (unsigned int)st->time_base.den;
 #endif
         } else {
             track->timescale = mov->movie_timescale;
@@ -7903,7 +7903,7 @@ static int mov_write_header(AVFormatContext *s)
         }
     }
 #ifdef OHOS_TIMED_META_TRACK
-    if (mov->flags & FF_MOV_FLAG_TIMED_METADATA) {
+    if ((unsigned int)mov->flags & FF_MOV_FLAG_TIMED_METADATA) {
         for (i = 0; i < s->nb_streams; i++) {
             AVStream *st = s->streams[i];
             if (st->codecpar->codec_type == AVMEDIA_TYPE_TIMEDMETA) {
@@ -7914,7 +7914,7 @@ static int mov_write_header(AVFormatContext *s)
                 int track_id = 0;
                 const int base = 10;
                 const char start = '0';
-                for (int j = 0; j < id_len; j++)
+                for (int j = 0; j < (int)id_len; j++)
                     track_id = track_id * base + t->value[j] - start;
                 if ((ret = mov_create_timed_metadata_track(s, i, track_id)) < 0)
                     return ret;
