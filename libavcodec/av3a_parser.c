@@ -255,6 +255,9 @@ static int read_av3a_frame_header(AVS3AHeaderInfo *hdf, const uint8_t *buf, cons
 
     // 4 bits for sampling index
     uint8_t samping_rate_index = get_bits(&gb, 4);
+    if (samping_rate_index >= AVS3_SIZE_FS_TABLE) {
+        return AVERROR_INVALIDDATA;
+    }
 
     // skip 8 bits for CRC first part
     skip_bits(&gb, 8);
@@ -264,6 +267,9 @@ static int read_av3a_frame_header(AVS3AHeaderInfo *hdf, const uint8_t *buf, cons
 
         // 7 bits for mono/stereo/MC
         num_chan_index = get_bits(&gb, 7);
+        if (num_chan_index >= CHANNEL_CONFIG_UNKNOWN) {
+            return AVERROR_INVALIDDATA;
+        }
 
         channel_config = (AVS3AChannelConfig)num_chan_index;
         switch (channel_config) {
@@ -327,6 +333,9 @@ static int read_av3a_frame_header(AVS3AHeaderInfo *hdf, const uint8_t *buf, cons
             // for MC + objs
             // channel number index, 7 bits
             num_chan_index = get_bits(&gb, 7);
+            if (num_chan_index >= CHANNEL_CONFIG_UNKNOWN) {
+                return AVERROR_INVALIDDATA;
+            }
 
             // bitrate index for sound bed, 4 bits
             bed_brt_idx = get_bits(&gb, 4);
