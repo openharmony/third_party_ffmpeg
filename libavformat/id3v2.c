@@ -293,6 +293,7 @@ static int decode_str(AVFormatContext *s, AVIOContext *pb, int encoding,
             av_log(s, AV_LOG_ERROR, "Notstandard BOM value\n");
             left += 2;
             get = avio_rl16;
+            break;
         }
 #else
         switch (avio_rb16(pb)) {
@@ -350,7 +351,7 @@ static int iso8859_convert_utf8(char *input, size_t inputlen, char *output, size
     if (cd != (iconv_t)-1) {
         size_t ret = iconv(cd, &input, (size_t *)&inbuferlen, &output, (size_t *)&outbuferlen);
         if (ret != -1) {
-            resultLen = outputlen - outbuferlen;
+            resultLen = (int)(outputlen - outbuferlen);
         }
         iconv_close(cd);
     }
