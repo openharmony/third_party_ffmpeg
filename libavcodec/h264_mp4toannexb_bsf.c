@@ -182,7 +182,7 @@ static void h264_mp4toannexb_modify_encryption_info(AVPacket *pkt, uint64_t new_
         return;
     }
     side_data = (AV_DrmCencInfo *)av_packet_get_side_data(pkt, AV_PKT_DATA_ENCRYPTION_INFO, &side_data_size);
-    if ((side_data != NULL) && (side_data_size != 0)) {
+    if ((side_data != NULL) && (side_data_size != 0) && (side_data->sub_sample_num <= AV_DRM_MAX_SUB_SAMPLE_NUM)) {
         uint64_t total_size = 0;
         for (uint32_t i = 0; i < side_data->sub_sample_num; i++) {
             total_size +=
