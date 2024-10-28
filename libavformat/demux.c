@@ -1978,7 +1978,7 @@ static int has_codec_parameters(const AVStream *st, const char **errmsg_ptr)
         if (!avctx->width)
 #ifdef OHOS_OPTIMIZE_DELAY
         if (!(st->codecpar->codec_id == AV_CODEC_ID_HEVC) &&
-            !(st->disposition & AV_DISPOSITION_ATTACHED_PIC))
+            !((unsigned int)st->disposition & AV_DISPOSITION_ATTACHED_PIC))
 #endif
             FAIL("unspecified size");
         if (sti->info->found_decoder >= 0 && avctx->pix_fmt == AV_PIX_FMT_NONE)
