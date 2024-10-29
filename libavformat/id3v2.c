@@ -401,6 +401,9 @@ static void read_ttag(AVFormatContext *s, AVIOContext *pb, int taglen,
         if (encoding == ID3v2_ENCODING_ISO8859) {
             const int utf8len = 256;
             char *utf8 = av_malloc(utf8len + 1);
+            if (utf8 == NULL) {
+                return;
+            }
             utf8[utf8len] = '\0';
             int resultLen = iso8859_convert_utf8(dst, strlen(dst), utf8, utf8len);
             if (resultLen >= 0) {
