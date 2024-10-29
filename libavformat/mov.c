@@ -2494,7 +2494,7 @@ static int mov_read_cdsc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     if (c->fc->nb_streams < 1)
         return 0;
     st = c->fc->streams[c->fc->nb_streams - 1];
-    unsigned int src_track_id = avio_rb32(pb);
+    int src_track_id = (int)avio_rb32(pb);
     char* metaKeyStr;
     metaKeyStr = av_d2str(src_track_id - 1);
     if (!metaKeyStr)
