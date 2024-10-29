@@ -669,7 +669,7 @@ static int mpegts_drm_get_iv(uint8_t *data, uint32_t data_size, uint32_t *pos, A
     }
     uint32_t iv_len = (uint32_t)(data[offset]);
     offset += 1; // 1 skip iv len
-    if (offset + iv_len > data_size) {
+    if ((offset + iv_len > data_size) || (iv_len > AV_DRM_IV_SIZE)) {
         av_log(NULL, AV_LOG_ERROR, "cei data too short\n");
         return -1;
     } else {
