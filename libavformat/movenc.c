@@ -4970,12 +4970,15 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
         if (mov->tracks[i].entry > 0 || mov->flags & FF_MOV_FLAG_FRAGMENT ||
             mov->mode == MODE_AVIF) {
             int ret = mov_write_trak_tag(s, pb, mov, &(mov->tracks[i]), i < s->nb_streams ? s->streams[i] : NULL);
-            if (ret >= 0) {
+#ifdef DOHOS_MUXER_STOP_LOG
+            if (ret >= 0)
                 av_log(NULL, AV_LOG_INFO, "Wrote track %d successfully.\n", i);
-            } else {
+#endif  
+            if (ret < 0)
+#ifdef DOHOS_MUXER_STOP_LOG
                 av_log(NULL, AV_LOG_ERROR, "Failed to write track %d.\n", i);
-                return ret;
-            }
+#endif
+                return ret;          
         }
     }
     if (mov->flags & FF_MOV_FLAG_FRAGMENT)
@@ -8149,12 +8152,13 @@ static int mov_write_trailer(AVFormatContext *s)
                 return res;
         }
     }
-
+#ifdef DOHOS_MUXER_STOP_LOG
     if (res == 0) {
         av_log(s, AV_LOG_INFO, "Trailer written successfully.\n");
     } else {
         av_log(s, AV_LOG_ERROR, "Error writing trailer: %d\n", res);
     }
+#endif
 
     return res;
 }
