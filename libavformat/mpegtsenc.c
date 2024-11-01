@@ -433,6 +433,9 @@ static int get_dvb_stream_type(AVFormatContext *s, AVStream *st)
             stream_type = STREAM_TYPE_PRIVATE_DATA;
         }
         break;
+    case AV_CODEC_ID_AVS3DA:
+        stream_type = STREAM_TYPE_AUDIO_AV3A;
+        break;
     default:
         av_log_once(s, AV_LOG_WARNING, AV_LOG_DEBUG, &ts_st->data_st_warning,
                     "Stream %d, codec %s, is muxed as a private data stream "
@@ -441,6 +444,7 @@ static int get_dvb_stream_type(AVFormatContext *s, AVStream *st)
         stream_type = STREAM_TYPE_PRIVATE_DATA;
         break;
     }
+    
 
     return stream_type;
 }

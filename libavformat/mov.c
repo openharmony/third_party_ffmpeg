@@ -64,6 +64,7 @@
 #include "id3v1.h"
 #include "mov_chan.h"
 #include "replaygain.h"
+#include "libavcodec/av3a.h"
 
 #if CONFIG_ZLIB
 #include <zlib.h>
@@ -7922,6 +7923,123 @@ static int mov_read_gnre(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 }
 #endif
 
+static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+{
+    int ret = 0;
+    int i = 0;
+    AVStream *st = NULL;
+    GetBitContext gb;
+    uint8_t buffer[7];
+    uint8_t audio_codec_id, sampling_frequency_index;
+    uint8_t nn_type, content_type, channel_number_index, number_objects;
+    uint8_t hoa_order, resolution_index, reserved;
+    int32_t bitrate_kbps;
+    int16_t nb_channels, nb_objects;
+
+    nb_channels = 0;
+    nb_objects  = 0;
+
+    if (atom.size < 5) {
+        av_log(c->fc, AV_LOG_INFO, "Invalid dca3 box size %ld\n", atom.size);
+        return 0;
+    }
+
+    init_get_bits8(&gb, buffer, sizeof(buffer));
+
+    if (c->fc->nb_streams < 1) {
+        return 0;
+    }
+    st = c->fc->streams[c->fc->nb_streams - 1];
+
+    ret = avio_read(pb, buffer, sizeof(buffer));
+    if (ret < 0){
+        return ret;
+    }
+
+    audio_codec_id = get_bits(&gb, 4);
+    if (audio_codec_id != 2) {
+        av_log(c->fc, AV_LOG_INFO, "Invalid dca3 box size %ld\n", atom.size);
+        return AVERROR_INVALIDDATA;
+    }
+
+    st->codecpar->frame_size = AV3A_AUDIO_FRAME_SIZE;
+    sampling_frequency_index = get_bits(&gb, 4);
+    if (sampling_frequency_index >= AV3A_SIZE_FS_TABLE) {
+        return AVERROR_INVALIDDATA;
+    }
+    st->codecpar->sample_rate = ff_av3a_sampling_rate_table[sampling_frequency_index];
+
+    nn_type      = get_bits(&gb, 3);
+    reserved     = get_bits(&gb, 1);
+    content_type = get_bits(&gb, 4);
+
+    if (content_type == 0) {
+        channel_number_index = get_bits(&gb, 7);
+        reserved             = get_bits(&gb, 1);
+        if (channel_number_index >= CHANNEL_CONFIG_UNKNOWN) {
+            return AVERROR_INVALIDDATA;
+        }
+        nb_channels = ff_av3a_channels_map_table[channel_number_index].channels;
+    } else if (content_type == 1) {
+        number_objects = get_bits(&gb, 7);
+        reserved       = get_bits(&gb, 1);
+        nb_objects     = number_objects;
+    } else if (content_type == 2) {
+        channel_number_index = get_bits(&gb, 7);
+        reserved             = get_bits(&gb, 1);
+        number_objects = get_bits(&gb, 7);
+        reserved       = get_bits(&gb, 1);
+        
+        if (channel_number_index >= CHANNEL_CONFIG_UNKNOWN) {
+            return AVERROR_INVALIDDATA;
+        }
+        nb_channels = ff_av3a_channels_map_table[channel_number_index].channels;
+        nb_objects  = number_objects;
+    } else if (content_type == 3) {
+        hoa_order = get_bits(&gb , 4);
+        if (hoa_order > 3) {
+            return AVERROR_INVALIDDATA;
+        }
+        nb_channels = (hoa_order + 1) * (hoa_order + 1);
+    } else {
+        av_log(c->fc, AV_LOG_INFO, "Invalid content_type value %ld\n", content_type);
+        return AVERROR_INVALIDDATA;
+    }
+
+    bitrate_kbps = get_bits(&gb, 16);
+    st->codecpar->bit_rate = bitrate_kbps * 1000;
+
+    resolution_index = get_bits(&gb, 2);
+    if (resolution_index >= AV3A_SIZE_RESOLUTION_TABLE) {
+        return AVERROR_INVALIDDATA;
+    }
+    st->codecpar->format = ff_av3a_sample_format_map_table[resolution_index].sample_format;
+    st->codecpar->bits_per_raw_sample = ff_av3a_sample_format_map_table[resolution_index].resolution;
+
+    av_channel_layout_uninit(&st->codecpar->channel_layout);
+    if (content_type != 3) {
+        st->codecpar->ch_layout.order       = AV_CHANNEL_ORDER_CUSTOM;
+        st->codecpar->ch_layout.nb_channels = (nb_channels + nb_objects);
+        st->codecpar->ch_layout.u.map       = av_calloc(st->codecpar->ch_layout.nb_channels, 
+            sizeof(*st->codecpar->ch_layout.u.map));
+        
+        if (content_type != 1) {
+            for(i = 0; i < nb_channels; i ++) {
+                st->codecpar->ch_layout.u.map[i].id = ff_av3a_channels_map_table[channel_number_index].channel_layout[i];
+            }
+        }
+
+        for (i = nb_channels; i < st->codecpar->ch_layout.nb_channels; i++) {
+             st->codecpar->ch_layout.u.map[i].id = AV3A_CH_AUDIO_OBJECT;
+        }
+    } else {
+        st->codecpar->ch_layout.order       = AV_CHANNEL_ORDER_AMBISONIC;
+        st->codecpar->ch_layout.nb_channels = nb_channels;
+    }
+
+    return 0;
+}
+
 static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('A','C','L','R'), mov_read_aclr },
 { MKTAG('A','P','R','G'), mov_read_avid },
@@ -8037,6 +8155,7 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 #ifdef OHOS_TIMED_META_TRACK
 { MKTAG('c','d','s','c'), mov_read_cdsc },
 #endif
+{ MKTAG('d','c','a','3'), mov_read_dca3 },
 { 0, NULL }
 };
 

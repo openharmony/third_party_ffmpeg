@@ -899,6 +899,78 @@ static int mov_write_dmlp_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
     return update_size(pb, pos);
 }
 
+static int mov_write_dca3_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *track)
+{
+    int64_t pos = avio_tell(pb);
+    uint8_t buffer[7];
+    PutBitContext pb_dca3;
+    int16_t audio_codec_id, sampling_frequency_index, nn_type, content_type;
+    int16_t channel_number_index, number_objects, hoa_order, resolution_index;
+    int32_t bitrate_kbps;
+
+    if (track->par->extradata_size < 10) {
+        av_log(s, AV_LOG_WARNING, "Can not write dca3 box\n");
+        return 0;
+    }
+
+    avio_wb32(pb, 0);         /* Size */
+    ffio_wfourcc(pb, "dca3"); /* Type */
+
+    init_put_bits(&pb_dca3, buffer, 7);
+
+    audio_codec_id           = AV_RB8(track->par->extradata  + 0);
+    sampling_frequency_index = AV_RB8(track->par->extradata  + 1);
+    nn_type                  = AV_RB8(track->par->extradata  + 2);
+    content_type             = AV_RB8(track->par->extradata  + 3);
+    channel_number_index     = AV_RB8(track->par->extradata  + 4);
+    number_objects           = AV_RB8(track->par->extradata  + 5);
+    hoa_order                = AV_RB8(track->par->extradata  + 6);
+    resolution_index         = AV_RB8(track->par->extradata  + 7);
+    bitrate_kbps             = AV_RB16(track->par->extradata + 8);
+
+    if (audio_codec_id != 2) {
+        av_log(s, AV_LOG_ERROR, "Not support audio codec id %d\n", audio_codec_id);
+        return AVERROR_INVALIDDATA;
+    }
+    put_bits(&pb_dca3, 4, audio_codec_id);
+    put_bits(&pb_dca3, 4, sampling_frequency_index);
+    
+    put_bits(&pb_dca3, 3, nn_type);
+    put_bits(&pb_dca3, 1, 0); /* reserved */
+    put_bits(&pb_dca3, 4, content_type);
+
+    if (content_type == 0) {
+        put_bits(&pb_dca3, 7, channel_number_index);
+        put_bits(&pb_dca3, 1, 0); /* reserved */
+    } else if (content_type == 1){
+        put_bits(&pb_dca3, 7, number_objects);
+        put_bits(&pb_dca3, 1, 0); /* reserved */
+    } else if (content_type == 2){
+        put_bits(&pb_dca3, 7, channel_number_index);
+        put_bits(&pb_dca3, 1, 0); /* reserved */
+        put_bits(&pb_dca3, 7, number_objects);
+        put_bits(&pb_dca3, 1, 0); /* reserved */
+    } else if (content_type == 3) {
+        put_bits(&pb_dca3, 4, hoa_order);
+    } else {
+        return AVERROR_INVALIDDATA;
+    }
+
+    put_bits(&pb_dca3, 16, bitrate_kbps);
+    put_bits(&pb_dca3, 2, resolution_index);
+
+    if (content_type == 3) {
+        put_bits(&pb_dca3, 2, 0); /* reserved */
+    } else {
+        put_bits(&pb_dca3, 6, 0); /* reserved */
+    }
+
+    flush_put_bits(&pb_dca3);
+    avio_write(pb, buffer, sizeof(buffer));
+
+    return update_size(pb, pos);
+}
+
 static int mov_write_chan_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *track)
 {
     uint32_t layout_tag, bitmap, *channel_desc;
@@ -1258,7 +1330,8 @@ static int mov_write_audio_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContex
         } else { /* reserved for mp4/3gp */
             if (track->par->codec_id == AV_CODEC_ID_FLAC ||
                 track->par->codec_id == AV_CODEC_ID_ALAC ||
-                track->par->codec_id == AV_CODEC_ID_OPUS) {
+                track->par->codec_id == AV_CODEC_ID_OPUS ||
+                track->par->codec_id == AV_CODEC_ID_AVS3DA) {
                 avio_wb16(pb, track->par->ch_layout.nb_channels);
             } else {
                 avio_wb16(pb, 2);
@@ -1326,6 +1399,8 @@ static int mov_write_audio_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContex
         ret = mov_write_dops_tag(s, pb, track);
     else if (track->par->codec_id == AV_CODEC_ID_TRUEHD)
         ret = mov_write_dmlp_tag(s, pb, track);
+    else if (track->par->codec_id == AV_CODEC_ID_AVS3DA)
+        ret = mov_write_dca3_tag(s, pb, track);
     else if (track->vos_len > 0)
         ret = mov_write_glbl_tag(pb, track);
 
@@ -8277,6 +8352,7 @@ static const AVCodecTag codec_mp4_tags[] = {
 #ifdef OHOS_TIMED_META_TRACK
     { AV_CODEC_ID_FFMETADATA,      MKTAG('c', 'd', 's', 'c') },
 #endif
+    { AV_CODEC_ID_AVS3DA,          MKTAG('a', 'v', '3', 'a') },
     { AV_CODEC_ID_NONE,               0 },
 };
 #if CONFIG_MP4_MUXER || CONFIG_PSP_MUXER

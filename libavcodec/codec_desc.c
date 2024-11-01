@@ -3242,8 +3242,8 @@ static const AVCodecDescriptor codec_descriptors[] = {
     {
         .id        = AV_CODEC_ID_AVS3DA,
         .type      = AVMEDIA_TYPE_AUDIO,
-        .name      = "avs_3da",
-        .long_name = NULL_IF_CONFIG_SMALL("AVS3 Audio"),
+        .name      = "av3a",
+        .long_name = NULL_IF_CONFIG_SMALL("Audio Vivid"),
         .props     = AV_CODEC_PROP_LOSSY,
     },
     {

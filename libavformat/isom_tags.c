@@ -339,7 +339,7 @@ const AVCodecTag ff_codec_movaudio_tags[] = {
     { AV_CODEC_ID_TRUEHD,          MKTAG('m', 'l', 'p', 'a') }, /* mp4ra.org */
     { AV_CODEC_ID_OPUS,            MKTAG('O', 'p', 'u', 's') }, /* mp4ra.org */
     { AV_CODEC_ID_MPEGH_3D_AUDIO,  MKTAG('m', 'h', 'm', '1') }, /* MPEG-H 3D Audio bitstream */
-    { AV_CODEC_ID_AVS3DA,          MKTAG('a', 'v', '3', 'a') }, /* AVS3 Audio */
+    { AV_CODEC_ID_AVS3DA,          MKTAG('a', 'v', '3', 'a') },
     { AV_CODEC_ID_NONE, 0 },
 };
 
