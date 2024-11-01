@@ -147,7 +147,6 @@ config("ffmpeg_config") {
     "-DOHOS_SUBTITLE_DEMUXER",
     "-DOHOS_EXPAND_MP4_INFO",
     "-DOHOS_OPTIMIZE_DELAY",
-    "-DOHOS_MUXER_STOP_LOG",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]

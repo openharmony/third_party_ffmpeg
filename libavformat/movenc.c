@@ -4971,12 +4971,12 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
             mov->mode == MODE_AVIF) {
             int ret = mov_write_trak_tag(s, pb, mov, &(mov->tracks[i]), i < s->nb_streams ? s->streams[i] : NULL); 
             if (ret < 0) {
-#ifdef DOHOS_MUXER_STOP_LOG
+#ifdef OHOS_OPT_COMPAT
                 av_log(NULL, AV_LOG_ERROR, "Failed to write track %d.\n", i);
 #endif
                 return ret;
             }
-#ifdef DOHOS_MUXER_STOP_LOG
+#ifdef OHOS_OPT_COMPAT
             av_log(NULL, AV_LOG_INFO, "Wrote track %d successfully.\n", i);
 #endif           
         }
@@ -8152,7 +8152,7 @@ static int mov_write_trailer(AVFormatContext *s)
                 return res;
         }
     }
-#ifdef DOHOS_MUXER_STOP_LOG
+#ifdef OHOS_OPT_COMPAT
     if (res == 0) {
         av_log(s, AV_LOG_INFO, "Trailer written successfully.\n");
     } else {
