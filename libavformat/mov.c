@@ -7965,7 +7965,11 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     }
     st->codecpar->sample_rate = ff_av3a_sampling_rate_table[sampling_frequency_index];
 
-    nn_type      = get_bits(&gb, 3);
+    nn_type = get_bits(&gb, 3);
+    if ((nn_type > AV3A_LC_NN_TYPE) || (nn_type < AV3A_BASELINE_NN_TYPE)) {
+        return AVERROR_INVALIDDATA;
+    }
+
     reserved     = get_bits(&gb, 1);
     content_type = get_bits(&gb, 4);
 

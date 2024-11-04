@@ -63,7 +63,11 @@ static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
 
     skip_bits(gb, 1); /* skip anc_data 1 bit */
 
-    hdf->nn_type        = get_bits(gb, 3);
+    hdf->nn_type = get_bits(gb, 3);
+    if ((hdf->nn_type > AV3A_LC_NN_TYPE) || (hdf->nn_type < AV3A_BASELINE_NN_TYPE)) {
+        return AVERROR_INVALIDDATA;
+    }
+
     hdf->coding_profile = get_bits(gb, 3);
 
     hdf->sampling_frequency_index = get_bits(gb, 4);
@@ -74,7 +78,7 @@ static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
 
     skip_bits(gb, 8); /* skip CRC 8 bits */
 
-    if (hdf->coding_profile == 0) {
+    if (hdf->coding_profile == AV3A_BASE_PROFILE) {
         hdf->content_type         = AV3A_CHANNEL_BASED_TYPE;
         hdf->channel_number_index = get_bits(gb, 7);
         if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) || 
@@ -84,7 +88,7 @@ static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
                 return AVERROR_INVALIDDATA;
         }
         hdf->nb_channels = ff_av3a_channels_map_table[hdf->channel_number_index].channels;
-    } else if (hdf->coding_profile == 1) {
+    } else if (hdf->coding_profile == AV3A_OBJECT_METADATA_PROFILE) {
         hdf->soundbed_type = get_bits(gb, 2);
         if (hdf->soundbed_type == 0) {
             hdf->content_type          = AV3A_OBJECT_BASED_TYPE;
@@ -131,7 +135,7 @@ static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
         } else {
             return AVERROR_INVALIDDATA;
         }
-    } else if (hdf->coding_profile == 2) {
+    } else if (hdf->coding_profile == AV3A_AMBISONIC_PROFILE) {
         hdf->content_type = AV3A_AMBISONIC_TYPE;
         hdf->order        = get_bits(gb, 4);
         hdf->hoa_order    += 1;
@@ -162,7 +166,7 @@ static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
     hdf->resolution    = ff_av3a_sample_format_map_table[hdf->resolution_index].resolution;
     hdf->sample_format = ff_av3a_sample_format_map_table[hdf->resolution_index].sample_format;
     
-    if (hdf->coding_profile != 1) {
+    if (hdf->coding_profile != AV3A_OBJECT_METADATA_PROFILE) {
         hdf->bitrate_index = get_bits(gb, 4);
         if ((hdf->bitrate_index >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index < 0)) {
             return AVERROR_INVALIDDATA;

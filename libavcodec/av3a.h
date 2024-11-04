@@ -62,6 +62,19 @@ typedef enum {
     AV3A_AMBISONIC_TYPE       = 3    
 } Av3aContentType;
 
+/* Internal Coding Profile */
+typedef enum {
+    AV3A_BASE_PROFILE             = 0,
+    AV3A_OBJECT_METADATA_PROFILE  = 1,
+    AV3A_AMBISONIC_PROFILE        = 2
+} Av3aCodingProfile;
+
+/* NN Type */
+typedef enum {
+    AV3A_BASELINE_NN_TYPE = 0,
+    AV3A_LC_NN_TYPE       = 1
+} Av3aNeuralNetworkType;
+
 /* AV3A Channel Configuration */
 typedef enum {
     CHANNEL_CONFIG_MONO       = 0,  /* Mono    = 0  */

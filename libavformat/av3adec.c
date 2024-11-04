@@ -72,7 +72,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
 
     /* neural network type */
     hdf->nn_type = get_bits(&gb, 3);
-    if ((hdf->nn_type < 0) || (hdf->nn_type > 2)) {
+    if ((hdf->nn_type > AV3A_LC_NN_TYPE) || (hdf->nn_type < AV3A_BASELINE_NN_TYPE)) {
         return AVERROR_INVALIDDATA;
     }
 
@@ -88,7 +88,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
 
     skip_bits(&gb, 8);
 
-    if (hdf->coding_profile == 0) {
+    if (hdf->coding_profile == AV3A_BASE_PROFILE) {
         hdf->content_type         = AV3A_CHANNEL_BASED_TYPE;
         hdf->channel_number_index = get_bits(&gb, 7);
         if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) || 
@@ -98,7 +98,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
             return AVERROR_INVALIDDATA;
         }
         hdf->nb_channels = ff_av3a_channels_map_table[hdf->channel_number_index].channels;
-    } else if (hdf->coding_profile == 1) {
+    } else if (hdf->coding_profile == AV3A_OBJECT_METADATA_PROFILE) {
         hdf->soundbed_type = get_bits(&gb, 2);
         if (hdf->soundbed_type == 0) {
             hdf->content_type              = AV3A_OBJECT_BASED_TYPE;  
@@ -142,7 +142,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
         } else {
             return AVERROR_INVALIDDATA;
         }
-    } else if (hdf->coding_profile == 2) {
+    } else if (hdf->coding_profile == AV3A_AMBISONIC_PROFILE) {
         hdf->content_type = AV3A_AMBISONIC_TYPE;
         hdf->order        = get_bits(&gb, 4);
         hdf->hoa_order    = hdf->order + 1;
@@ -175,7 +175,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
     hdf->resolution    = ff_av3a_sample_format_map_table[hdf->resolution_index].resolution;
     hdf->sample_format = ff_av3a_sample_format_map_table[hdf->resolution_index].sample_format;
 
-    if (hdf->coding_profile != 1) {
+    if (hdf->coding_profile != AV3A_OBJECT_METADATA_PROFILE) {
         hdf->bitrate_index  = get_bits(&gb, 4);
         if ((hdf->bitrate_index >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index < 0)){
                 return AVERROR_INVALIDDATA;
@@ -229,7 +229,7 @@ static int av3a_get_packet_size(AVFormatContext *s)
 
     skip_bits(&gb, 8);
 
-    if (coding_profile == 0) {
+    if (coding_profile == AV3A_BASE_PROFILE) {
         channel_number_index = get_bits(&gb, 7);
         if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) || 
             (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
@@ -237,7 +237,7 @@ static int av3a_get_packet_size(AVFormatContext *s)
             (channel_number_index < 0)) {
                 return AVERROR_INVALIDDATA;
         }
-    } else if (coding_profile == 1) {
+    } else if (coding_profile == AV3A_OBJECT_METADATA_PROFILE) {
         int64_t soundbed_bitrate, objects_bitrate;
         int16_t soundbed_type = get_bits(&gb, 2);
         if (soundbed_type == 0) {
@@ -282,7 +282,7 @@ static int av3a_get_packet_size(AVFormatContext *s)
         } else {
             return AVERROR_INVALIDDATA;
         }
-    } else if (coding_profile == 2) {
+    } else if (coding_profile == AV3A_AMBISONIC_PROFILE) {
         hoa_order = get_bits(&gb, 4);
         hoa_order += 1;
 
@@ -304,7 +304,7 @@ static int av3a_get_packet_size(AVFormatContext *s)
     }
 
     skip_bits(&gb, 2);
-    if (coding_profile != 1) {
+    if (coding_profile != AV3A_OBJECT_METADATA_PROFILE) {
         bitrate_index = get_bits(&gb, 4);
         if ((bitrate_index >= AV3A_BITRATE_TABLE_SIZE) || (bitrate_index < 0)) {
             return AVERROR_INVALIDDATA;
