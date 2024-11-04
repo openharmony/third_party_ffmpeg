@@ -67,6 +67,7 @@
 #include "ttmlenc.h"
 #include "version.h"
 #include "vpcc.h"
+#include "libavcodec/av3a.h"
 
 static const AVOption options[] = {
     { "movflags", "MOV muxer flags", offsetof(MOVMuxContext, flags), AV_OPT_TYPE_FLAGS, {.i64 = 0}, INT_MIN, INT_MAX, AV_OPT_FLAG_ENCODING_PARAM, "movflags" },
@@ -904,12 +905,11 @@ static int mov_write_dca3_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
     int64_t pos = avio_tell(pb);
     uint8_t buffer[7];
     PutBitContext pb_dca3;
-    int16_t audio_codec_id, sampling_frequency_index, nn_type, content_type;
-    int16_t channel_number_index, number_objects, hoa_order, resolution_index;
-    int32_t bitrate_kbps;
+    int audio_codec_id, sampling_frequency_index, nn_type, content_type;
+    int channel_number_index, number_objects, hoa_order, resolution_index;
+    int bitrate_kbps;
 
     if (track->par->extradata_size < 10) {
-        av_log(s, AV_LOG_WARNING, "Can not write dca3 box\n");
         return 0;
     }
 
@@ -928,8 +928,7 @@ static int mov_write_dca3_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
     resolution_index         = AV_RB8(track->par->extradata  + 7);
     bitrate_kbps             = AV_RB16(track->par->extradata + 8);
 
-    if (audio_codec_id != 2) {
-        av_log(s, AV_LOG_ERROR, "Not support audio codec id %d\n", audio_codec_id);
+    if (audio_codec_id != AV3A_LOSSY_CODEC_ID) {
         return AVERROR_INVALIDDATA;
     }
     put_bits(&pb_dca3, 4, audio_codec_id);
@@ -939,18 +938,18 @@ static int mov_write_dca3_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
     put_bits(&pb_dca3, 1, 0); /* reserved */
     put_bits(&pb_dca3, 4, content_type);
 
-    if (content_type == 0) {
+    if (content_type == AV3A_CHANNEL_BASED_TYPE) {
         put_bits(&pb_dca3, 7, channel_number_index);
         put_bits(&pb_dca3, 1, 0); /* reserved */
-    } else if (content_type == 1){
+    } else if (content_type == AV3A_OBJECT_BASED_TYPE){
         put_bits(&pb_dca3, 7, number_objects);
         put_bits(&pb_dca3, 1, 0); /* reserved */
-    } else if (content_type == 2){
+    } else if (content_type == AV3A_CHANNEL_OBJECT_TYPE){
         put_bits(&pb_dca3, 7, channel_number_index);
         put_bits(&pb_dca3, 1, 0); /* reserved */
         put_bits(&pb_dca3, 7, number_objects);
         put_bits(&pb_dca3, 1, 0); /* reserved */
-    } else if (content_type == 3) {
+    } else if (content_type == AV3A_AMBISONIC_TYPE) {
         put_bits(&pb_dca3, 4, hoa_order);
     } else {
         return AVERROR_INVALIDDATA;
@@ -959,7 +958,7 @@ static int mov_write_dca3_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
     put_bits(&pb_dca3, 16, bitrate_kbps);
     put_bits(&pb_dca3, 2, resolution_index);
 
-    if (content_type == 3) {
+    if (content_type == AV3A_AMBISONIC_TYPE) {
         put_bits(&pb_dca3, 2, 0); /* reserved */
     } else {
         put_bits(&pb_dca3, 6, 0); /* reserved */

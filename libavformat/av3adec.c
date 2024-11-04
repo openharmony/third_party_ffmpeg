@@ -1,5 +1,5 @@
 /*
- * Audio Vivid Demuxer
+ * AV3A Demuxer
  *
  * This file is part of FFmpeg.
  *
@@ -58,26 +58,28 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
 
     /* codec id */
     hdf->audio_codec_id = get_bits(&gb, 4);
-    if (hdf->audio_codec_id != 2) {
+    if (hdf->audio_codec_id != AV3A_LOSSY_CODEC_ID) {
         return AVERROR_INVALIDDATA;
     }
 
     /* anc data */
     hdf->anc_data = get_bits(&gb, 1);
-    if (hdf->audio_codec_id == 2 && hdf->anc_data) {
+    if (hdf->anc_data) {
         return AVERROR_INVALIDDATA;
     }
 
+    /* neural network type */
     hdf->nn_type = get_bits(&gb, 3);
-    if (hdf->audio_codec_id == 2 && (hdf->nn_type != 0 && hdf->nn_type != 1)) {
+    if ((hdf->nn_type < 0) || (hdf->nn_type > 2)) {
         return AVERROR_INVALIDDATA;
     }
 
+    /* coding profile */
     hdf->coding_profile = get_bits(&gb, 3);
     
     /* sampling rate */
-    hdf->sampling_frequency_index  = get_bits(&gb, 4);
-    if (hdf->sampling_frequency_index >= AV3A_SIZE_FS_TABLE) {
+    hdf->sampling_frequency_index = get_bits(&gb, 4);
+    if ((hdf->sampling_frequency_index >= AV3A_FS_TABLE_SIZE) || (hdf->sampling_frequency_index < 0)) {
         return AVERROR_INVALIDDATA;
     }
     hdf->sampling_rate = ff_av3a_sampling_rate_table[hdf->sampling_frequency_index];
@@ -85,43 +87,51 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
     skip_bits(&gb, 8);
 
     if (hdf->coding_profile == 0) {
-        hdf->content_type         = 0;
+        hdf->content_type         = AV3A_CHANNEL_BASED_TYPE;
         hdf->channel_number_index = get_bits(&gb, 7);
         if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) || 
             (hdf->channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
-            (hdf->channel_number_index == CHANNEL_CONFIG_MC_22_2)) {
+            (hdf->channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
+            (hdf->channel_number_index < 0)) {
             return AVERROR_INVALIDDATA;
         }
         hdf->nb_channels = ff_av3a_channels_map_table[hdf->channel_number_index].channels;
     } else if (hdf->coding_profile == 1) {
-        hdf->soundBedType = get_bits(&gb, 2);
-        if (hdf->soundBedType == 0) {
-            hdf->content_type              = 1;  
+        hdf->soundbed_type = get_bits(&gb, 2);
+        if (hdf->soundbed_type == 0) {
+            hdf->content_type              = AV3A_OBJECT_BASED_TYPE;  
             hdf->object_channel_number     = get_bits(&gb, 7);
+            if (hdf->object_channel_number < 0) {
+                return AVERROR_INVALIDDATA;
+            }
             hdf->bitrate_index_per_channel = get_bits(&gb, 4);
-            if (hdf->bitrate_index_per_channel < 0){
+            if ((hdf->bitrate_index_per_channel >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index_per_channel < 0)){
                 return AVERROR_INVALIDDATA;
             }
             hdf->nb_objects    = hdf->object_channel_number + 1;
             hdf->total_bitrate = ff_av3a_bitrate_map_table[CHANNEL_CONFIG_MONO].bitrate_table[hdf->bitrate_index_per_channel] * hdf->nb_objects;
-        } else if (hdf->soundBedType == 1) {
-            hdf->content_type = 2;
+        } else if (hdf->soundbed_type == 1) {
+            hdf->content_type = AV3A_CHANNEL_OBJECT_TYPE;
             hdf->channel_number_index = get_bits(&gb, 7);
             if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) || 
                 (hdf->channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
-                (hdf->channel_number_index == CHANNEL_CONFIG_MC_22_2)) {
+                (hdf->channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
+                (hdf->channel_number_index < 0)) {
                 return AVERROR_INVALIDDATA;
             }
             hdf->nb_channels   = ff_av3a_channels_map_table[hdf->channel_number_index].channels;
             hdf->bitrate_index = get_bits(&gb, 4);
-            if (hdf->bitrate_index < 0) {
+            if ((hdf->bitrate_index >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index < 0)) {
                 return AVERROR_INVALIDDATA;
             }
             
-            hdf->object_channel_number     = get_bits(&gb, 7);
+            hdf->object_channel_number = get_bits(&gb, 7);
+            if (hdf->object_channel_number < 0) {
+                return AVERROR_INVALIDDATA;
+            }
             hdf->nb_objects                = hdf->object_channel_number + 1;
             hdf->bitrate_index_per_channel = get_bits(&gb, 4);
-            if (hdf->bitrate_index_per_channel < 0) {
+            if ((hdf->bitrate_index_per_channel >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index_per_channel < 0)) {
                 return AVERROR_INVALIDDATA;
             }
 
@@ -131,41 +141,44 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
             return AVERROR_INVALIDDATA;
         }
     } else if (hdf->coding_profile == 2) {
-        /* FOA/HOA */
-        hdf->content_type = 3;
+        hdf->content_type = AV3A_AMBISONIC_TYPE;
         hdf->order        = get_bits(&gb, 4);
         hdf->hoa_order    = hdf->order + 1;
-        hdf->nb_channels  = (hdf->hoa_order + 1) * (hdf->hoa_order + 1);
 
-        if (hdf->hoa_order == 1) {
+        switch (hdf->hoa_order) {
+        case AV3A_AMBISONIC_FIRST_ORDER:
             hdf->channel_number_index = CHANNEL_CONFIG_HOA_ORDER1;
-        } else if (hdf->hoa_order == 2) {
+            break;
+        case AV3A_AMBISONIC_SECOND_ORDER:
             hdf->channel_number_index = CHANNEL_CONFIG_HOA_ORDER2;
-        } else if (hdf->hoa_order == 3) {
+            break;
+        case AV3A_AMBISONIC_THIRD_ORDER:
             hdf->channel_number_index = CHANNEL_CONFIG_HOA_ORDER3;
-        } else {
+            break;
+        default:
             return AVERROR_INVALIDDATA;
         }
+        hdf->nb_channels = ff_av3a_channels_map_table[hdf->channel_number_index].channels;
     } else {
         return AVERROR_INVALIDDATA;
     }
 
     hdf->total_channels = hdf->nb_channels + hdf->nb_objects;
 
+    /* resolution */
     hdf->resolution_index = get_bits(&gb, 2);
-    if(hdf->resolution_index >= AV3A_SIZE_RESOLUTION_TABLE) {
+    if((hdf->resolution_index >= AV3A_RESOLUTION_TABLE_SIZE) || (hdf->resolution_index < 0)) {
         return AVERROR_INVALIDDATA;
     }
-
     hdf->resolution    = ff_av3a_sample_format_map_table[hdf->resolution_index].resolution;
     hdf->sample_format = ff_av3a_sample_format_map_table[hdf->resolution_index].sample_format;
 
     if (hdf->coding_profile != 1) {
         hdf->bitrate_index  = get_bits(&gb, 4);
-        if (hdf->bitrate_index < 0){
+        if ((hdf->bitrate_index >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index < 0)){
                 return AVERROR_INVALIDDATA;
         }
-        hdf->total_bitrate  = ff_av3a_bitrate_map_table[hdf->channel_number_index].bitrate_table[hdf->bitrate_index];
+        hdf->total_bitrate = ff_av3a_bitrate_map_table[hdf->channel_number_index].bitrate_table[hdf->bitrate_index];
     }
 
     skip_bits(&gb, 8);
@@ -175,24 +188,23 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
 
 static int av3a_get_packet_size(AVFormatContext *s) 
 {
+    int ret = 0;
     int read_bytes = 0;
     uint16_t sync_word = 0;
+    int32_t payload_bytes = 0;
+    int32_t payloud_bits  = 0;
     uint8_t header[AV3A_MAX_NBYTES_HEADER];
     GetBitContext gb;
     int32_t sampling_rate;
-    int16_t coding_profile, sampling_frequency_index, bitrate_index, channel_number_index, object_bitrate_index;
+    int16_t coding_profile, sampling_frequency_index, channel_number_index;
+    int16_t bitrate_index, bitrate_index_per_channel;
     int16_t objects, hoa_order;
     int64_t total_bitrate;
-    int32_t payload_bytes;
-    int32_t payloud_bits;
-
-    payload_bytes = 0;
-    payloud_bits = 0;
     
     read_bytes = avio_read(s->pb, header, AV3A_MAX_NBYTES_HEADER);
-    if (read_bytes != AV3A_MAX_NBYTES_HEADER)
+    if (read_bytes != AV3A_MAX_NBYTES_HEADER) {
         return (read_bytes < 0) ? read_bytes : AVERROR_EOF;
-
+    }
     init_get_bits8(&gb, header, AV3A_MAX_NBYTES_HEADER);
 
     sync_word = get_bits(&gb, 12);
@@ -204,7 +216,7 @@ static int av3a_get_packet_size(AVFormatContext *s)
 
     coding_profile            = get_bits(&gb, 3);
     sampling_frequency_index  = get_bits(&gb, 4);
-    if (sampling_frequency_index >= AV3A_SIZE_FS_TABLE) {
+    if ((sampling_frequency_index >= AV3A_FS_TABLE_SIZE) || (sampling_frequency_index < 0)) {
         return AVERROR_INVALIDDATA;
     }
     sampling_rate = ff_av3a_sampling_rate_table[sampling_frequency_index];
@@ -215,51 +227,70 @@ static int av3a_get_packet_size(AVFormatContext *s)
         channel_number_index = get_bits(&gb, 7);
         if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) || 
             (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
-            (channel_number_index == CHANNEL_CONFIG_MC_22_2)) {
-            return AVERROR_INVALIDDATA;
+            (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
+            (channel_number_index < 0)) {
+                return AVERROR_INVALIDDATA;
         }
     } else if (coding_profile == 1) {
-        int64_t bitrate_index_per_channel, soundbed_bitrate;
+        int64_t soundbed_bitrate, objects_bitrate;
         int16_t soundbed_type = get_bits(&gb, 2);
         if (soundbed_type == 0) {
-            objects              = get_bits(&gb, 7);
-            objects              += 1;
-            object_bitrate_index = get_bits(&gb, 4);
-            if (object_bitrate_index < 0) {
+            objects = get_bits(&gb, 7);
+            if (objects < 0) {
                 return AVERROR_INVALIDDATA;
             }
-            total_bitrate        = ff_av3a_mono_bitrate_table[object_bitrate_index] * objects;
+            objects += 1;
+
+            bitrate_index_per_channel = get_bits(&gb, 4);
+            if ((bitrate_index_per_channel >= AV3A_BITRATE_TABLE_SIZE) || (bitrate_index_per_channel < 0)) {
+                return AVERROR_INVALIDDATA;
+            }
+            total_bitrate = ff_av3a_bitrate_map_table[CHANNEL_CONFIG_MONO].bitrate_table[bitrate_index_per_channel] * objects;
         } else if (soundbed_type == 1) {
             channel_number_index = get_bits(&gb, 7);
             if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) || 
                 (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
-                (channel_number_index == CHANNEL_CONFIG_MC_22_2)) {
+                (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
+                (channel_number_index < 0)) {
                 return AVERROR_INVALIDDATA;
             }
-            bitrate_index        = get_bits(&gb, 4);
-            objects              = get_bits(&gb, 7);
-            objects              += 1;
-            object_bitrate_index = get_bits(&gb, 4);
-            if (bitrate_index < 0 || object_bitrate_index < 0){
+            
+            bitrate_index = get_bits(&gb, 4);
+            if ((bitrate_index >= AV3A_BITRATE_TABLE_SIZE) || (bitrate_index < 0)) {
+                return AVERROR_INVALIDDATA;
+            }
+            soundbed_bitrate = ff_av3a_bitrate_map_table[channel_number_index].bitrate_table[bitrate_index];
+
+            objects = get_bits(&gb, 7);
+            if (objects < 0) {
+                return AVERROR_INVALIDDATA;
+            }
+            objects += 1;
+            bitrate_index_per_channel = get_bits(&gb, 4);
+            if ((bitrate_index_per_channel >= AV3A_BITRATE_TABLE_SIZE) || (bitrate_index_per_channel < 0)){
                 return AVERROR_INVALIDDATA;
             }
 
-            soundbed_bitrate          = ff_av3a_bitrate_map_table[channel_number_index].bitrate_table[bitrate_index];
-            bitrate_index_per_channel = ff_av3a_bitrate_map_table[CHANNEL_CONFIG_MONO].bitrate_table[object_bitrate_index];
-            total_bitrate             = soundbed_bitrate + (bitrate_index_per_channel * objects);
+            objects_bitrate = ff_av3a_bitrate_map_table[CHANNEL_CONFIG_MONO].bitrate_table[bitrate_index_per_channel];
+            total_bitrate   = soundbed_bitrate + (objects_bitrate * objects);
         } else {
             return AVERROR_INVALIDDATA;
         }
     } else if (coding_profile == 2) {
         hoa_order = get_bits(&gb, 4);
         hoa_order += 1;
-        if(hoa_order == 1) {
+
+        switch (hoa_order) {
+        case AV3A_AMBISONIC_FIRST_ORDER:
             channel_number_index = CHANNEL_CONFIG_HOA_ORDER1;
-        } else if(hoa_order == 2) {
+            break;
+        case AV3A_AMBISONIC_SECOND_ORDER:
             channel_number_index = CHANNEL_CONFIG_HOA_ORDER2;
-        } else if(hoa_order == 3) {
+            break;
+        case AV3A_AMBISONIC_THIRD_ORDER:
             channel_number_index = CHANNEL_CONFIG_HOA_ORDER3;
-        } else {
+            break;
+        default:
             return AVERROR_INVALIDDATA;
         }
     } else {
@@ -269,7 +300,7 @@ static int av3a_get_packet_size(AVFormatContext *s)
     skip_bits(&gb, 2);
     if (coding_profile != 1) {
         bitrate_index = get_bits(&gb, 4);
-        if (bitrate_index < 0) {
+        if ((bitrate_index >= AV3A_BITRATE_TABLE_SIZE) || (bitrate_index < 0)) {
             return AVERROR_INVALIDDATA;
         }
         total_bitrate = ff_av3a_bitrate_map_table[channel_number_index].bitrate_table[bitrate_index];
@@ -284,7 +315,9 @@ static int av3a_get_packet_size(AVFormatContext *s)
         payload_bytes = (int)ceil((((float) (total_bitrate) / sampling_rate) * AV3A_AUDIO_FRAME_SIZE) / 8);
     }
 
-    avio_seek(s->pb, -read_bytes, SEEK_CUR);
+    if ((ret = avio_seek(s->pb, -read_bytes, SEEK_CUR)) < 0) {
+        return ret;
+    }
 
     return payload_bytes;
 }
@@ -357,7 +390,9 @@ static int av3a_read_header(AVFormatContext *s)
     }
     memcpy(stream->codecpar->extradata, &av3afmtctx, sizeof(Av3aFormatContext));
 
-    avio_seek(s->pb, -AV3A_MAX_NBYTES_HEADER, SEEK_CUR);
+    if ((ret = avio_seek(s->pb, -AV3A_MAX_NBYTES_HEADER, SEEK_CUR)) < 0) {
+        return ret;
+    }
 
     return 0;
 }
@@ -386,9 +421,7 @@ static int av3a_read_packet(AVFormatContext *s, AVPacket *pkt) {
         return packet_size;
     }
  
-    ret = av_new_packet(pkt, packet_size);
-    if (ret < 0) {
-        av_log(s, AV_LOG_ERROR, "Failed to allocate packet of size %d\n", packet_size);
+    if ((ret = av_new_packet(pkt, packet_size)) < 0) {
         return ret;
     }
       
