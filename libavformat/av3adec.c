@@ -1,6 +1,8 @@
 /*
  * AV3A Demuxer
  *
+ * Copyright (c) 2024 Shuai Liu <cqliushuai@outlook.com>
+ * 
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -191,8 +193,8 @@ static int av3a_get_packet_size(AVFormatContext *s)
     int ret = 0;
     int read_bytes = 0;
     uint16_t sync_word = 0;
-    int32_t payload_bytes = 0;
-    int32_t payloud_bits  = 0;
+    int payload_bytes = 0;
+    int payloud_bits  = 0;
     uint8_t header[AV3A_MAX_NBYTES_HEADER];
     GetBitContext gb;
     int32_t sampling_rate;
@@ -201,6 +203,10 @@ static int av3a_get_packet_size(AVFormatContext *s)
     int16_t objects, hoa_order;
     int64_t total_bitrate;
     
+    if ((!s) || (!s->pb)) {
+        return AVERROR(ENOMEM);
+    }
+
     read_bytes = avio_read(s->pb, header, AV3A_MAX_NBYTES_HEADER);
     if (read_bytes != AV3A_MAX_NBYTES_HEADER) {
         return (read_bytes < 0) ? read_bytes : AVERROR_EOF;

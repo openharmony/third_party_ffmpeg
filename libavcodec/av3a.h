@@ -1,6 +1,8 @@
 /*
  * AV3A Common Header File
  *
+ * Copyright (c) 2024 Shuai Liu <cqliushuai@outlook.com>
+ * 
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -73,7 +75,7 @@ typedef enum {
     CHANNEL_CONFIG_MC_5_1_4   = 8,  /* 5.1.4   = 8  */
     CHANNEL_CONFIG_MC_7_1_2   = 9,  /* 7.1.2   = 9  */
     CHANNEL_CONFIG_MC_7_1_4   = 10, /* 7.1.4   = 10 */
-    CHANNEL_CONFIG_HOA_ORDER1 = 11, /* FOA     = 11 */
+    CHANNEL_CONFIG_HOA_ORDER1 = 11, /* HOA1    = 11 */
     CHANNEL_CONFIG_HOA_ORDER2 = 12, /* HOA2    = 12 */
     CHANNEL_CONFIG_HOA_ORDER3 = 13, /* HOA3    = 13 */
     CHANNEL_CONFIG_UNKNOWN    = 14  /* UNKNOWN = 14 */
@@ -91,7 +93,7 @@ typedef struct {
     int16_t anc_data;                  /* anc data */
     int16_t nn_type;                   /* neural network type */
     int16_t coding_profile;            /* coding profile */
-    int16_t sampling_frequency_index;  /* samping rate index */
+    int16_t sampling_frequency_index;  /* sampling frequency index */
     int16_t channel_number_index;      /* channel number index */
     int16_t bitrate_index;             /* bitrate index */
     int16_t soundbed_type;             /* soundbed type  */
@@ -114,66 +116,71 @@ typedef struct {
 
 /* bitrate table for mono */
 static const int64_t ff_av3a_mono_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        16000, 32000, 44000, 56000, 64000, 72000, 80000, 96000, 128000, 144000,
-        164000, 192000, 0, 0, 0, 0};
+    16000, 32000, 44000, 56000, 64000, 72000, 80000, 96000, 128000, 144000,
+    164000, 192000, 0, 0, 0, 0
+};
 
 /* bitrate table for stereo */
 static const int64_t ff_av3a_stereo_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        24000, 32000, 48000, 64000, 80000, 96000, 128000, 144000, 192000, 256000,
-        320000, 0, 0, 0, 0, 0};
+    24000, 32000, 48000, 64000, 80000, 96000, 128000, 144000, 192000, 256000,
+    320000, 0, 0, 0, 0, 0
+};
 
 /* bitrate table for MC 5.1 */
 static const int64_t ff_av3a_mc5p1_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        192000, 256000, 320000, 384000, 448000, 512000, 640000, 720000, 144000, 96000,
-        128000, 160000, 0, 0, 0, 0};
+    192000, 256000, 320000, 384000, 448000, 512000, 640000, 720000, 144000, 96000,
+    128000, 160000, 0, 0, 0, 0
+};
 
 /* bitrate table for MC 7.1 */
 static const int64_t ff_av3a_mc7p1_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        192000, 480000, 256000, 384000, 576000, 640000, 128000, 160000, 0, 0,
-        0, 0, 0, 0, 0, 0};
+    192000, 480000, 256000, 384000, 576000, 640000, 128000, 160000, 0, 0,
+    0, 0, 0, 0, 0, 0
+};
 
 /* bitrate table for MC 4.0 */
 static const int64_t ff_av3a_mc4p0_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        48000, 96000, 128000, 192000, 256000, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0};
+    48000, 96000, 128000, 192000, 256000, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0
+};
 
 /* bitrate table for MC 5.1.2 */
 static const int64_t ff_av3a_mc5p1p2_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        152000, 320000, 480000, 576000, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0};
+    152000, 320000, 480000, 576000, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0
+};
 
 /* bitrate table for MC 5.1.4 */
 static const int64_t ff_av3a_mc5p1p4_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        176000, 384000, 576000, 704000, 256000, 448000, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0};
+    176000, 384000, 576000, 704000, 256000, 448000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
 
 /* bitrate table for MC 7.1.2 */
 static const int64_t ff_av3a_mc7p1p2_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        216000, 480000, 576000, 384000, 768000, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0};
+    216000, 480000, 576000, 384000, 768000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
 
 /* bitrate table for MC 7.1.4 */
 static const int64_t ff_av3a_mc7p1p4_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        240000, 608000, 384000, 512000, 832000, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0};
+    240000, 608000, 384000, 512000, 832000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
 
 /* bitrate table for FOA */
 static const int64_t ff_av3a_foa_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        48000, 96000, 128000, 192000, 256000, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0};
+    48000, 96000, 128000, 192000, 256000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
 
 /* bitrate table for HOA2 */
 static const int64_t ff_av3a_hoa2_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        192000, 256000, 320000, 384000, 480000, 512000, 640000, 0, 0, 0,
-        0, 0, 0, 0, 0, 0};
+    192000, 256000, 320000, 384000, 480000, 512000, 640000, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
 
 /* bitrate table for HOA3 */
 static const int64_t ff_av3a_hoa3_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-        256000, 320000, 384000, 512000, 640000, 896000, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0};
+    256000, 320000, 384000, 512000, 640000, 896000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 static const int32_t ff_av3a_sampling_rate_table[AV3A_FS_TABLE_SIZE] = {
-        192000, 96000, 48000, 44100, 32000, 24000, 22050, 16000, 8000
+    192000, 96000, 48000, 44100, 32000, 24000, 22050, 16000, 8000
 };
 
 typedef struct {
@@ -253,7 +260,7 @@ static const enum AVChannel ff_av3a_default_channel_layout_mc_7_1_4[12] = {
 };
 
 static const Av3aChannelConfigMap ff_av3a_channels_map_table[AV3A_CHANNEL_LAYOUT_SIZE] = {
-    { CHANNEL_CONFIG_MONO,       1,  ff_av3a_default_channel_layout_mono  ,   AV3A_CH_LAYOUT_MONO,         },              
+    { CHANNEL_CONFIG_MONO,       1,  ff_av3a_default_channel_layout_mono,     AV3A_CH_LAYOUT_MONO          },              
     { CHANNEL_CONFIG_STEREO,     2,  ff_av3a_default_channel_layout_stereo,   AV3A_CH_LAYOUT_STEREO        },         
     { CHANNEL_CONFIG_MC_5_1,     6,  ff_av3a_default_channel_layout_mc_5_1,   AV3A_CH_LAYOUT_5POINT1       },         
     { CHANNEL_CONFIG_MC_7_1,     8,  ff_av3a_default_channel_layout_mc_7_1,   AV3A_CH_LAYOUT_7POINT1       },          

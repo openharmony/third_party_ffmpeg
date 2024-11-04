@@ -1,6 +1,8 @@
 /*
- * AV3A Format Parser
+ * AV3A Parser
  *
+ * Copyright (c) 2024 Shuai Liu <cqliushuai@outlook.com>
+ * 
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
