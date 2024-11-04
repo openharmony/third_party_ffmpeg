@@ -8016,7 +8016,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     st->codecpar->format = ff_av3a_sample_format_map_table[resolution_index].sample_format;
     st->codecpar->bits_per_raw_sample = ff_av3a_sample_format_map_table[resolution_index].resolution;
 
-    av_channel_layout_uninit(&st->codecpar->channel_layout);
+    av_channel_layout_uninit(&st->codecpar->ch_layout);
     if (content_type != AV3A_AMBISONIC_TYPE) {
         st->codecpar->ch_layout.order       = AV_CHANNEL_ORDER_CUSTOM;
         st->codecpar->ch_layout.nb_channels = (nb_channels + nb_objects);
