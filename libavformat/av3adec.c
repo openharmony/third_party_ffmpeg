@@ -203,7 +203,7 @@ static int av3a_get_packet_size(AVFormatContext *s)
     int16_t objects, hoa_order;
     int64_t total_bitrate;
     
-    if ((!s) || (!s->pb)) {
+    if (!s) {
         return AVERROR(ENOMEM);
     }
 
@@ -347,10 +347,13 @@ static int av3a_read_header(AVFormatContext *s)
 {
     int ret = 0;
     uint8_t header[AV3A_MAX_NBYTES_HEADER];
-    AVIOContext *pb = s->pb; 
     AVStream *stream = NULL;
     Av3aFormatContext av3afmtctx;
     AATFHeaderInfo hdf;
+
+    if (!s) {
+        return AVERROR(ENOMEM);
+    }
 
     if (!(stream = avformat_new_stream(s, NULL))) {
         return AVERROR(ENOMEM);
@@ -362,7 +365,7 @@ static int av3a_read_header(AVFormatContext *s)
     stream->codecpar->codec_id     = s->iformat->raw_codec_id; 
     stream->codecpar->codec_tag    = MKTAG('a', 'v', '3', 'a');
 
-    if ((ret = avio_read(pb, header, AV3A_MAX_NBYTES_HEADER)) != AV3A_MAX_NBYTES_HEADER) {
+    if ((ret = avio_read(s->pb, header, AV3A_MAX_NBYTES_HEADER)) != AV3A_MAX_NBYTES_HEADER) {
         return (ret < 0) ? ret : AVERROR_EOF;
     }
     
