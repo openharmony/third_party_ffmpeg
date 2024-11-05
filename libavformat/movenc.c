@@ -900,7 +900,7 @@ static int mov_write_dmlp_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
     return update_size(pb, pos);
 }
 
-#ifdef DOHOS_AV3A_DEMUXER
+#ifdef OHOS_AV3A_DEMUXER
 static int mov_write_dca3_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *track)
 {
     int64_t pos = avio_tell(pb);
@@ -1331,7 +1331,7 @@ static int mov_write_audio_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContex
         } else { /* reserved for mp4/3gp */
             if (track->par->codec_id == AV_CODEC_ID_FLAC ||
                 track->par->codec_id == AV_CODEC_ID_ALAC ||
-#ifdef DOHOS_AV3A_DEMUXER
+#ifdef OHOS_AV3A_DEMUXER
                 track->par->codec_id == AV_CODEC_ID_OPUS ||
                 track->par->codec_id == AV_CODEC_ID_AVS3DA
 #else 
@@ -1405,7 +1405,7 @@ static int mov_write_audio_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContex
         ret = mov_write_dops_tag(s, pb, track);
     else if (track->par->codec_id == AV_CODEC_ID_TRUEHD)
         ret = mov_write_dmlp_tag(s, pb, track);
-#ifdef DOHOS_AV3A_DEMUXER
+#ifdef OHOS_AV3A_DEMUXER
     else if (track->par->codec_id == AV_CODEC_ID_AVS3DA)
         ret = mov_write_dca3_tag(s, pb, track);
 #endif
@@ -8360,7 +8360,7 @@ static const AVCodecTag codec_mp4_tags[] = {
 #ifdef OHOS_TIMED_META_TRACK
     { AV_CODEC_ID_FFMETADATA,      MKTAG('c', 'd', 's', 'c') },
 #endif
-#ifdef DOHOS_AV3A_DEMUXER
+#ifdef OHOS_AV3A_DEMUXER
     { AV_CODEC_ID_AVS3DA,          MKTAG('a', 'v', '3', 'a') },
 #endif
     { AV_CODEC_ID_NONE,               0 },

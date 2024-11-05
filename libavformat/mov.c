@@ -7923,7 +7923,7 @@ static int mov_read_gnre(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 }
 #endif
 
-#ifdef DOHOS_AV3A_DEMUXER
+#ifdef OHOS_AV3A_DEMUXER
 static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
     int ret = 0;
@@ -8164,7 +8164,7 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 #ifdef OHOS_TIMED_META_TRACK
 { MKTAG('c','d','s','c'), mov_read_cdsc },
 #endif
-#ifdef DOHOS_AV3A_DEMUXER
+#ifdef OHOS_AV3A_DEMUXER
 { MKTAG('d','c','a','3'), mov_read_dca3 },
 #endif
 { 0, NULL }

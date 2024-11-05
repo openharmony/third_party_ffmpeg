@@ -433,7 +433,7 @@ static int get_dvb_stream_type(AVFormatContext *s, AVStream *st)
             stream_type = STREAM_TYPE_PRIVATE_DATA;
         }
         break;
-#ifdef DOHOS_AV3A_DEMUXER
+#ifdef OHOS_AV3A_DEMUXER
     case AV_CODEC_ID_AVS3DA:
         stream_type = STREAM_TYPE_AUDIO_AV3A;
         break;

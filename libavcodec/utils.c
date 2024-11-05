@@ -647,7 +647,7 @@ static int get_audio_frame_duration(enum AVCodecID id, int sr, int ch, int ba,
     case AV_CODEC_ID_MP2:
     case AV_CODEC_ID_MUSEPACK7:    return 1152;
     case AV_CODEC_ID_AC3:          return 1536;
-#ifdef DOHOS_AV3A_DEMUXER
+#ifdef OHOS_AV3A_DEMUXER
     case AV_CODEC_ID_AVS3DA:       return 1024;
 #endif
     }
