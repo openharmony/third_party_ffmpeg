@@ -7923,6 +7923,7 @@ static int mov_read_gnre(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 }
 #endif
 
+#ifdef DOHOS_AV3A_DEMUXER
 static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
     int ret = 0;
@@ -8037,7 +8038,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         }
 
         for (i = nb_channels; i < st->codecpar->ch_layout.nb_channels; i++) {
-             st->codecpar->ch_layout.u.map[i].id = AV3A_CH_AUDIO_OBJECT;
+            st->codecpar->ch_layout.u.map[i].id = AV3A_CH_AUDIO_OBJECT;
         }
     } else {
         st->codecpar->ch_layout.order       = AV_CHANNEL_ORDER_AMBISONIC;
@@ -8046,6 +8047,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     return 0;
 }
+#endif
 
 static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('A','C','L','R'), mov_read_aclr },
@@ -8162,7 +8164,9 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 #ifdef OHOS_TIMED_META_TRACK
 { MKTAG('c','d','s','c'), mov_read_cdsc },
 #endif
+#ifdef DOHOS_AV3A_DEMUXER
 { MKTAG('d','c','a','3'), mov_read_dca3 },
+#endif
 { 0, NULL }
 };
 
