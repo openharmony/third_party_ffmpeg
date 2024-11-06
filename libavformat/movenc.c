@@ -934,7 +934,6 @@ static int mov_write_dca3_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
     }
     put_bits(&pb_dca3, 4, audio_codec_id);
     put_bits(&pb_dca3, 4, sampling_frequency_index);
-    
     put_bits(&pb_dca3, 3, nn_type);
     put_bits(&pb_dca3, 1, 0); /* reserved */
     put_bits(&pb_dca3, 4, content_type);
@@ -1334,7 +1333,7 @@ static int mov_write_audio_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContex
 #ifdef OHOS_AV3A_DEMUXER
                 track->par->codec_id == AV_CODEC_ID_OPUS ||
                 track->par->codec_id == AV_CODEC_ID_AVS3DA
-#else 
+#else
                 track->par->codec_id == AV_CODEC_ID_OPUS
 #endif
                 ) {
@@ -8360,7 +8359,7 @@ static const AVCodecTag codec_mp4_tags[] = {
 #ifdef OHOS_TIMED_META_TRACK
     { AV_CODEC_ID_FFMETADATA,      MKTAG('c', 'd', 's', 'c') },
 #endif
-#ifdef OHOS_AV3A_DEMUXER
+#ifdef 
     { AV_CODEC_ID_AVS3DA,          MKTAG('a', 'v', '3', 'a') },
 #endif
     { AV_CODEC_ID_NONE,               0 },

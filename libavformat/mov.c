@@ -7977,7 +7977,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     if (content_type == AV3A_CHANNEL_BASED_TYPE) {
         channel_number_index = get_bits(&gb, 7);
         reserved             = get_bits(&gb, 1);
-        if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) || 
+        if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
             (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
             (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
             (channel_number_index < 0)) {
@@ -7988,10 +7988,13 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         number_objects = get_bits(&gb, 7);
         reserved       = get_bits(&gb, 1);
         nb_objects     = number_objects;
+        if (nb_objects < 1) {
+            return AVERROR_INVALIDDATA;
+        }
     } else if (content_type == AV3A_CHANNEL_OBJECT_TYPE) {
         channel_number_index = get_bits(&gb, 7);
         reserved             = get_bits(&gb, 1);
-        if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) || 
+        if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
             (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
             (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
             (channel_number_index < 0)) {
@@ -8001,6 +8004,9 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         reserved       = get_bits(&gb, 1);
         nb_channels = ff_av3a_channels_map_table[channel_number_index].channels;
         nb_objects  = number_objects;
+        if (nb_objects < 1) {
+            return AVERROR_INVALIDDATA;
+        }
     } else if (content_type == AV3A_AMBISONIC_TYPE) {
         hoa_order = get_bits(&gb , 4);
         if ((hoa_order < AV3A_AMBISONIC_FIRST_ORDER) || (hoa_order > AV3A_AMBISONIC_THIRD_ORDER)) {
@@ -8025,18 +8031,17 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     if (content_type != AV3A_AMBISONIC_TYPE) {
         st->codecpar->ch_layout.order       = AV_CHANNEL_ORDER_CUSTOM;
         st->codecpar->ch_layout.nb_channels = (nb_channels + nb_objects);
-        st->codecpar->ch_layout.u.map       = av_calloc(st->codecpar->ch_layout.nb_channels, 
-            sizeof(*st->codecpar->ch_layout.u.map));
+        st->codecpar->ch_layout.u.map       = av_calloc(st->codecpar->ch_layout.nb_channels, sizeof(AVChannelCustom));
         if (!st->codecpar->ch_layout.u.map) {
             return AVERROR(ENOMEM);
         }
-        
+
         if (content_type != AV3A_OBJECT_BASED_TYPE) {
             for(i = 0; i < nb_channels; i ++) {
                 st->codecpar->ch_layout.u.map[i].id = ff_av3a_channels_map_table[channel_number_index].channel_layout[i];
             }
         }
-
+        
         for (i = nb_channels; i < st->codecpar->ch_layout.nb_channels; i++) {
             st->codecpar->ch_layout.u.map[i].id = AV3A_CH_AUDIO_OBJECT;
         }

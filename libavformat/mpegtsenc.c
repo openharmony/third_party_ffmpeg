@@ -447,7 +447,6 @@ static int get_dvb_stream_type(AVFormatContext *s, AVStream *st)
         break;
     }
     
-
     return stream_type;
 }
 

@@ -2,7 +2,7 @@
  * AV3A Parser
  *
  * Copyright (c) 2024 Shuai Liu <cqliushuai@outlook.com>
- * 
+ *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -81,7 +81,7 @@ static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
     if (hdf->coding_profile == AV3A_BASE_PROFILE) {
         hdf->content_type         = AV3A_CHANNEL_BASED_TYPE;
         hdf->channel_number_index = get_bits(gb, 7);
-        if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) || 
+        if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
             (hdf->channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
             (hdf->channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
             (hdf->channel_number_index < 0)) {
@@ -107,7 +107,7 @@ static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
         } else if (hdf->soundbed_type == 1) {
             hdf->content_type         = AV3A_CHANNEL_OBJECT_TYPE;
             hdf->channel_number_index = get_bits(gb, 7);
-            if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) || 
+            if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
                 (hdf->channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
                 (hdf->channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
                 (hdf->channel_number_index < 0)) {
