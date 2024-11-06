@@ -8359,7 +8359,7 @@ static const AVCodecTag codec_mp4_tags[] = {
 #ifdef OHOS_TIMED_META_TRACK
     { AV_CODEC_ID_FFMETADATA,      MKTAG('c', 'd', 's', 'c') },
 #endif
-#ifdef 
+#ifdef OHOS_AV3A_DEMUXER
     { AV_CODEC_ID_AVS3DA,          MKTAG('a', 'v', '3', 'a') },
 #endif
     { AV_CODEC_ID_NONE,               0 },
