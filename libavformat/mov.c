@@ -7959,7 +7959,6 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     }
 
     st->codecpar->frame_size = AV3A_AUDIO_FRAME_SIZE;
-    
     sampling_frequency_index = get_bits(&gb, 4);
     if ((sampling_frequency_index >= AV3A_FS_TABLE_SIZE) || (sampling_frequency_index < 0)) {
         return AVERROR_INVALIDDATA;
@@ -8041,7 +8040,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
                 st->codecpar->ch_layout.u.map[i].id = ff_av3a_channels_map_table[channel_number_index].channel_layout[i];
             }
         }
-        
+
         for (i = nb_channels; i < st->codecpar->ch_layout.nb_channels; i++) {
             st->codecpar->ch_layout.u.map[i].id = AV3A_CH_AUDIO_OBJECT;
         }

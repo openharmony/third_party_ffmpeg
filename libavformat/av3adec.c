@@ -50,7 +50,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
 
     hdf->nb_channels = 0;
     hdf->nb_objects  = 0;
-    
+
     init_get_bits8(&gb, buf, AV3A_MAX_NBYTES_HEADER);
 
     sync_word = get_bits(&gb, 12);
@@ -78,7 +78,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
 
     /* coding profile */
     hdf->coding_profile = get_bits(&gb, 3);
-    
+
     /* sampling rate */
     hdf->sampling_frequency_index = get_bits(&gb, 4);
     if ((hdf->sampling_frequency_index >= AV3A_FS_TABLE_SIZE) || (hdf->sampling_frequency_index < 0)) {
@@ -107,7 +107,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
                 return AVERROR_INVALIDDATA;
             }
             hdf->bitrate_index_per_channel = get_bits(&gb, 4);
-            if ((hdf->bitrate_index_per_channel >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index_per_channel < 0)){
+            if ((hdf->bitrate_index_per_channel >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index_per_channel < 0)) {
                 return AVERROR_INVALIDDATA;
             }
             hdf->nb_objects    = hdf->object_channel_number + 1;
@@ -126,7 +126,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
             if ((hdf->bitrate_index >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index < 0)) {
                 return AVERROR_INVALIDDATA;
             }
-            
+
             hdf->object_channel_number = get_bits(&gb, 7);
             if (hdf->object_channel_number < 0) {
                 return AVERROR_INVALIDDATA;
@@ -174,7 +174,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
     }
     hdf->resolution    = ff_av3a_sample_format_map_table[hdf->resolution_index].resolution;
     hdf->sample_format = ff_av3a_sample_format_map_table[hdf->resolution_index].sample_format;
-    
+
     if (hdf->coding_profile != AV3A_OBJECT_METADATA_PROFILE) {
         hdf->bitrate_index  = get_bits(&gb, 4);
         if ((hdf->bitrate_index >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index < 0)){
@@ -202,7 +202,7 @@ static int av3a_get_packet_size(AVFormatContext *s)
     int16_t bitrate_index, bitrate_index_per_channel;
     int16_t objects, hoa_order;
     int64_t total_bitrate;
-    
+
     if (!s) {
         return AVERROR(ENOMEM);
     }
@@ -215,6 +215,7 @@ static int av3a_get_packet_size(AVFormatContext *s)
     if (read_bytes != AV3A_MAX_NBYTES_HEADER) {
         return (read_bytes < 0) ? read_bytes : AVERROR_EOF;
     }
+
     init_get_bits8(&gb, header, AV3A_MAX_NBYTES_HEADER);
 
     sync_word = get_bits(&gb, 12);
@@ -277,7 +278,7 @@ static int av3a_get_packet_size(AVFormatContext *s)
             }
             objects += 1;
             bitrate_index_per_channel = get_bits(&gb, 4);
-            if ((bitrate_index_per_channel >= AV3A_BITRATE_TABLE_SIZE) || (bitrate_index_per_channel < 0)){
+            if ((bitrate_index_per_channel >= AV3A_BITRATE_TABLE_SIZE) || (bitrate_index_per_channel < 0)) {
                 return AVERROR_INVALIDDATA;
             }
 
@@ -372,7 +373,7 @@ static int av3a_read_header(AVFormatContext *s)
     if ((ret = avio_read(s->pb, header, AV3A_MAX_NBYTES_HEADER)) != AV3A_MAX_NBYTES_HEADER) {
         return (ret < 0) ? ret : AVERROR_EOF;
     }
-    
+
     ret = av3a_read_aatf_frame_header(&hdf, header);
     if (ret) {
         return ret;
@@ -425,7 +426,7 @@ static int av3a_read_packet(AVFormatContext *s, AVPacket *pkt) {
         return AVERROR_EOF;
     }
     pos = avio_tell(s->pb);
-    
+
     if (!(packet_size = av3a_get_packet_size(s))) {
         return AVERROR_EOF;
     }
@@ -437,7 +438,7 @@ static int av3a_read_packet(AVFormatContext *s, AVPacket *pkt) {
     if ((ret = av_new_packet(pkt, packet_size)) < 0) {
         return ret;
     }
-    
+
     if (!s->streams[0]) {
         return AVERROR(ENOMEM); 
     }
