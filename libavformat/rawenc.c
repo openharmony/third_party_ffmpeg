@@ -131,6 +131,20 @@ const AVOutputFormat ff_aptx_hd_muxer = {
 };
 #endif
 
+#if CONFIG_AV3A_MUXER
+const AVOutputFormat ff_av3a_muxer = {
+    .name              = "av3a",
+    .long_name         = NULL_IF_CONFIG_SMALL("Audio Vivid"),
+    .mime_type         = "audio/av3a",
+    .extensions        = "av3a",
+    .audio_codec       = AV_CODEC_ID_AVS3DA,
+    .video_codec       = AV_CODEC_ID_NONE,
+    .init              = force_one_stream,
+    .write_packet      = ff_raw_write_packet,
+    .flags             = AVFMT_NOTIMESTAMPS,
+};
+#endif
+
 #if CONFIG_AVS2_MUXER
 const AVOutputFormat ff_avs2_muxer = {
     .name              = "avs2",
