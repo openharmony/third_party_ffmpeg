@@ -42,8 +42,8 @@ typedef struct {
     int16_t total_channels;
 } Av3aParseContext;
 
-static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf) 
-{    
+static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
+{
     int64_t soundbed_bitrate = 0L;
     int64_t object_bitrate   = 0L;
 
@@ -159,7 +159,7 @@ static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
     hdf->total_channels = hdf->nb_channels + hdf->nb_objects;
 
     hdf->resolution_index = get_bits(gb, 2);
-    if((hdf->resolution_index >= AV3A_RESOLUTION_TABLE_SIZE) || (hdf->resolution_index < 0)) {
+    if ((hdf->resolution_index >= AV3A_RESOLUTION_TABLE_SIZE) || (hdf->resolution_index < 0)) {
         return AVERROR_INVALIDDATA;
     }
     hdf->resolution    = ff_av3a_sample_format_map_table[hdf->resolution_index].resolution;

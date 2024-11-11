@@ -941,10 +941,10 @@ static int mov_write_dca3_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
     if (content_type == AV3A_CHANNEL_BASED_TYPE) {
         put_bits(&pb_dca3, 7, channel_number_index);
         put_bits(&pb_dca3, 1, 0); /* reserved */
-    } else if (content_type == AV3A_OBJECT_BASED_TYPE){
+    } else if (content_type == AV3A_OBJECT_BASED_TYPE) {
         put_bits(&pb_dca3, 7, number_objects);
         put_bits(&pb_dca3, 1, 0); /* reserved */
-    } else if (content_type == AV3A_CHANNEL_OBJECT_TYPE){
+    } else if (content_type == AV3A_CHANNEL_OBJECT_TYPE) {
         put_bits(&pb_dca3, 7, channel_number_index);
         put_bits(&pb_dca3, 1, 0); /* reserved */
         put_bits(&pb_dca3, 7, number_objects);

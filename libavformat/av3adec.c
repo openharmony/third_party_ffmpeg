@@ -2,7 +2,7 @@
  * AV3A Demuxer
  *
  * Copyright (c) 2024 Shuai Liu <cqliushuai@outlook.com>
- * 
+ *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -101,7 +101,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
     } else if (hdf->coding_profile == AV3A_OBJECT_METADATA_PROFILE) {
         hdf->soundbed_type = get_bits(&gb, 2);
         if (hdf->soundbed_type == 0) {
-            hdf->content_type              = AV3A_OBJECT_BASED_TYPE;  
+            hdf->content_type              = AV3A_OBJECT_BASED_TYPE;
             hdf->object_channel_number     = get_bits(&gb, 7);
             if (hdf->object_channel_number < 0) {
                 return AVERROR_INVALIDDATA;
@@ -137,7 +137,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
                 return AVERROR_INVALIDDATA;
             }
 
-            hdf->total_bitrate = ff_av3a_bitrate_map_table[hdf->channel_number_index].bitrate_table[hdf->bitrate_index] + 
+            hdf->total_bitrate = ff_av3a_bitrate_map_table[hdf->channel_number_index].bitrate_table[hdf->bitrate_index] +
                 ff_av3a_bitrate_map_table[CHANNEL_CONFIG_MONO].bitrate_table[hdf->bitrate_index_per_channel] * hdf->nb_objects;
         } else {
             return AVERROR_INVALIDDATA;
@@ -169,7 +169,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
 
     /* resolution */
     hdf->resolution_index = get_bits(&gb, 2);
-    if((hdf->resolution_index >= AV3A_RESOLUTION_TABLE_SIZE) || (hdf->resolution_index < 0)) {
+    if ((hdf->resolution_index >= AV3A_RESOLUTION_TABLE_SIZE) || (hdf->resolution_index < 0)) {
         return AVERROR_INVALIDDATA;
     }
     hdf->resolution    = ff_av3a_sample_format_map_table[hdf->resolution_index].resolution;
@@ -177,7 +177,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
 
     if (hdf->coding_profile != AV3A_OBJECT_METADATA_PROFILE) {
         hdf->bitrate_index  = get_bits(&gb, 4);
-        if ((hdf->bitrate_index >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index < 0)){
+        if ((hdf->bitrate_index >= AV3A_BITRATE_TABLE_SIZE) || (hdf->bitrate_index < 0)) {
                 return AVERROR_INVALIDDATA;
         }
         hdf->total_bitrate = ff_av3a_bitrate_map_table[hdf->channel_number_index].bitrate_table[hdf->bitrate_index];
@@ -188,7 +188,7 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
     return 0;
 }
 
-static int av3a_get_packet_size(AVFormatContext *s) 
+static int av3a_get_packet_size(AVFormatContext *s)
 {
     int ret = 0;
     int read_bytes = 0;
@@ -333,9 +333,8 @@ static int av3a_get_packet_size(AVFormatContext *s)
     return payload_bytes;
 }
 
-static int av3a_probe(const AVProbeData *p) 
+static int av3a_probe(const AVProbeData *p)
 {
-
     uint16_t frame_sync_word;
     uint16_t lval = ((uint16_t)(p->buf[0]));
     uint16_t rval = ((uint16_t)(p->buf[1]));
@@ -348,7 +347,7 @@ static int av3a_probe(const AVProbeData *p)
     return 0;
 }
 
-static int av3a_read_header(AVFormatContext *s) 
+static int av3a_read_header(AVFormatContext *s)
 {
     int ret = 0;
     uint8_t header[AV3A_MAX_NBYTES_HEADER];
@@ -367,7 +366,7 @@ static int av3a_read_header(AVFormatContext *s)
     stream->start_time             = 0;
     ffstream(stream)->need_parsing = AVSTREAM_PARSE_FULL_RAW;
     stream->codecpar->codec_type   = AVMEDIA_TYPE_AUDIO;
-    stream->codecpar->codec_id     = s->iformat->raw_codec_id; 
+    stream->codecpar->codec_id     = s->iformat->raw_codec_id;
     stream->codecpar->codec_tag    = MKTAG('a', 'v', '3', 'a');
 
     if ((ret = avio_read(s->pb, header, AV3A_MAX_NBYTES_HEADER)) != AV3A_MAX_NBYTES_HEADER) {
@@ -399,7 +398,7 @@ static int av3a_read_header(AVFormatContext *s)
     av3afmtctx.resolution_index         = hdf.resolution_index;
     av3afmtctx.total_bitrate_kbps       = (int) (hdf.total_bitrate / 1000);
 
-    if((ret = ff_alloc_extradata(stream->codecpar, sizeof(Av3aFormatContext))) < 0) {
+    if ((ret = ff_alloc_extradata(stream->codecpar, sizeof(Av3aFormatContext))) < 0) {
         return ret;
     }
     memcpy(stream->codecpar->extradata, &av3afmtctx, sizeof(Av3aFormatContext));
@@ -411,8 +410,8 @@ static int av3a_read_header(AVFormatContext *s)
     return 0;
 }
 
-static int av3a_read_packet(AVFormatContext *s, AVPacket *pkt) {
-
+static int av3a_read_packet(AVFormatContext *s, AVPacket *pkt)
+{
     int64_t pos;
     int packet_size = 0;
     int read_bytes = 0;
@@ -440,7 +439,7 @@ static int av3a_read_packet(AVFormatContext *s, AVPacket *pkt) {
     }
 
     if (!s->streams[0]) {
-        return AVERROR(ENOMEM); 
+        return AVERROR(ENOMEM);
     }
 
     if (!s->streams[0]->codecpar) {

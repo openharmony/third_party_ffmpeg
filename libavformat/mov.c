@@ -7949,7 +7949,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     }
     st = c->fc->streams[c->fc->nb_streams - 1];
 
-    if ((ret = avio_read(pb, buffer, sizeof(buffer))) < 0){
+    if ((ret = avio_read(pb, buffer, sizeof(buffer))) < 0) {
         return ret;
     }
 
@@ -7972,7 +7972,6 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     reserved     = get_bits(&gb, 1);
     content_type = get_bits(&gb, 4);
-
     if (content_type == AV3A_CHANNEL_BASED_TYPE) {
         channel_number_index = get_bits(&gb, 7);
         reserved             = get_bits(&gb, 1);
@@ -8007,7 +8006,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
             return AVERROR_INVALIDDATA;
         }
     } else if (content_type == AV3A_AMBISONIC_TYPE) {
-        hoa_order = get_bits(&gb , 4);
+        hoa_order = get_bits(&gb, 4);
         if ((hoa_order < AV3A_AMBISONIC_FIRST_ORDER) || (hoa_order > AV3A_AMBISONIC_THIRD_ORDER)) {
             return AVERROR_INVALIDDATA;
         }
@@ -8036,7 +8035,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         }
 
         if (content_type != AV3A_OBJECT_BASED_TYPE) {
-            for(i = 0; i < nb_channels; i ++) {
+            for (i = 0; i < nb_channels; i ++) {
                 st->codecpar->ch_layout.u.map[i].id = ff_av3a_channels_map_table[channel_number_index].channel_layout[i];
             }
         }
