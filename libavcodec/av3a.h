@@ -2,7 +2,7 @@
  * AV3A Common Header File
  *
  * Copyright (c) 2024 Shuai Liu <cqliushuai@outlook.com>
- * 
+ *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -56,17 +56,17 @@ typedef enum {
 
 /* Content Type */
 typedef enum {
-    AV3A_CHANNEL_BASED_TYPE   = 0,
-    AV3A_OBJECT_BASED_TYPE    = 1,
-    AV3A_CHANNEL_OBJECT_TYPE  = 2,
-    AV3A_AMBISONIC_TYPE       = 3    
+    AV3A_CHANNEL_BASED_TYPE  = 0,
+    AV3A_OBJECT_BASED_TYPE   = 1,
+    AV3A_CHANNEL_OBJECT_TYPE = 2,
+    AV3A_AMBISONIC_TYPE      = 3
 } Av3aContentType;
 
 /* Internal Coding Profile */
 typedef enum {
-    AV3A_BASE_PROFILE             = 0,
-    AV3A_OBJECT_METADATA_PROFILE  = 1,
-    AV3A_AMBISONIC_PROFILE        = 2
+    AV3A_BASE_PROFILE            = 0,
+    AV3A_OBJECT_METADATA_PROFILE = 1,
+    AV3A_AMBISONIC_PROFILE       = 2
 } Av3aCodingProfile;
 
 /* NN Type */
@@ -159,8 +159,7 @@ static const int64_t ff_av3a_mc4p0_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
 
 /* bitrate table for MC 5.1.2 */
 static const int64_t ff_av3a_mc5p1p2_bitrate_table[AV3A_BITRATE_TABLE_SIZE] = {
-    152000, 320000, 480000, 576000, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0
+    152000, 320000, 480000, 576000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 /* bitrate table for MC 5.1.4 */
@@ -228,27 +227,27 @@ static const enum AVChannel ff_av3a_channel_layout_mc_4_0[4] = {
 };
 
 static const enum AVChannel ff_av3a_default_channel_layout_mc_5_1[6] = {
-    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER, 
+    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER,
     AV_CHAN_LOW_FREQUENCY,
     AV_CHAN_SIDE_LEFT, AV_CHAN_SIDE_RIGHT
 };
 
 static const enum AVChannel ff_av3a_default_channel_layout_mc_5_1_2[8] = {
-    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER, 
+    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER,
     AV_CHAN_LOW_FREQUENCY,
     AV_CHAN_SIDE_LEFT, AV_CHAN_SIDE_RIGHT,
     AV_CHAN_TOP_SIDE_LEFT, AV_CHAN_TOP_SIDE_RIGHT
 };
 
 static const enum AVChannel ff_av3a_default_channel_layout_mc_7_1[8] = {
-    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER, 
+    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER,
     AV_CHAN_LOW_FREQUENCY,
     AV_CHAN_SIDE_LEFT, AV_CHAN_SIDE_RIGHT,
     AV_CHAN_BACK_LEFT, AV_CHAN_BACK_RIGHT
 };
 
 static const enum AVChannel ff_av3a_default_channel_layout_mc_5_1_4[10] = {
-    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER, 
+    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER,
     AV_CHAN_LOW_FREQUENCY,
     AV_CHAN_SIDE_LEFT, AV_CHAN_SIDE_RIGHT,
     AV_CHAN_TOP_FRONT_LEFT, AV_CHAN_TOP_FRONT_RIGHT,
@@ -256,7 +255,7 @@ static const enum AVChannel ff_av3a_default_channel_layout_mc_5_1_4[10] = {
 };
 
 static const enum AVChannel ff_av3a_default_channel_layout_mc_7_1_2[10] = {
-    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER, 
+    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER,
     AV_CHAN_LOW_FREQUENCY,
     AV_CHAN_SIDE_LEFT, AV_CHAN_SIDE_RIGHT,
     AV_CHAN_BACK_LEFT, AV_CHAN_BACK_RIGHT,
@@ -264,7 +263,7 @@ static const enum AVChannel ff_av3a_default_channel_layout_mc_7_1_2[10] = {
 };
 
 static const enum AVChannel ff_av3a_default_channel_layout_mc_7_1_4[12] = {
-    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER, 
+    AV_CHAN_FRONT_LEFT, AV_CHAN_FRONT_RIGHT, AV_CHAN_FRONT_CENTER,
     AV_CHAN_LOW_FREQUENCY,
     AV_CHAN_SIDE_LEFT, AV_CHAN_SIDE_RIGHT,
     AV_CHAN_BACK_LEFT, AV_CHAN_BACK_RIGHT,
@@ -273,21 +272,21 @@ static const enum AVChannel ff_av3a_default_channel_layout_mc_7_1_4[12] = {
 };
 
 static const Av3aChannelConfigMap ff_av3a_channels_map_table[AV3A_CHANNEL_LAYOUT_SIZE] = {
-    { CHANNEL_CONFIG_MONO,       1,  ff_av3a_default_channel_layout_mono,     AV3A_CH_LAYOUT_MONO          },              
-    { CHANNEL_CONFIG_STEREO,     2,  ff_av3a_default_channel_layout_stereo,   AV3A_CH_LAYOUT_STEREO        },         
-    { CHANNEL_CONFIG_MC_5_1,     6,  ff_av3a_default_channel_layout_mc_5_1,   AV3A_CH_LAYOUT_5POINT1       },         
-    { CHANNEL_CONFIG_MC_7_1,     8,  ff_av3a_default_channel_layout_mc_7_1,   AV3A_CH_LAYOUT_7POINT1       },          
-    { CHANNEL_CONFIG_MC_10_2,    12, NULL,                                    0L                           }, /* reserved */                                                            
-    { CHANNEL_CONFIG_MC_22_2,    24, NULL,                                    0L                           }, /* reserved */                                                          
-    { CHANNEL_CONFIG_MC_4_0,     4,  ff_av3a_channel_layout_mc_4_0,           AV3A_CH_LAYOUT_4POINT0       },                   
+    { CHANNEL_CONFIG_MONO,       1,  ff_av3a_default_channel_layout_mono,     AV3A_CH_LAYOUT_MONO          },
+    { CHANNEL_CONFIG_STEREO,     2,  ff_av3a_default_channel_layout_stereo,   AV3A_CH_LAYOUT_STEREO        },
+    { CHANNEL_CONFIG_MC_5_1,     6,  ff_av3a_default_channel_layout_mc_5_1,   AV3A_CH_LAYOUT_5POINT1       },
+    { CHANNEL_CONFIG_MC_7_1,     8,  ff_av3a_default_channel_layout_mc_7_1,   AV3A_CH_LAYOUT_7POINT1       },
+    { CHANNEL_CONFIG_MC_10_2,    12, NULL,                                    0L                           }, /* reserved */
+    { CHANNEL_CONFIG_MC_22_2,    24, NULL,                                    0L                           }, /* reserved */
+    { CHANNEL_CONFIG_MC_4_0,     4,  ff_av3a_channel_layout_mc_4_0,           AV3A_CH_LAYOUT_4POINT0       },
     { CHANNEL_CONFIG_MC_5_1_2,   8,  ff_av3a_default_channel_layout_mc_5_1_2, AV3A_CH_LAYOUT_5POINT1POINT2 },
     { CHANNEL_CONFIG_MC_5_1_4,   10, ff_av3a_default_channel_layout_mc_5_1_4, AV3A_CH_LAYOUT_5POINT1POINT4 },
     { CHANNEL_CONFIG_MC_7_1_2,   10, ff_av3a_default_channel_layout_mc_7_1_2, AV3A_CH_LAYOUT_7POINT1POINT2 },
     { CHANNEL_CONFIG_MC_7_1_4,   12, ff_av3a_default_channel_layout_mc_7_1_4, AV3A_CH_LAYOUT_7POINT1POINT4 },
-    { CHANNEL_CONFIG_HOA_ORDER1, 4,  NULL,                                    0L                           },                                              
-    { CHANNEL_CONFIG_HOA_ORDER2, 9,  NULL,                                    0L                           },                                             
-    { CHANNEL_CONFIG_HOA_ORDER3, 16, NULL,                                    0L                           },                                            
-    { CHANNEL_CONFIG_UNKNOWN,    0,  NULL,                                    0L                           },                                                                
+    { CHANNEL_CONFIG_HOA_ORDER1, 4,  NULL,                                    0L                           },
+    { CHANNEL_CONFIG_HOA_ORDER2, 9,  NULL,                                    0L                           },
+    { CHANNEL_CONFIG_HOA_ORDER3, 16, NULL,                                    0L                           },
+    { CHANNEL_CONFIG_UNKNOWN,    0,  NULL,                                    0L                           },
 };
 
 typedef struct {
@@ -296,20 +295,20 @@ typedef struct {
 } Av3aBitrateMap;
 
 static const Av3aBitrateMap ff_av3a_bitrate_map_table[15] = {
-    {CHANNEL_CONFIG_MONO,       ff_av3a_mono_bitrate_table    },   
-    {CHANNEL_CONFIG_STEREO,     ff_av3a_stereo_bitrate_table  },  
-    {CHANNEL_CONFIG_MC_5_1,     ff_av3a_mc5p1_bitrate_table   },   
-    {CHANNEL_CONFIG_MC_7_1,     ff_av3a_mc7p1_bitrate_table   },   
-    {CHANNEL_CONFIG_MC_10_2,    NULL                          }, /* reserved */                           
-    {CHANNEL_CONFIG_MC_22_2,    NULL                          }, /* reserved */               
-    {CHANNEL_CONFIG_MC_4_0,     ff_av3a_mc4p0_bitrate_table   },       
-    {CHANNEL_CONFIG_MC_5_1_2,   ff_av3a_mc5p1p2_bitrate_table },     
-    {CHANNEL_CONFIG_MC_5_1_4,   ff_av3a_mc5p1p4_bitrate_table },     
-    {CHANNEL_CONFIG_MC_7_1_2,   ff_av3a_mc7p1p2_bitrate_table },     
-    {CHANNEL_CONFIG_MC_7_1_4,   ff_av3a_mc7p1p4_bitrate_table },     
-    {CHANNEL_CONFIG_HOA_ORDER1, ff_av3a_foa_bitrate_table     },         
-    {CHANNEL_CONFIG_HOA_ORDER2, ff_av3a_hoa2_bitrate_table    },        
-    {CHANNEL_CONFIG_HOA_ORDER3, ff_av3a_hoa3_bitrate_table    },        
-    {CHANNEL_CONFIG_UNKNOWN,    NULL                          },                             
+    {CHANNEL_CONFIG_MONO,       ff_av3a_mono_bitrate_table    },
+    {CHANNEL_CONFIG_STEREO,     ff_av3a_stereo_bitrate_table  },
+    {CHANNEL_CONFIG_MC_5_1,     ff_av3a_mc5p1_bitrate_table   },
+    {CHANNEL_CONFIG_MC_7_1,     ff_av3a_mc7p1_bitrate_table   },
+    {CHANNEL_CONFIG_MC_10_2,    NULL                          }, /* reserved */
+    {CHANNEL_CONFIG_MC_22_2,    NULL                          }, /* reserved */
+    {CHANNEL_CONFIG_MC_4_0,     ff_av3a_mc4p0_bitrate_table   },
+    {CHANNEL_CONFIG_MC_5_1_2,   ff_av3a_mc5p1p2_bitrate_table },
+    {CHANNEL_CONFIG_MC_5_1_4,   ff_av3a_mc5p1p4_bitrate_table },
+    {CHANNEL_CONFIG_MC_7_1_2,   ff_av3a_mc7p1p2_bitrate_table },
+    {CHANNEL_CONFIG_MC_7_1_4,   ff_av3a_mc7p1p4_bitrate_table },
+    {CHANNEL_CONFIG_HOA_ORDER1, ff_av3a_foa_bitrate_table     },
+    {CHANNEL_CONFIG_HOA_ORDER2, ff_av3a_hoa2_bitrate_table    },
+    {CHANNEL_CONFIG_HOA_ORDER3, ff_av3a_hoa3_bitrate_table    },
+    {CHANNEL_CONFIG_UNKNOWN,    NULL                          },
 };
 #endif /* AVCODEC_AV3A_H */
