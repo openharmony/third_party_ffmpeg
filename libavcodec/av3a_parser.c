@@ -137,7 +137,7 @@ static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
     } else if (hdf->coding_profile == AV3A_AMBISONIC_PROFILE) {
         hdf->content_type = AV3A_AMBISONIC_TYPE;
         hdf->order        = get_bits(gb, 4);
-        hdf->hoa_order    += 1;
+        hdf->hoa_order    = hdf->order + 1;
 
         switch (hdf->hoa_order) {
         case AV3A_AMBISONIC_FIRST_ORDER:
