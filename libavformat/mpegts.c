@@ -669,7 +669,7 @@ static int mpegts_drm_get_iv(uint8_t *data, uint32_t data_size, uint32_t *pos, A
     }
     uint32_t iv_len = (uint32_t)(data[offset]);
     offset += 1; // 1 skip iv len
-    if (offset + iv_len > data_size) {
+    if ((offset + iv_len > data_size) || (iv_len > AV_DRM_IV_SIZE)) {
         av_log(NULL, AV_LOG_ERROR, "cei data too short\n");
         return -1;
     } else {
@@ -1408,7 +1408,9 @@ static const StreamType ISO_types[] = {
     { 0xd1, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_DIRAC      },
     { 0xd2, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_AVS2       },
     { 0xd4, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_AVS3       },
-    { 0xd5, AVMEDIA_TYPE_AUDIO, AV_CODEC_ID_AVS3DA     }, /* avs3 audio */
+#ifdef OHOS_AV3A_DEMUXER
+    { 0xd5, AVMEDIA_TYPE_AUDIO, AV_CODEC_ID_AVS3DA     },
+#endif
     { 0xea, AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_VC1        },
     { 0 },
 };
@@ -1463,7 +1465,6 @@ static const StreamType REGD_types[] = {
     { MKTAG('I', 'D', '3', ' '), AVMEDIA_TYPE_DATA,  AV_CODEC_ID_TIMED_ID3 },
     { MKTAG('V', 'C', '-', '1'), AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_VC1   },
     { MKTAG('O', 'p', 'u', 's'), AVMEDIA_TYPE_AUDIO, AV_CODEC_ID_OPUS  },
-    { MKTAG('a', 'v', '3', 'a'), AVMEDIA_TYPE_AUDIO, AV_CODEC_ID_AVS3DA}, /* AVS3 Audio descriptor Tag */
     { 0 },
 };
 

@@ -230,7 +230,7 @@ static void adts_aac_get_duration(AVFormatContext *s, AVStream *st)
     int64_t frame_num = 0;
     int64_t stream_size = avio_size(s->pb);
     if (stream_size > 0) {
-        while (offset < stream_size) {
+        while (offset + 7 <= stream_size) {
             if ((frame_size = adts_aac_get_frame_length(s, offset)) == 0) {
                 break;
             }
