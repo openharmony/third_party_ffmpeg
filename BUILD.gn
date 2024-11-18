@@ -1304,8 +1304,8 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/mpegenc.c",
     "//third_party/ffmpeg/libavformat/mpegts.c",
     "//third_party/ffmpeg/libavformat/mpegtsenc.c",
+    "//third_party/ffmpeg/libavformat/mpegvideodec.c",
 
-    # "//third_party/ffmpeg/libavformat/mpegvideodec.c",
     # "//third_party/ffmpeg/libavformat/mpjpeg.c",
     # "//third_party/ffmpeg/libavformat/mpjpegdec.c",
     # "//third_party/ffmpeg/libavformat/mpl2dec.c",
