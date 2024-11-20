@@ -7930,26 +7930,30 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     int i = 0;
     int nb_channels = 0;
     int nb_objects = 0;
+    int buff_size = 0;
     AVStream *st = NULL;
     GetBitContext gb;
-    uint8_t buffer[7];
+    uint8_t buffer[AV3A_DCA3_BOX_MAX_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
     int audio_codec_id, sampling_frequency_index;
     int nn_type, content_type, channel_number_index, number_objects;
     int hoa_order, resolution_index, reserved;
     int bitrate_kbps;
 
-    if (atom.size < AV3A_DCA3_BOX_MIN_SIZE) {
+    if ((atom.size < AV3A_DCA3_BOX_MIN_SIZE) || (atom.size > AV3A_DCA3_BOX_MAX_SIZE)) {
         return AVERROR_INVALIDDATA;
     }
+    buff_size = (int)(atom.size);
 
-    init_get_bits8(&gb, buffer, sizeof(buffer));
+    if ((ret = init_get_bits8(&gb, buffer, sizeof(buffer))) < 0) {
+        return ret;
+    }
 
     if (c->fc->nb_streams < 1) {
         return 0;
     }
     st = c->fc->streams[c->fc->nb_streams - 1];
 
-    if ((ret = avio_read(pb, buffer, sizeof(buffer))) < 0) {
+    if ((ret = avio_read(pb, buffer, buff_size)) < 0) {
         return ret;
     }
 
@@ -8016,7 +8020,10 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     }
 
     bitrate_kbps = get_bits(&gb, 16);
-    st->codecpar->bit_rate = bitrate_kbps * 1000;
+    if (bitrate_kbps <= 0) {
+        return AVERROR_INVALIDDATA;
+    }
+    st->codecpar->bit_rate = (int64_t)(bitrate_kbps * 1000);
 
     resolution_index = get_bits(&gb, 2);
     if ((resolution_index >= AV3A_RESOLUTION_TABLE_SIZE) || (resolution_index < 0)) {
