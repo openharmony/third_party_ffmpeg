@@ -195,7 +195,7 @@ static int av3a_get_packet_size(AVFormatContext *s)
     uint16_t sync_word = 0;
     int payload_bytes = 0;
     int payloud_bits  = 0;
-    uint8_t header[AV3A_MAX_NBYTES_HEADER];
+    uint8_t header[AV3A_MAX_NBYTES_HEADER + AV_INPUT_BUFFER_PADDING_SIZE];
     GetBitContext gb;
     int32_t sampling_rate;
     int16_t coding_profile, sampling_frequency_index, channel_number_index;

@@ -35,6 +35,7 @@
 #define AV3A_FS_TABLE_SIZE              9
 #define AV3A_RESOLUTION_TABLE_SIZE      3
 #define AV3A_DCA3_BOX_MIN_SIZE          5
+#define AV3A_DCA3_BOX_MAX_SIZE          7
 
 /* Channel Layout */
 #define AV3A_CH_LAYOUT_MONO             (AV_CH_LAYOUT_MONO)
@@ -201,9 +202,9 @@ typedef struct {
 } Av3aSampleFormatMap;
 
 static const Av3aSampleFormatMap ff_av3a_sample_format_map_table[AV3A_RESOLUTION_TABLE_SIZE] = {
-        {8,  AV_SAMPLE_FMT_U8 }, /* 0: 8 bits  */
-        {16, AV_SAMPLE_FMT_S16}, /* 1: 16 bits */
-        {24, AV_SAMPLE_FMT_S32}, /* 2: 24 bits */
+    {8,  AV_SAMPLE_FMT_U8 }, /* 0: 8 bits  */
+    {16, AV_SAMPLE_FMT_S16}, /* 1: 16 bits */
+    {24, AV_SAMPLE_FMT_S32}, /* 2: 24 bits */
 };
 
 typedef struct {

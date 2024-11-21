@@ -42,7 +42,7 @@ typedef struct {
     int16_t total_channels;
 } Av3aParseContext;
 
-static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
+static int ff_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
 {
     int64_t soundbed_bitrate = 0L;
     int64_t object_bitrate   = 0L;
@@ -181,19 +181,22 @@ static int ff_read_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
 static int raw_av3a_parse(AVCodecParserContext *s, AVCodecContext *avctx, const uint8_t **poutbuf,
                               int32_t *poutbuf_size, const uint8_t *buf, int32_t buf_size)
 {
-    int ret = 0;
     uint8_t header[AV3A_MAX_NBYTES_HEADER];
     AATFHeaderInfo hdf;
     GetBitContext gb;
 
-    if (buf_size < AV3A_MAX_NBYTES_HEADER) {
+    if ((!buf) || (buf_size < AV3A_MAX_NBYTES_HEADER)) {
+        *poutbuf      = NULL;
+        *poutbuf_size = 0;
         return buf_size;
     }
     memcpy(header, buf, AV3A_MAX_NBYTES_HEADER);
 
     init_get_bits8(&gb, buf, AV3A_MAX_NBYTES_HEADER);
-    if ((ret = ff_read_av3a_header_parse(&gb, &hdf)) != 0) {
-        return ret;
+    if (ff_av3a_header_parse(&gb, &hdf) < 0) {
+        *poutbuf      = NULL;
+        *poutbuf_size = 0;
+        return buf_size;
     }
 
     avctx->codec_id            = AV_CODEC_ID_AVS3DA;
