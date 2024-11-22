@@ -3549,6 +3549,9 @@ static int mpegts_resync(AVFormatContext *s, int seekback, const uint8_t *curren
         if (avio_feof(pb))
             return AVERROR_EOF;
         if (c == 0x47) {
+#ifdef OHOS_FRAME_TYPE_COMPAT
+	    avio_seek(pb, -1, SEEK_CUR);
+#else
             int new_packet_size, ret;
             avio_seek(pb, -1, SEEK_CUR);
             pos = avio_tell(pb);
@@ -3561,7 +3564,8 @@ static int mpegts_resync(AVFormatContext *s, int seekback, const uint8_t *curren
                 ts->raw_packet_size = new_packet_size;
             }
             avio_seek(pb, pos, SEEK_SET);
-            return 0;
+#endif
+	    return 0;
         }
     }
     av_log(s, AV_LOG_ERROR,
