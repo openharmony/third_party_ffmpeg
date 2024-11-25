@@ -7944,7 +7944,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     }
     buff_size = (int)(atom.size);
 
-    if ((ret = init_get_bits8(&gb, buffer, sizeof(buffer))) < 0) {
+    if ((ret = init_get_bits8(&gb, buffer, AV3A_DCA3_BOX_MAX_SIZE)) < 0) {
         return ret;
     }
 
