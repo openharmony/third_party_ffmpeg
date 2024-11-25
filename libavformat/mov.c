@@ -7933,7 +7933,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     int buff_size = 0;
     AVStream *st = NULL;
     GetBitContext gb;
-    uint8_t buffer[AV3A_DCA3_BOX_MAX_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
+    uint8_t buffer[(AV3A_DCA3_BOX_MAX_SIZE + 1) + AV_INPUT_BUFFER_PADDING_SIZE];
     int audio_codec_id, sampling_frequency_index;
     int nn_type, content_type, channel_number_index, number_objects;
     int hoa_order, resolution_index, reserved;
@@ -7944,7 +7944,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     }
     buff_size = (int)(atom.size);
 
-    if ((ret = init_get_bits8(&gb, buffer, AV3A_DCA3_BOX_MAX_SIZE)) < 0) {
+    if ((ret = init_get_bits8(&gb, buffer, (AV3A_DCA3_BOX_MAX_SIZE + 1))) < 0) {
         return ret;
     }
 
