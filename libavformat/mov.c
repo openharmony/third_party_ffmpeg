@@ -7933,7 +7933,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     int buff_size = 0;
     AVStream *st = NULL;
     GetBitContext gb;
-    uint8_t buffer[AV3A_DCA3_BOX_MAX_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
+    uint8_t buffer[(AV3A_DCA3_BOX_MAX_SIZE + 1) + AV_INPUT_BUFFER_PADDING_SIZE];
     int audio_codec_id, sampling_frequency_index;
     int nn_type, content_type, channel_number_index, number_objects;
     int hoa_order, resolution_index, reserved;
@@ -7944,7 +7944,7 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     }
     buff_size = (int)(atom.size);
 
-    if ((ret = init_get_bits8(&gb, buffer, sizeof(buffer))) < 0) {
+    if ((ret = init_get_bits8(&gb, buffer, (AV3A_DCA3_BOX_MAX_SIZE + 1))) < 0) {
         return ret;
     }
 
@@ -7979,10 +7979,10 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     if (content_type == AV3A_CHANNEL_BASED_TYPE) {
         channel_number_index = get_bits(&gb, 7);
         reserved             = get_bits(&gb, 1);
-        if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
+        if ((channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
             (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
             (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
-            (channel_number_index < 0)) {
+            (channel_number_index < CHANNEL_CONFIG_MONO)) {
                 return AVERROR_INVALIDDATA;
         }
         nb_channels = ff_av3a_channels_map_table[channel_number_index].channels;
@@ -7996,10 +7996,10 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     } else if (content_type == AV3A_CHANNEL_OBJECT_TYPE) {
         channel_number_index = get_bits(&gb, 7);
         reserved             = get_bits(&gb, 1);
-        if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
+        if ((channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
             (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
             (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
-            (channel_number_index < 0)) {
+            (channel_number_index < CHANNEL_CONFIG_STEREO)) {
                 return AVERROR_INVALIDDATA;
         }
         number_objects = get_bits(&gb, 7);

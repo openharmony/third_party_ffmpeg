@@ -43,15 +43,19 @@ typedef struct {
     uint16_t total_bitrate_kbps;
 } Av3aFormatContext;
 
-static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
+static int av3a_read_aatf_frame_header(const uint8_t *buf, AATFHeaderInfo *hdf)
 {
-    int16_t sync_word;
+    int ret = 0;
+    uint16_t sync_word;
     GetBitContext gb;
 
     hdf->nb_channels = 0;
     hdf->nb_objects  = 0;
 
-    init_get_bits8(&gb, buf, AV3A_MAX_NBYTES_HEADER);
+    /* (aatf header size + padding size) + AV_INPUT_BUFFER_PADDING_SIZE */
+    if ((ret = init_get_bits8(&gb, buf, (AV3A_MAX_NBYTES_HEADER + 7))) < 0) {
+        return ret;
+    }
 
     sync_word = get_bits(&gb, 12);
     if (sync_word != AV3A_AUDIO_SYNC_WORD) {
@@ -91,10 +95,10 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
     if (hdf->coding_profile == AV3A_BASE_PROFILE) {
         hdf->content_type         = AV3A_CHANNEL_BASED_TYPE;
         hdf->channel_number_index = get_bits(&gb, 7);
-        if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
+        if ((hdf->channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
             (hdf->channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
             (hdf->channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
-            (hdf->channel_number_index < 0)) {
+            (hdf->channel_number_index < CHANNEL_CONFIG_MONO)) {
             return AVERROR_INVALIDDATA;
         }
         hdf->nb_channels = ff_av3a_channels_map_table[hdf->channel_number_index].channels;
@@ -115,10 +119,10 @@ static int av3a_read_aatf_frame_header(AATFHeaderInfo *hdf, const uint8_t *buf)
         } else if (hdf->soundbed_type == 1) {
             hdf->content_type = AV3A_CHANNEL_OBJECT_TYPE;
             hdf->channel_number_index = get_bits(&gb, 7);
-            if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
+            if ((hdf->channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
                 (hdf->channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
                 (hdf->channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
-                (hdf->channel_number_index < 0)) {
+                (hdf->channel_number_index < CHANNEL_CONFIG_STEREO)) {
                 return AVERROR_INVALIDDATA;
             }
             hdf->nb_channels   = ff_av3a_channels_map_table[hdf->channel_number_index].channels;
@@ -193,9 +197,9 @@ static int av3a_get_packet_size(AVFormatContext *s)
     int ret = 0;
     int read_bytes = 0;
     uint16_t sync_word = 0;
-    int payload_bytes = 0;
-    int payloud_bits  = 0;
-    uint8_t header[AV3A_MAX_NBYTES_HEADER + AV_INPUT_BUFFER_PADDING_SIZE];
+    int packet_bytes = 0;
+    int packet_bits  = 0;
+    uint8_t header[(AV3A_MAX_NBYTES_HEADER + 7) + AV_INPUT_BUFFER_PADDING_SIZE];
     GetBitContext gb;
     int32_t sampling_rate;
     int16_t coding_profile, sampling_frequency_index, channel_number_index;
@@ -216,7 +220,9 @@ static int av3a_get_packet_size(AVFormatContext *s)
         return (read_bytes < 0) ? read_bytes : AVERROR_EOF;
     }
 
-    init_get_bits8(&gb, header, AV3A_MAX_NBYTES_HEADER);
+    if ((ret = init_get_bits8(&gb, header, (AV3A_MAX_NBYTES_HEADER + 7))) < 0) {
+        return ret;
+    }
 
     sync_word = get_bits(&gb, 12);
     if (sync_word != AV3A_AUDIO_SYNC_WORD) {
@@ -236,10 +242,10 @@ static int av3a_get_packet_size(AVFormatContext *s)
 
     if (coding_profile == AV3A_BASE_PROFILE) {
         channel_number_index = get_bits(&gb, 7);
-        if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
+        if ((channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
             (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
             (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
-            (channel_number_index < 0)) {
+            (channel_number_index < CHANNEL_CONFIG_MONO)) {
                 return AVERROR_INVALIDDATA;
         }
     } else if (coding_profile == AV3A_OBJECT_METADATA_PROFILE) {
@@ -259,10 +265,10 @@ static int av3a_get_packet_size(AVFormatContext *s)
             total_bitrate = ff_av3a_bitrate_map_table[CHANNEL_CONFIG_MONO].bitrate_table[bitrate_index_per_channel] * objects;
         } else if (soundbed_type == 1) {
             channel_number_index = get_bits(&gb, 7);
-            if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
+            if ((channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
                 (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
                 (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
-                (channel_number_index < 0)) {
+                (channel_number_index < CHANNEL_CONFIG_STEREO)) {
                 return AVERROR_INVALIDDATA;
             }
             
@@ -320,17 +326,17 @@ static int av3a_get_packet_size(AVFormatContext *s)
     skip_bits(&gb, 8);
 
     if (sampling_rate == 44100) {
-        payloud_bits  = (int)floor(((float) (total_bitrate) / sampling_rate) * AV3A_AUDIO_FRAME_SIZE);
-        payload_bytes = (int)ceil((float)payloud_bits / 8);
+        packet_bits  = (int)floor(((float)(total_bitrate) / sampling_rate) * AV3A_AUDIO_FRAME_SIZE);
+        packet_bytes = (int)ceil((float)packet_bits / 8);
     } else {
-        payload_bytes = (int)ceil((((float) (total_bitrate) / sampling_rate) * AV3A_AUDIO_FRAME_SIZE) / 8);
+        packet_bytes = (int)ceil((((float) (total_bitrate) / sampling_rate) * AV3A_AUDIO_FRAME_SIZE) / 8);
     }
 
     if ((ret = avio_seek(s->pb, -read_bytes, SEEK_CUR)) < 0) {
         return ret;
     }
 
-    return payload_bytes;
+    return packet_bytes;
 }
 
 static int av3a_probe(const AVProbeData *p)
@@ -350,7 +356,7 @@ static int av3a_probe(const AVProbeData *p)
 static int av3a_read_header(AVFormatContext *s)
 {
     int ret = 0;
-    uint8_t header[AV3A_MAX_NBYTES_HEADER];
+    uint8_t header[(AV3A_MAX_NBYTES_HEADER + 7) + AV_INPUT_BUFFER_PADDING_SIZE];
     AVStream *stream = NULL;
     Av3aFormatContext av3afmtctx;
     AATFHeaderInfo hdf;
@@ -373,8 +379,7 @@ static int av3a_read_header(AVFormatContext *s)
         return (ret < 0) ? ret : AVERROR_EOF;
     }
 
-    ret = av3a_read_aatf_frame_header(&hdf, header);
-    if (ret) {
+    if ((ret = av3a_read_aatf_frame_header(header, &hdf)) < 0) {
         return ret;
     }
 
@@ -396,7 +401,7 @@ static int av3a_read_header(AVFormatContext *s)
     av3afmtctx.number_objects           = hdf.nb_objects;
     av3afmtctx.hoa_order                = hdf.hoa_order;
     av3afmtctx.resolution_index         = hdf.resolution_index;
-    av3afmtctx.total_bitrate_kbps       = (int) (hdf.total_bitrate / 1000);
+    av3afmtctx.total_bitrate_kbps       = (uint16_t) (hdf.total_bitrate / 1000);
 
     if ((ret = ff_alloc_extradata(stream->codecpar, sizeof(Av3aFormatContext))) < 0) {
         return ret;
