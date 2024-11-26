@@ -904,7 +904,7 @@ static int mov_write_dmlp_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
 static int mov_write_dca3_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *track)
 {
     int64_t pos = avio_tell(pb);
-    uint8_t buffer[7];
+    uint8_t buffer[AV3A_DCA3_BOX_MAX_SIZE];
     PutBitContext pb_dca3;
     int audio_codec_id, sampling_frequency_index, nn_type, content_type;
     int channel_number_index, number_objects, hoa_order, resolution_index;
@@ -917,7 +917,7 @@ static int mov_write_dca3_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
     avio_wb32(pb, 0);         /* Size */
     ffio_wfourcc(pb, "dca3"); /* Type */
 
-    init_put_bits(&pb_dca3, buffer, 7);
+    init_put_bits(&pb_dca3, buffer, AV3A_DCA3_BOX_MAX_SIZE);
 
     audio_codec_id           = AV_RB8(track->par->extradata  + 0);
     sampling_frequency_index = AV_RB8(track->par->extradata  + 1);

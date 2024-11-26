@@ -7979,10 +7979,10 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     if (content_type == AV3A_CHANNEL_BASED_TYPE) {
         channel_number_index = get_bits(&gb, 7);
         reserved             = get_bits(&gb, 1);
-        if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
+        if ((channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
             (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
             (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
-            (channel_number_index < 0)) {
+            (channel_number_index < CHANNEL_CONFIG_MONO)) {
                 return AVERROR_INVALIDDATA;
         }
         nb_channels = ff_av3a_channels_map_table[channel_number_index].channels;
@@ -7996,10 +7996,10 @@ static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     } else if (content_type == AV3A_CHANNEL_OBJECT_TYPE) {
         channel_number_index = get_bits(&gb, 7);
         reserved             = get_bits(&gb, 1);
-        if ((channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
+        if ((channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
             (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
             (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
-            (channel_number_index < 0)) {
+            (channel_number_index < CHANNEL_CONFIG_STEREO)) {
                 return AVERROR_INVALIDDATA;
         }
         number_objects = get_bits(&gb, 7);

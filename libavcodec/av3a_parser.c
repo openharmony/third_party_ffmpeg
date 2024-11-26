@@ -42,13 +42,19 @@ typedef struct {
     int16_t total_channels;
 } Av3aParseContext;
 
-static int ff_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
+static int ff_av3a_header_parse(const uint8_t *buf, const int buf_size, AATFHeaderInfo *hdf)
 {
+    int ret;
+    GetBitContext gb;
     int64_t soundbed_bitrate = 0L;
     int64_t object_bitrate   = 0L;
 
     hdf->nb_channels = 0;
     hdf->nb_objects  = 0;
+
+    if ((ret = init_get_bits8(&gb, buf, buf_size)) < 0) {
+        return ret;
+    }
 
     hdf->sync_word = get_bits(gb, 12);
     if (hdf->sync_word != AV3A_AUDIO_SYNC_WORD) {
@@ -80,10 +86,10 @@ static int ff_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
     if (hdf->coding_profile == AV3A_BASE_PROFILE) {
         hdf->content_type         = AV3A_CHANNEL_BASED_TYPE;
         hdf->channel_number_index = get_bits(gb, 7);
-        if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
+        if ((hdf->channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
             (hdf->channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
             (hdf->channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
-            (hdf->channel_number_index < 0)) {
+            (hdf->channel_number_index < CHANNEL_CONFIG_MONO)) {
                 return AVERROR_INVALIDDATA;
         }
         hdf->nb_channels = ff_av3a_channels_map_table[hdf->channel_number_index].channels;
@@ -106,10 +112,10 @@ static int ff_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
         } else if (hdf->soundbed_type == 1) {
             hdf->content_type         = AV3A_CHANNEL_OBJECT_TYPE;
             hdf->channel_number_index = get_bits(gb, 7);
-            if ((hdf->channel_number_index >= CHANNEL_CONFIG_UNKNOWN) ||
+            if ((hdf->channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
                 (hdf->channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
                 (hdf->channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
-                (hdf->channel_number_index < 0)) {
+                (hdf->channel_number_index < CHANNEL_CONFIG_STEREO)) {
                     return AVERROR_INVALIDDATA;
             }
 
@@ -181,19 +187,16 @@ static int ff_av3a_header_parse(GetBitContext *gb, AATFHeaderInfo *hdf)
 static int raw_av3a_parse(AVCodecParserContext *s, AVCodecContext *avctx, const uint8_t **poutbuf,
                               int32_t *poutbuf_size, const uint8_t *buf, int32_t buf_size)
 {
-    uint8_t header[AV3A_MAX_NBYTES_HEADER];
+    int ret = 0;
     AATFHeaderInfo hdf;
-    GetBitContext gb;
 
-    if ((!buf) || (buf_size < AV3A_MAX_NBYTES_HEADER)) {
+    if ((!buf) || (buf_size < (AV3A_MAX_NBYTES_HEADER + 7))) {
         *poutbuf      = NULL;
         *poutbuf_size = 0;
         return buf_size;
     }
-    memcpy(header, buf, AV3A_MAX_NBYTES_HEADER);
 
-    init_get_bits8(&gb, buf, AV3A_MAX_NBYTES_HEADER);
-    if (ff_av3a_header_parse(&gb, &hdf) < 0) {
+    if ((ret = ff_av3a_header_parse(buf, AV3A_MAX_NBYTES_HEADER + 7, &hdf)) < 0) {
         *poutbuf      = NULL;
         *poutbuf_size = 0;
         return buf_size;
