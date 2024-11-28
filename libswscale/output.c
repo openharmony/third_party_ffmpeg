@@ -643,7 +643,7 @@ yuv2mono_2_c_template(SwsContext *c, const int16_t *buf[2],
 
     if (c->dither == SWS_DITHER_ED) {
         int err = 0;
-        int acc = 0;
+        unsigned acc = 0;
         for (i = 0; i < dstW; i +=2) {
             int Y;
 
@@ -665,7 +665,8 @@ yuv2mono_2_c_template(SwsContext *c, const int16_t *buf[2],
         c->dither_error[0][i] = err;
     } else {
         for (i = 0; i < dstW; i += 8) {
-            int Y, acc = 0;
+            int Y;
+            unsigned acc = 0;
 
             Y = (buf0[i + 0] * yalpha1 + buf1[i + 0] * yalpha) >> 19;
             accumulate_bit(acc, Y + d128[0]);
@@ -700,7 +701,7 @@ yuv2mono_1_c_template(SwsContext *c, const int16_t *buf0,
 
     if (c->dither == SWS_DITHER_ED) {
         int err = 0;
-        int acc = 0;
+        unsigned acc = 0;
         for (i = 0; i < dstW; i +=2) {
             int Y;
 
@@ -722,7 +723,7 @@ yuv2mono_1_c_template(SwsContext *c, const int16_t *buf0,
         c->dither_error[0][i] = err;
     } else {
         for (i = 0; i < dstW; i += 8) {
-            int acc = 0;
+            unsigned acc = 0;
             accumulate_bit(acc, ((buf0[i + 0] + 64) >> 7) + d128[0]);
             accumulate_bit(acc, ((buf0[i + 1] + 64) >> 7) + d128[1]);
             accumulate_bit(acc, ((buf0[i + 2] + 64) >> 7) + d128[2]);
@@ -1124,8 +1125,8 @@ yuv2rgba64_2_c_template(SwsContext *c, const int32_t *buf[2],
     av_assert2(uvalpha <= 4096U);
 
     for (i = 0; i < ((dstW + 1) >> 1); i++) {
-        int Y1 = (buf0[i * 2]     * yalpha1  + buf1[i * 2]     * yalpha) >> 14;
-        int Y2 = (buf0[i * 2 + 1] * yalpha1  + buf1[i * 2 + 1] * yalpha) >> 14;
+        unsigned Y1 = (buf0[i * 2]     * yalpha1  + buf1[i * 2]     * yalpha) >> 14;
+        unsigned Y2 = (buf0[i * 2 + 1] * yalpha1  + buf1[i * 2 + 1] * yalpha) >> 14;
         int U  = (ubuf0[i]        * uvalpha1 + ubuf1[i]        * uvalpha - (128 << 23)) >> 14;
         int V  = (vbuf0[i]        * uvalpha1 + vbuf1[i]        * uvalpha - (128 << 23)) >> 14;
         int R, G, B;
@@ -1149,20 +1150,20 @@ yuv2rgba64_2_c_template(SwsContext *c, const int32_t *buf[2],
             A2 += 1 << 13;
         }
 
-        output_pixel(&dest[0], av_clip_uintp2(((R_B + Y1) >> 14) + (1<<15), 16));
-        output_pixel(&dest[1], av_clip_uintp2(((  G + Y1) >> 14) + (1<<15), 16));
-        output_pixel(&dest[2], av_clip_uintp2(((B_R + Y1) >> 14) + (1<<15), 16));
+        output_pixel(&dest[0], av_clip_uintp2(((int)(R_B + Y1) >> 14) + (1<<15), 16));
+        output_pixel(&dest[1], av_clip_uintp2(((int)(  G + Y1) >> 14) + (1<<15), 16));
+        output_pixel(&dest[2], av_clip_uintp2(((int)(B_R + Y1) >> 14) + (1<<15), 16));
         if (eightbytes) {
             output_pixel(&dest[3], av_clip_uintp2(A1      , 30) >> 14);
-            output_pixel(&dest[4], av_clip_uintp2(((R_B + Y2) >> 14) + (1<<15), 16));
-            output_pixel(&dest[5], av_clip_uintp2(((  G + Y2) >> 14) + (1<<15), 16));
-            output_pixel(&dest[6], av_clip_uintp2(((B_R + Y2) >> 14) + (1<<15), 16));
+            output_pixel(&dest[4], av_clip_uintp2(((int)(R_B + Y2) >> 14) + (1<<15), 16));
+            output_pixel(&dest[5], av_clip_uintp2(((int)(  G + Y2) >> 14) + (1<<15), 16));
+            output_pixel(&dest[6], av_clip_uintp2(((int)(B_R + Y2) >> 14) + (1<<15), 16));
             output_pixel(&dest[7], av_clip_uintp2(A2      , 30) >> 14);
             dest += 8;
         } else {
-            output_pixel(&dest[3], av_clip_uintp2(((R_B + Y2) >> 14) + (1<<15), 16));
-            output_pixel(&dest[4], av_clip_uintp2(((  G + Y2) >> 14) + (1<<15), 16));
-            output_pixel(&dest[5], av_clip_uintp2(((B_R + Y2) >> 14) + (1<<15), 16));
+            output_pixel(&dest[3], av_clip_uintp2(((int)(R_B + Y2) >> 14) + (1<<15), 16));
+            output_pixel(&dest[4], av_clip_uintp2(((int)(  G + Y2) >> 14) + (1<<15), 16));
+            output_pixel(&dest[5], av_clip_uintp2(((int)(B_R + Y2) >> 14) + (1<<15), 16));
             dest += 6;
         }
     }
