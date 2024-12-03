@@ -49,6 +49,10 @@ static int av3a_read_aatf_frame_header(const uint8_t *buf, AATFHeaderInfo *hdf)
     uint16_t sync_word;
     GetBitContext gb;
 
+    if ((!buf) || (!hdf)) {
+        return AVERROR(ENOMEM);
+    }
+
     hdf->nb_channels = 0;
     hdf->nb_objects  = 0;
 

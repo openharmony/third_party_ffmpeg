@@ -52,6 +52,10 @@ static int ff_av3a_header_parse(const uint8_t *buf, const int buf_size, AATFHead
     hdf->nb_channels = 0;
     hdf->nb_objects  = 0;
 
+    if ((!buf) || (!hdf)) {
+        return AVERROR(ENOMEM);
+    }
+
     if ((ret = init_get_bits8(&gb, buf, buf_size)) < 0) {
         return ret;
     }
@@ -190,7 +194,7 @@ static int raw_av3a_parse(AVCodecParserContext *s, AVCodecContext *avctx, const 
     int ret = 0;
     AATFHeaderInfo hdf;
 
-    if ((!buf) || (buf_size < (AV3A_MAX_NBYTES_HEADER + 7))) {
+    if ((!s) || (!avctx) || (!buf) || (buf_size < (AV3A_MAX_NBYTES_HEADER + 7))) {
         *poutbuf      = NULL;
         *poutbuf_size = 0;
         return buf_size;
