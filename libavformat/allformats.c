@@ -79,6 +79,8 @@ extern const AVOutputFormat ff_asf_stream_muxer;
 extern const AVInputFormat  ff_au_demuxer;
 extern const AVOutputFormat ff_au_muxer;
 extern const AVInputFormat  ff_av1_demuxer;
+extern const AVOutputFormat ff_av3a_muxer;
+extern const AVInputFormat  ff_av3a_demuxer;
 extern const AVInputFormat  ff_avi_demuxer;
 extern const AVOutputFormat ff_avi_muxer;
 extern const AVOutputFormat ff_avif_muxer;
