@@ -64,6 +64,7 @@
 #include "id3v1.h"
 #include "mov_chan.h"
 #include "replaygain.h"
+#include "libavcodec/av3a.h"
 
 #if CONFIG_ZLIB
 #include <zlib.h>
@@ -7925,6 +7926,142 @@ static int mov_read_gnre(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 }
 #endif
 
+#ifdef OHOS_AV3A_DEMUXER
+static int mov_read_dca3(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+{
+    int ret = 0;
+    int i = 0;
+    int nb_channels = 0;
+    int nb_objects = 0;
+    int buff_size = 0;
+    AVStream *st = NULL;
+    GetBitContext gb;
+    uint8_t buffer[(AV3A_DCA3_BOX_MAX_SIZE + 1) + AV_INPUT_BUFFER_PADDING_SIZE];
+    int audio_codec_id, sampling_frequency_index;
+    int nn_type, content_type, channel_number_index, number_objects;
+    int hoa_order, resolution_index, reserved;
+    int bitrate_kbps;
+
+    if ((atom.size < AV3A_DCA3_BOX_MIN_SIZE) || (atom.size > AV3A_DCA3_BOX_MAX_SIZE)) {
+        return AVERROR_INVALIDDATA;
+    }
+    buff_size = (int)(atom.size);
+
+    if ((ret = init_get_bits8(&gb, buffer, (AV3A_DCA3_BOX_MAX_SIZE + 1))) < 0) {
+        return ret;
+    }
+
+    if (c->fc->nb_streams < 1) {
+        return 0;
+    }
+    st = c->fc->streams[c->fc->nb_streams - 1];
+
+    if ((ret = avio_read(pb, buffer, buff_size)) < 0) {
+        return ret;
+    }
+
+    audio_codec_id = get_bits(&gb, 4);
+    if (audio_codec_id != AV3A_LOSSY_CODEC_ID) {
+        return AVERROR_INVALIDDATA;
+    }
+
+    st->codecpar->frame_size = AV3A_AUDIO_FRAME_SIZE;
+    sampling_frequency_index = get_bits(&gb, 4);
+    if ((sampling_frequency_index >= AV3A_FS_TABLE_SIZE) || (sampling_frequency_index < 0)) {
+        return AVERROR_INVALIDDATA;
+    }
+    st->codecpar->sample_rate = ff_av3a_sampling_rate_table[sampling_frequency_index];
+
+    nn_type = get_bits(&gb, 3);
+    if ((nn_type > AV3A_LC_NN_TYPE) || (nn_type < AV3A_BASELINE_NN_TYPE)) {
+        return AVERROR_INVALIDDATA;
+    }
+
+    reserved     = get_bits(&gb, 1);
+    content_type = get_bits(&gb, 4);
+    if (content_type == AV3A_CHANNEL_BASED_TYPE) {
+        channel_number_index = get_bits(&gb, 7);
+        reserved             = get_bits(&gb, 1);
+        if ((channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
+            (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
+            (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
+            (channel_number_index < CHANNEL_CONFIG_MONO)) {
+                return AVERROR_INVALIDDATA;
+        }
+        nb_channels = ff_av3a_channels_map_table[channel_number_index].channels;
+    } else if (content_type == AV3A_OBJECT_BASED_TYPE) {
+        number_objects = get_bits(&gb, 7);
+        reserved       = get_bits(&gb, 1);
+        nb_objects     = number_objects;
+        if (nb_objects < 1) {
+            return AVERROR_INVALIDDATA;
+        }
+    } else if (content_type == AV3A_CHANNEL_OBJECT_TYPE) {
+        channel_number_index = get_bits(&gb, 7);
+        reserved             = get_bits(&gb, 1);
+        if ((channel_number_index > CHANNEL_CONFIG_MC_7_1_4) ||
+            (channel_number_index == CHANNEL_CONFIG_MC_10_2) ||
+            (channel_number_index == CHANNEL_CONFIG_MC_22_2) ||
+            (channel_number_index < CHANNEL_CONFIG_STEREO)) {
+                return AVERROR_INVALIDDATA;
+        }
+        number_objects = get_bits(&gb, 7);
+        reserved       = get_bits(&gb, 1);
+        nb_channels = ff_av3a_channels_map_table[channel_number_index].channels;
+        nb_objects  = number_objects;
+        if (nb_objects < 1) {
+            return AVERROR_INVALIDDATA;
+        }
+    } else if (content_type == AV3A_AMBISONIC_TYPE) {
+        hoa_order = get_bits(&gb, 4);
+        if ((hoa_order < AV3A_AMBISONIC_FIRST_ORDER) || (hoa_order > AV3A_AMBISONIC_THIRD_ORDER)) {
+            return AVERROR_INVALIDDATA;
+        }
+        nb_channels = (hoa_order + 1) * (hoa_order + 1);
+    } else {
+        return AVERROR_INVALIDDATA;
+    }
+
+    bitrate_kbps = get_bits(&gb, 16);
+    if (bitrate_kbps <= 0) {
+        return AVERROR_INVALIDDATA;
+    }
+    st->codecpar->bit_rate = (int64_t)(bitrate_kbps * 1000);
+
+    resolution_index = get_bits(&gb, 2);
+    if ((resolution_index >= AV3A_RESOLUTION_TABLE_SIZE) || (resolution_index < 0)) {
+        return AVERROR_INVALIDDATA;
+    }
+    st->codecpar->format = ff_av3a_sample_format_map_table[resolution_index].sample_format;
+    st->codecpar->bits_per_raw_sample = ff_av3a_sample_format_map_table[resolution_index].resolution;
+
+    av_channel_layout_uninit(&st->codecpar->ch_layout);
+    if (content_type != AV3A_AMBISONIC_TYPE) {
+        st->codecpar->ch_layout.order       = AV_CHANNEL_ORDER_CUSTOM;
+        st->codecpar->ch_layout.nb_channels = (nb_channels + nb_objects);
+        st->codecpar->ch_layout.u.map       = av_calloc(st->codecpar->ch_layout.nb_channels, sizeof(AVChannelCustom));
+        if (!st->codecpar->ch_layout.u.map) {
+            return AVERROR(ENOMEM);
+        }
+
+        if (content_type != AV3A_OBJECT_BASED_TYPE) {
+            for (i = 0; i < nb_channels; i ++) {
+                st->codecpar->ch_layout.u.map[i].id = ff_av3a_channels_map_table[channel_number_index].channel_layout[i];
+            }
+        }
+
+        for (i = nb_channels; i < st->codecpar->ch_layout.nb_channels; i++) {
+            st->codecpar->ch_layout.u.map[i].id = AV3A_CH_AUDIO_OBJECT;
+        }
+    } else {
+        st->codecpar->ch_layout.order       = AV_CHANNEL_ORDER_AMBISONIC;
+        st->codecpar->ch_layout.nb_channels = nb_channels;
+    }
+
+    return 0;
+}
+#endif
+
 static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('A','C','L','R'), mov_read_aclr },
 { MKTAG('A','P','R','G'), mov_read_avid },
@@ -8039,6 +8176,9 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('p','i','t','m'), mov_read_pitm },
 #ifdef OHOS_TIMED_META_TRACK
 { MKTAG('c','d','s','c'), mov_read_cdsc },
+#endif
+#ifdef OHOS_AV3A_DEMUXER
+{ MKTAG('d','c','a','3'), mov_read_dca3 },
 #endif
 { 0, NULL }
 };
