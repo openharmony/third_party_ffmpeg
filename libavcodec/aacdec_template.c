@@ -614,9 +614,10 @@ static void flush(AVCodecContext *avctx)
             if (che) {
                 for (j = 0; j <= 1; j++) {
                     memset(che->ch[j].saved, 0, sizeof(che->ch[j].saved));
+#ifdef OHOS_OPT_COMPAT
+                    memset(&che->sbr.data[j], 0, sizeof(che->sbr.data[j]));
+#endif
                 }
-                memset(&che->sbr.data[0], 0, sizeof(che->sbr.data[0]));
-                memset(&che->sbr.data[1], 0, sizeof(che->sbr.data[1]));
             }
         }
     }
