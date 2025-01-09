@@ -687,7 +687,15 @@ static int swr_convert_internal(struct SwrContext *s, AudioData *out, int out_co
 
     if(s->full_convert){
         av_assert0(!s->resample);
+#ifdef OHOS_OPT_COMPAT
+        ret = swri_audio_convert(s->full_convert, out, in, in_count);
+        if (ret < 0) {
+            av_log(NULL, AV_LOG_ERROR, "full_convert swri_audio_convert failed\n");
+            return ret;
+        }
+#else
         swri_audio_convert(s->full_convert, out, in, in_count);
+#endif
         return out_count;
     }
 
@@ -738,7 +746,15 @@ static int swr_convert_internal(struct SwrContext *s, AudioData *out, int out_co
     }
 
     if(in != postin){
+#ifdef OHOS_OPT_COMPAT
+        ret = swri_audio_convert(s->in_convert, postin, in, in_count);
+        if (ret < 0) {
+            av_log(NULL, AV_LOG_ERROR, "swri_audio_convert failed\n");
+            return ret;
+        }
+#else
         swri_audio_convert(s->in_convert, postin, in, in_count);
+#endif
     }
 
     if(s->resample_first){
@@ -804,7 +820,15 @@ static int swr_convert_internal(struct SwrContext *s, AudioData *out, int out_co
             s->dither.noise_pos += out_count;
         }
 //FIXME packed doesn't need more than 1 chan here!
+#ifdef OHOS_OPT_COMPAT
+        ret = swri_audio_convert(s->out_convert, out, conv_src, out_count);
+        if (ret < 0) {
+            av_log(NULL, AV_LOG_ERROR, "swri_audio_convert failed\n");
+            return ret;
+        }
+#else
         swri_audio_convert(s->out_convert, out, conv_src, out_count);
+#endif
     }
     return out_count;
 }
