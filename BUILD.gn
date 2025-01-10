@@ -23,6 +23,8 @@ libffmpeg_media_aarch64_sources = [
   "//third_party/ffmpeg/libavcodec/aarch64/aacpsdsp_neon.S",
   "//third_party/ffmpeg/libavcodec/aarch64/fft_init_aarch64.c",
   "//third_party/ffmpeg/libavcodec/aarch64/fft_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/fmtconvert_init.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/fmtconvert_neon.S",
   "//third_party/ffmpeg/libavcodec/aarch64/h264chroma_init_aarch64.c",
   "//third_party/ffmpeg/libavcodec/aarch64/h264cmc_neon.S",
   "//third_party/ffmpeg/libavcodec/aarch64/h264dsp_init_aarch64.c",
@@ -462,8 +464,6 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/flacenc.c",
 
     # "//third_party/ffmpeg/libavcodec/flicvideo.c",
-    "//third_party/ffmpeg/libavcodec/aarch64/fmtconvert_init.c",
-    "//third_party/ffmpeg/libavcodec/aarch64/fmtconvert_neon.S",
     "//third_party/ffmpeg/libavcodec/flvdec.c",
     "//third_party/ffmpeg/libavcodec/flvenc.c",
     "//third_party/ffmpeg/libavcodec/fmtconvert.c",
