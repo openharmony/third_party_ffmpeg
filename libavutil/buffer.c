@@ -102,15 +102,24 @@ AVBufferRef *av_buffer_allocz(size_t size)
 
 AVBufferRef *av_buffer_ref(const AVBufferRef *buf)
 {
-    AVBufferRef *ret = av_mallocz(sizeof(*ret));
-
-    if (!ret)
-        return NULL;
 #ifdef OHOS_CHECK_NULL_PTR
+    AVBufferRef *ret = NULL;
+
     if (!buf->buffer || !buf->buffer->refcount) {
         av_freep(&ret);
         return NULL;
     }
+
+    *ret = av_mallocz(sizeof(*ret));
+
+    if (!ret) {
+        return NULL;
+    }
+#else
+    AVBufferRef *ret = av_mallocz(sizeof(*ret));
+
+    if (!ret)
+        return NULL;
 #endif
     *ret = *buf;
 
