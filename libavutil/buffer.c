@@ -120,6 +120,7 @@ AVBufferRef *av_buffer_ref(const AVBufferRef *buf)
 
     if (!ret)
         return NULL;
+
 #endif
     *ret = *buf;
 
