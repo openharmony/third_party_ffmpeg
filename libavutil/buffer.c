@@ -106,7 +106,12 @@ AVBufferRef *av_buffer_ref(const AVBufferRef *buf)
 
     if (!ret)
         return NULL;
-
+#ifdef OHOS_CHECK_NULL_PTR
+    if (!buf->buffer || !buf->buffer->refcount) {
+        av_freep(&ret);
+        return NULL;
+    }
+#endif
     *ret = *buf;
 
     atomic_fetch_add_explicit(&buf->buffer->refcount, 1, memory_order_relaxed);
