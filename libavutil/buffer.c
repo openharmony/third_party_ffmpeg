@@ -106,7 +106,6 @@ AVBufferRef *av_buffer_ref(const AVBufferRef *buf)
     AVBufferRef *ret = NULL;
 
     if (!buf->buffer || !buf->buffer->refcount) {
-        av_freep(&ret);
         return NULL;
     }
 
