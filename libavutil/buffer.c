@@ -109,7 +109,7 @@ AVBufferRef *av_buffer_ref(const AVBufferRef *buf)
         return NULL;
     }
 
-    *ret = av_mallocz(sizeof(*ret));
+    *ret = (AVBufferRef *)av_mallocz(sizeof(*ret));
 #else
     AVBufferRef *ret = av_mallocz(sizeof(*ret));
 #endif
