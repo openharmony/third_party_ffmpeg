@@ -295,7 +295,7 @@ static int ape_read_header(AVFormatContext * s)
 
 #ifdef OHOS_CUSTOM_INFO
     int64_t max_frame_size = 0;
-    uint32_t extra_size = 8;
+    int64_t extra_size = 8;
 #endif
     for (i = 0; i < ape->totalframes; i++) {
         if(ape->frames[i].skip){
