@@ -230,6 +230,14 @@ int swri_audio_convert(AudioConvert *ctx, AudioData *out, AudioData *in, int len
                     ctx->simd_f(out->ch+ch, (const uint8_t **)in->ch+ch, off * (out->planar ? 1 :out->ch_count));
                 }
             }else{
+#ifdef OHOS_OPT_COMPAT
+                for (int ch_i = 0; ch_i < ctx->channels; ch_i++) {
+                    if (!in->ch[ch_i]) {
+                        av_log(NULL, AV_LOG_ERROR, "in->ch[%d] is NULL\n", ch_i);
+                        return AVERROR(EINVAL);
+                    }
+                }
+#endif
                 ctx->simd_f(out->ch, (const uint8_t **)in->ch, off);
             }
         }
