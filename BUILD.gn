@@ -1690,6 +1690,8 @@ action("gen_config_header") {
     script = "//third_party/ffmpeg/ios_config.sh"
   } else if (current_os == "android" && host_os == "mac") {
     script = "//third_party/ffmpeg/android_mac_config.sh"
+  } else if (current_os == "mingw") {
+    script = "//third_party/ffmpeg/mingw_config.sh"
   } else {
     script = "//third_party/ffmpeg/ohos_config.sh"
   }
@@ -1706,12 +1708,18 @@ action("gen_config_header") {
     ucc = "true"
   }
 
+  if (current_os == "mingw") {
+    ffmpeg_sys_root = "."
+  } else {
+    ffmpeg_sys_root = rebase_path(sysroot, root_build_dir)
+  }
+
   args = [
     rebase_path("//third_party/ffmpeg", root_build_dir),
     rebase_path("${target_gen_dir}/include/", root_build_dir),
     ffmpeg_selected_platform,
     rebase_path(default_clang_base_path, root_build_dir),
-    rebase_path(sysroot, root_build_dir),
+    ffmpeg_sys_root,
     ucc,
   ]
 
