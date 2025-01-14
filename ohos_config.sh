@@ -9,6 +9,9 @@ FFMPEG_PLAT=$3
 LLVM_PATH=$4
 SYSROOT_PATH=$5
 USE_CLANG_COVERAGE=$6
+FFMPEG_ENABLE_DEMUXERS=$7
+FFMPEG_ENABLE_PARSERS=$8
+FFMPEG_ENABLE_DECODERS=$9
 
 if [ ${FFMPEG_PLAT} = "aarch64" ]; then
 
@@ -69,6 +72,22 @@ FF_CONFIG_OPTIONS="
     --ld=${LLVM_PATH}/bin/clang
     --strip=${LLVM_PATH}/bin/llvm-strip
 "
+
+if [ -n ${FFMPEG_ENABLE_DEMUXERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-demuxer=${FFMPEG_ENABLE_DEMUXERS}"
+fi
+
+if [ -n ${FFMPEG_ENABLE_PARSERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-parser=${FFMPEG_ENABLE_PARSERS}"
+fi
+
+if [ -n ${FFMPEG_ENABLE_DECODERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-decoder=${FFMPEG_ENABLE_DECODERS}"
+fi
+
 EXTRA_CFLAGS="
     --target=aarch64-linux-ohos
     --sysroot=${SYSROOT_PATH}
@@ -158,6 +177,21 @@ FF_CONFIG_OPTIONS="
     --enable-lsp
     --enable-filter=crop,transpose,vflip,hflip
 "
+
+if [ -n ${FFMPEG_ENABLE_DEMUXERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-demuxer=${FFMPEG_ENABLE_DEMUXERS}"
+fi
+
+if [ -n ${FFMPEG_ENABLE_PARSERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-parser=${FFMPEG_ENABLE_PARSERS}"
+fi
+
+if [ -n ${FFMPEG_ENABLE_DECODERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-decoder=${FFMPEG_ENABLE_DECODERS}"
+fi
 
 FF_CONFIG_OPTIONS=`echo $FF_CONFIG_OPTIONS`
 

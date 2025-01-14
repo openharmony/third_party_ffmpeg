@@ -2,6 +2,12 @@
 
 import("//build/config/sysroot.gni")
 import("//build/ohos.gni")
+declare_args() {
+  ffmpeg_enable_codec_rm = false
+  ffmpeg_enable_codec_rv = false
+  ffmpeg_enable_codec_cook = false
+  ffmpeg_enable_codec_ac3 = false
+}
 
 print("current_cpu = ${current_cpu}")
 print("current_os = ${current_os}")
@@ -23,6 +29,8 @@ libffmpeg_media_aarch64_sources = [
   "//third_party/ffmpeg/libavcodec/aarch64/aacpsdsp_neon.S",
   "//third_party/ffmpeg/libavcodec/aarch64/fft_init_aarch64.c",
   "//third_party/ffmpeg/libavcodec/aarch64/fft_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/fmtconvert_init.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/fmtconvert_neon.S",
   "//third_party/ffmpeg/libavcodec/aarch64/h264chroma_init_aarch64.c",
   "//third_party/ffmpeg/libavcodec/aarch64/h264cmc_neon.S",
   "//third_party/ffmpeg/libavcodec/aarch64/h264dsp_init_aarch64.c",
@@ -45,6 +53,7 @@ libffmpeg_media_aarch64_sources = [
   "//third_party/ffmpeg/libavcodec/aarch64/opusdsp_neon.S",
   "//third_party/ffmpeg/libavcodec/aarch64/pixblockdsp_init_aarch64.c",
   "//third_party/ffmpeg/libavcodec/aarch64/pixblockdsp_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/rv40dsp_init_aarch64.c",
   "//third_party/ffmpeg/libavcodec/aarch64/sbrdsp_init_aarch64.c",
   "//third_party/ffmpeg/libavcodec/aarch64/sbrdsp_neon.S",
   "//third_party/ffmpeg/libavcodec/aarch64/simple_idct_neon.S",
@@ -194,13 +203,13 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/aandcttab.c",
 
     # "//third_party/ffmpeg/libavcodec/aasc.c",
-    # "//third_party/ffmpeg/libavcodec/ac3.c",
+    "//third_party/ffmpeg/libavcodec/ac3.c",
     "//third_party/ffmpeg/libavcodec/ac3_parser.c",
+    "//third_party/ffmpeg/libavcodec/ac3dec_data.c",
+    "//third_party/ffmpeg/libavcodec/ac3dec_fixed.c",
+    "//third_party/ffmpeg/libavcodec/ac3dec_float.c",
+    "//third_party/ffmpeg/libavcodec/ac3dsp.c",
 
-    # "//third_party/ffmpeg/libavcodec/ac3dec_data.c",
-    # "//third_party/ffmpeg/libavcodec/ac3dec_fixed.c",
-    # "//third_party/ffmpeg/libavcodec/ac3dec_float.c",
-    # "//third_party/ffmpeg/libavcodec/ac3dsp.c",
     # "//third_party/ffmpeg/libavcodec/ac3enc.c",
     # "//third_party/ffmpeg/libavcodec/ac3enc_fixed.c",
     # "//third_party/ffmpeg/libavcodec/ac3enc_float.c",
@@ -257,8 +266,8 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/atrac9dec.c",
     "//third_party/ffmpeg/libavcodec/atsc_a53.c",
     "//third_party/ffmpeg/libavcodec/audio_frame_queue.c",
+    "//third_party/ffmpeg/libavcodec/audiodsp.c",
 
-    # "//third_party/ffmpeg/libavcodec/audiodsp.c",
     # "//third_party/ffmpeg/libavcodec/aura.c",
     # "//third_party/ffmpeg/libavcodec/av1_frame_split_bsf.c",
     # "//third_party/ffmpeg/libavcodec/av1_metadata_bsf.c",
@@ -339,9 +348,9 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/codec2utils.c",
     "//third_party/ffmpeg/libavcodec/codec_desc.c",
     "//third_party/ffmpeg/libavcodec/codec_par.c",
+    "//third_party/ffmpeg/libavcodec/cook.c",
+    "//third_party/ffmpeg/libavcodec/cook_parser.c",
 
-    # "//third_party/ffmpeg/libavcodec/cook.c",
-    # "//third_party/ffmpeg/libavcodec/cook_parser.c",
     # "//third_party/ffmpeg/libavcodec/cpia.c",
     # "//third_party/ffmpeg/libavcodec/cscd.c",
     # "//third_party/ffmpeg/libavcodec/cyuv.c",
@@ -418,8 +427,9 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/dxtory.c",
     # "//third_party/ffmpeg/libavcodec/dxv.c",
     # "//third_party/ffmpeg/libavcodec/dynamic_hdr10_plus.c",
-    # "//third_party/ffmpeg/libavcodec/eac3_core_bsf.c",
-    # "//third_party/ffmpeg/libavcodec/eac3_data.c",
+    "//third_party/ffmpeg/libavcodec/eac3_core_bsf.c",
+    "//third_party/ffmpeg/libavcodec/eac3_data.c",
+
     # "//third_party/ffmpeg/libavcodec/eac3enc.c",
     # "//third_party/ffmpeg/libavcodec/eacmv.c",
     # "//third_party/ffmpeg/libavcodec/eaidct.c",
@@ -464,8 +474,8 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/flicvideo.c",
     "//third_party/ffmpeg/libavcodec/flvdec.c",
     "//third_party/ffmpeg/libavcodec/flvenc.c",
+    "//third_party/ffmpeg/libavcodec/fmtconvert.c",
 
-    # "//third_party/ffmpeg/libavcodec/fmtconvert.c",
     # "//third_party/ffmpeg/libavcodec/fmvc.c",
     "//third_party/ffmpeg/libavcodec/frame_thread_encoder.c",
 
@@ -839,14 +849,14 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/rv10.c",
     "//third_party/ffmpeg/libavcodec/rv10enc.c",
     "//third_party/ffmpeg/libavcodec/rv20enc.c",
+    "//third_party/ffmpeg/libavcodec/rv30.c",
+    "//third_party/ffmpeg/libavcodec/rv30dsp.c",
+    "//third_party/ffmpeg/libavcodec/rv34.c",
+    "//third_party/ffmpeg/libavcodec/rv34_parser.c",
+    "//third_party/ffmpeg/libavcodec/rv34dsp.c",
+    "//third_party/ffmpeg/libavcodec/rv40.c",
+    "//third_party/ffmpeg/libavcodec/rv40dsp.c",
 
-    # "//third_party/ffmpeg/libavcodec/rv30.c",
-    # "//third_party/ffmpeg/libavcodec/rv30dsp.c",
-    # "//third_party/ffmpeg/libavcodec/rv34.c",
-    # "//third_party/ffmpeg/libavcodec/rv34_parser.c",
-    # "//third_party/ffmpeg/libavcodec/rv34dsp.c",
-    # "//third_party/ffmpeg/libavcodec/rv40.c",
-    # "//third_party/ffmpeg/libavcodec/rv40dsp.c",
     # "//third_party/ffmpeg/libavcodec/s302m.c",
     # "//third_party/ffmpeg/libavcodec/s302menc.c",
     # "//third_party/ffmpeg/libavcodec/samidec.c",
@@ -1079,7 +1089,8 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavformat/aacdec.c",
 
     # "//third_party/ffmpeg/libavformat/aadec.c",
-    # "//third_party/ffmpeg/libavformat/ac3dec.c",
+    "//third_party/ffmpeg/libavformat/ac3dec.c",
+
     # "//third_party/ffmpeg/libavformat/acm.c",
     # "//third_party/ffmpeg/libavformat/act.c",
     # "//third_party/ffmpeg/libavformat/adp.c",
@@ -1384,9 +1395,9 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavformat/riffenc.c",
 
     # "//third_party/ffmpeg/libavformat/rl2.c",
-    # "//third_party/ffmpeg/libavformat/rm.c",
-    # "//third_party/ffmpeg/libavformat/rmdec.c",
-    # "//third_party/ffmpeg/libavformat/rmenc.c",
+    "//third_party/ffmpeg/libavformat/rm.c",
+    "//third_party/ffmpeg/libavformat/rmdec.c",
+    "//third_party/ffmpeg/libavformat/rmenc.c",
     "//third_party/ffmpeg/libavformat/rmsipr.c",
 
     # "//third_party/ffmpeg/libavformat/rpl.c",
@@ -1703,6 +1714,26 @@ action("gen_config_header") {
     }
   }
 
+  ohos_ffmpeg_enable_demuxers = ""
+  ohos_ffmpeg_enable_parsers = ""
+  ohos_ffmpeg_enable_decoders = ""
+  if (ffmpeg_enable_codec_rm) {
+    ohos_ffmpeg_enable_demuxers += "rm,"
+  }
+  if (ffmpeg_enable_codec_rv) {
+    ohos_ffmpeg_enable_parsers += "rv30,rv40,"
+    ohos_ffmpeg_enable_decoders += "rv30,rv40,"
+  }
+  if (ffmpeg_enable_codec_cook) {
+    ohos_ffmpeg_enable_parsers += "cook,"
+    ohos_ffmpeg_enable_decoders += "cook,"
+  }
+  if (ffmpeg_enable_codec_ac3) {
+    ohos_ffmpeg_enable_demuxers += "ac3,"
+    ohos_ffmpeg_enable_parsers += "ac3,"
+    ohos_ffmpeg_enable_decoders += "ac3,"
+  }
+
   ucc = "false"
   if (use_clang_coverage) {
     ucc = "true"
@@ -1715,6 +1746,9 @@ action("gen_config_header") {
     rebase_path(default_clang_base_path, root_build_dir),
     rebase_path(sysroot, root_build_dir),
     ucc,
+    ohos_ffmpeg_enable_demuxers,
+    ohos_ffmpeg_enable_parsers,
+    ohos_ffmpeg_enable_decoders,
   ]
 
   outputs = [ "${target_gen_dir}/include/config.h" ]
