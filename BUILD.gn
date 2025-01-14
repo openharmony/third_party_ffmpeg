@@ -1713,25 +1713,24 @@ action("gen_config_header") {
     }
   }
 
-  ffmpeg_enable_muxers = ""
-  ffmpeg_enable_demuxers = ""
-  ffmpeg_enable_parsers = ""
-  ffmpeg_enable_decoders = ""
+  ohos_ffmpeg_enable_demuxers = ""
+  ohos_ffmpeg_enable_parsers = ""
+  ohos_ffmpeg_enable_decoders = ""
   if (ffmpeg_enable_codec_rm) {
-    ffmpeg_enable_demuxers += "rm,"
+    ohos_ffmpeg_enable_demuxers += "rm,"
   }
   if (ffmpeg_enable_codec_rv) {
-    ffmpeg_enable_parsers += "rv30,rv40,"
-    ffmpeg_enable_decoders += "rv30,rv40,"
+    ohos_ffmpeg_enable_parsers += "rv30,rv40,"
+    ohos_ffmpeg_enable_decoders += "rv30,rv40,"
   }
   if (ffmpeg_enable_codec_cook) {
-    ffmpeg_enable_parsers += "cook,"
-    ffmpeg_enable_decoders += "cook,"
+    ohos_ffmpeg_enable_parsers += "cook,"
+    ohos_ffmpeg_enable_decoders += "cook,"
   }
   if (ffmpeg_enable_codec_ac3) {
-    ffmpeg_enable_demuxers += "ac3,"
-    ffmpeg_enable_parsers += "ac3,"
-    ffmpeg_enable_decoders += "ac3,"
+    ohos_ffmpeg_enable_demuxers += "ac3,"
+    ohos_ffmpeg_enable_parsers += "ac3,"
+    ohos_ffmpeg_enable_decoders += "ac3,"
   }
 
   ucc = "false"
@@ -1746,10 +1745,9 @@ action("gen_config_header") {
     rebase_path(default_clang_base_path, root_build_dir),
     rebase_path(sysroot, root_build_dir),
     ucc,
-    ffmpeg_enable_muxers,
-    ffmpeg_enable_demuxers,
-    ffmpeg_enable_parsers,
-    ffmpeg_enable_decoders,
+    ohos_ffmpeg_enable_demuxers,
+    ohos_ffmpeg_enable_parsers,
+    ohos_ffmpeg_enable_decoders,
   ]
 
   outputs = [ "${target_gen_dir}/include/config.h" ]
