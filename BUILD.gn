@@ -16,7 +16,7 @@ print("is_mingw = ${is_mingw}")
 is_cross_platform_build = defined(is_arkui_x) && is_arkui_x
 
 ffmpeg_selected_platform = ""
-if (current_cpu == "arm64" && current_os == "ohos") {
+if (current_cpu == "arm64" && (current_os == "ohos" || current_os == "mac")) {
   print("ffmpeg selected aarch64")
   ffmpeg_selected_platform = "aarch64"
 } else {
@@ -103,7 +103,9 @@ libffmpeg_media_asm_sources = []
 ldflags_asm = []
 if (ffmpeg_selected_platform == "aarch64") {
   libffmpeg_media_asm_sources += libffmpeg_media_aarch64_sources
-  ldflags_asm += [ "-Wl,-Bsymbolic" ]
+  if (current_os != "mac") {
+    ldflags_asm += [ "-Wl,-Bsymbolic" ]
+  }
 }
 
 unused_variables = []
@@ -1758,11 +1760,15 @@ action("gen_config_header") {
     script = "//third_party/ffmpeg/ios_config.sh"
   } else if (current_os == "android" && host_os == "mac") {
     script = "//third_party/ffmpeg/android_mac_config.sh"
+  } else if (current_os == "mac") {
+    script = "//third_party/ffmpeg/mac_config.sh"
+  } else if (current_os == "mingw") {
+    script = "//third_party/ffmpeg/mingw_config.sh"
   } else {
     script = "//third_party/ffmpeg/ohos_config.sh"
   }
   if (!is_cross_platform_build) {
-    if (ffmpeg_selected_platform == "aarch64") {
+    if (ffmpeg_selected_platform == "aarch64" && current_os != "mac") {
       print(
           "third_party:ffmpeg # external_deps //third_party/musl:soft_libc_musl_static")
       external_deps = [ "musl:soft_libc_musl_static" ]
@@ -1794,12 +1800,17 @@ action("gen_config_header") {
     ucc = "true"
   }
 
+  ffmpeg_sys_root = "."
+  if (sysroot != "") {
+    ffmpeg_sys_root = rebase_path(sysroot, root_build_dir)
+  }
+
   args = [
     rebase_path("//third_party/ffmpeg", root_build_dir),
     rebase_path("${target_gen_dir}/include/", root_build_dir),
     ffmpeg_selected_platform,
     rebase_path(default_clang_base_path, root_build_dir),
-    rebase_path(sysroot, root_build_dir),
+    ffmpeg_sys_root,
     ucc,
     ohos_ffmpeg_enable_demuxers,
     ohos_ffmpeg_enable_parsers,
@@ -1823,6 +1834,9 @@ ohos_shared_library("libohosffmpeg") {
   subsystem_name = "thirdparty"
   cflags = [ "-Wno-array-parameter" ]
   ldflags = ldflags_asm
+  if (current_os == "mac") {
+    ldflags += [ "-liconv" ]
+  }
 }
 
 ohos_static_library("libohosffmpeg_static") {
