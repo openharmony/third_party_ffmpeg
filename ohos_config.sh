@@ -9,6 +9,10 @@ FFMPEG_PLAT=$3
 LLVM_PATH=$4
 SYSROOT_PATH=$5
 USE_CLANG_COVERAGE=$6
+FFMPEG_ENABLE_MUXERS=$7
+FFMPEG_ENABLE_DEMUXERS=$8
+FFMPEG_ENABLE_PARSERS=$9
+FFMPEG_ENABLE_DECODERS=$10
 
 if [ ${FFMPEG_PLAT} = "aarch64" ]; then
 
@@ -50,12 +54,12 @@ FF_CONFIG_OPTIONS="
     --disable-bzlib
     --disable-lzma
     --disable-vulkan
-    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo,rm,ac3
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo
     --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a
-    --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo,rv30,rv40
-    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus,cook,ac3
+    --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo
+    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus
     --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9,rv30,rv40
-    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb,cook,ac3
+    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb
     --enable-decoder=png,bmp
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
@@ -69,6 +73,26 @@ FF_CONFIG_OPTIONS="
     --ld=${LLVM_PATH}/bin/clang
     --strip=${LLVM_PATH}/bin/llvm-strip
 "
+if [ -n ${FFMPEG_ENABLE_MUXERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-muxer=${FFMPEG_ENABLE_MUXERS}"
+fi
+
+if [ -n ${FFMPEG_ENABLE_DEMUXERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-demuxer=${FFMPEG_ENABLE_DEMUXERS}"
+fi
+
+if [ -n ${FFMPEG_ENABLE_PARSERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-parser=${FFMPEG_ENABLE_PARSERS}"
+fi
+
+if [ -n ${FFMPEG_ENABLE_DECODERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-decoder=${FFMPEG_ENABLE_DECODERS}"
+fi
+
 EXTRA_CFLAGS="
     --target=aarch64-linux-ohos
     --sysroot=${SYSROOT_PATH}
@@ -144,12 +168,12 @@ FF_CONFIG_OPTIONS="
     --disable-sdl2
     --disable-bzlib
     --disable-lzma
-    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo,rm,ac3
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo
     --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a
-    --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo,rv30,rv40
-    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus,cook,ac3
-    --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9,rv30,rv40
-    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb,cook,ac3
+    --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo
+    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus
+    --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
+    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb
     --enable-decoder=png,bmp
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
@@ -158,6 +182,26 @@ FF_CONFIG_OPTIONS="
     --enable-lsp
     --enable-filter=crop,transpose,vflip,hflip
 "
+
+if [ -n ${FFMPEG_ENABLE_MUXERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-muxer=${FFMPEG_ENABLE_MUXERS}"
+fi
+
+if [ -n ${FFMPEG_ENABLE_DEMUXERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-demuxer=${FFMPEG_ENABLE_DEMUXERS}"
+fi
+
+if [ -n ${FFMPEG_ENABLE_PARSERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-parser=${FFMPEG_ENABLE_PARSERS}"
+fi
+
+if [ -n ${FFMPEG_ENABLE_DECODERS} ]; then
+FF_CONFIG_OPTIONS+="
+    --enable-decoder=${FFMPEG_ENABLE_DECODERS}"
+fi
 
 FF_CONFIG_OPTIONS=`echo $FF_CONFIG_OPTIONS`
 

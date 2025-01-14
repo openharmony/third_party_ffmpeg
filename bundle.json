@@ -14,7 +14,12 @@
         "name": "ffmpeg",
         "subsystem": "thirdparty",
         "syscap": [],
-        "features": [],
+        "features": [
+            "ffmpeg_enable_codec_rm",
+            "ffmpeg_enable_codec_rv",
+            "ffmpeg_enable_codec_cook",
+            "ffmpeg_enable_codec_ac3"
+        ],
         "adapted_system_type": [ "standard" ],
         "rom": "",
         "ram": "",
