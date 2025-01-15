@@ -73,17 +73,17 @@ FF_CONFIG_OPTIONS="
     --strip=${LLVM_PATH}/bin/llvm-strip
 "
 
-if [ -n ${FFMPEG_ENABLE_DEMUXERS} ]; then
+if [ -n "${FFMPEG_ENABLE_DEMUXERS}" ]; then
 FF_CONFIG_OPTIONS+="
     --enable-demuxer=${FFMPEG_ENABLE_DEMUXERS}"
 fi
 
-if [ -n ${FFMPEG_ENABLE_PARSERS} ]; then
+if [ -n "${FFMPEG_ENABLE_PARSERS}" ]; then
 FF_CONFIG_OPTIONS+="
     --enable-parser=${FFMPEG_ENABLE_PARSERS}"
 fi
 
-if [ -n ${FFMPEG_ENABLE_DECODERS} ]; then
+if [ -n "${FFMPEG_ENABLE_DECODERS}" ]; then
 FF_CONFIG_OPTIONS+="
     --enable-decoder=${FFMPEG_ENABLE_DECODERS}"
 fi
@@ -178,17 +178,17 @@ FF_CONFIG_OPTIONS="
     --enable-filter=crop,transpose,vflip,hflip
 "
 
-if [ -n ${FFMPEG_ENABLE_DEMUXERS} ]; then
+if [ -n "${FFMPEG_ENABLE_DEMUXERS}" ]; then
 FF_CONFIG_OPTIONS+="
     --enable-demuxer=${FFMPEG_ENABLE_DEMUXERS}"
 fi
 
-if [ -n ${FFMPEG_ENABLE_PARSERS} ]; then
+if [ -n "${FFMPEG_ENABLE_PARSERS}" ]; then
 FF_CONFIG_OPTIONS+="
     --enable-parser=${FFMPEG_ENABLE_PARSERS}"
 fi
 
-if [ -n ${FFMPEG_ENABLE_DECODERS} ]; then
+if [ -n "${FFMPEG_ENABLE_DECODERS}" ]; then
 FF_CONFIG_OPTIONS+="
     --enable-decoder=${FFMPEG_ENABLE_DECODERS}"
 fi
