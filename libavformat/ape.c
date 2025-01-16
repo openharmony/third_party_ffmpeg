@@ -293,6 +293,10 @@ static int ape_read_header(AVFormatContext * s)
         final_size = ape->finalframeblocks * 8LL;
     ape->frames[ape->totalframes - 1].size = final_size;
 
+#ifdef OHOS_CUSTOM_INFO
+    int64_t max_frame_size = 0;
+    int64_t extra_size = 8;
+#endif
     for (i = 0; i < ape->totalframes; i++) {
         if(ape->frames[i].skip){
             ape->frames[i].pos  -= ape->frames[i].skip;
@@ -301,6 +305,11 @@ static int ape_read_header(AVFormatContext * s)
         if (ape->frames[i].size > INT_MAX - 3)
             return AVERROR_INVALIDDATA;
         ape->frames[i].size = (ape->frames[i].size + 3) & ~3;
+#ifdef OHOS_CUSTOM_INFO
+        if (ape->frames[i].size <= INT64_MAX - extra_size && max_frame_size < ape->frames[i].size + extra_size) {
+            max_frame_size = ape->frames[i].size + extra_size;
+        }
+#endif
     }
     if (ape->fileversion < 3810) {
         for (i = 0; i < ape->totalframes; i++) {
@@ -318,8 +327,15 @@ static int ape_read_header(AVFormatContext * s)
         }
     }
 
+#ifdef OHOS_CUSTOM_INFO
+    if (s != NULL) {    
+        av_dict_set_int(&s->metadata, "max_frame_size", max_frame_size, 0);
+        if (ape != NULL) {
+            av_dict_set_int(&s->metadata, "sample_per_frame", ape->blocksperframe, 0);
+        }
+    }
+#endif
     ape_dumpinfo(s, ape);
-
     av_log(s, AV_LOG_VERBOSE, "Decoding file - v%d.%02d, compression level %"PRIu16"\n",
            ape->fileversion / 1000, (ape->fileversion % 1000) / 10,
            ape->compressiontype);
