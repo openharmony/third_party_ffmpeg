@@ -1376,9 +1376,9 @@ yuv2rgba64_full_2_c_template(SwsContext *c, const int32_t *buf[2],
             A += 1 << 13;
         }
 
-        output_pixel(&dest[0], av_clip_uintp2(((R_B + Y) >> 14) + (1<<15), 16));
-        output_pixel(&dest[1], av_clip_uintp2(((  G + Y) >> 14) + (1<<15), 16));
-        output_pixel(&dest[2], av_clip_uintp2(((B_R + Y) >> 14) + (1<<15), 16));
+        output_pixel(&dest[0], av_clip_uintp2(((int)(R_B + (unsigned)Y) >> 14) + (1<<15), 16));
+        output_pixel(&dest[1], av_clip_uintp2(((int)(  G + (unsigned)Y) >> 14) + (1<<15), 16));
+        output_pixel(&dest[2], av_clip_uintp2(((int)(B_R + (unsigned)Y) >> 14) + (1<<15), 16));
         if (eightbytes) {
             output_pixel(&dest[3], av_clip_uintp2(A, 30) >> 14);
             dest += 4;
