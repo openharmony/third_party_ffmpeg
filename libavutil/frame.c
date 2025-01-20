@@ -77,6 +77,11 @@ static void get_frame_defaults(AVFrame *frame)
 
 static void free_side_data(AVFrameSideData **ptr_sd)
 {
+#ifdef OHOS_CHECK_NULL_PTR
+    if (!ptr_sd || !*ptr_sd) {
+        return;
+    }
+#endif
     AVFrameSideData *sd = *ptr_sd;
 
     av_buffer_unref(&sd->buf);
