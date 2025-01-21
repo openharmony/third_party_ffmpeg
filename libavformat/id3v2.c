@@ -341,10 +341,14 @@ static int decode_str(AVFormatContext *s, AVIOContext *pb, int encoding,
 }
 
 #ifdef OHOS_OPT_COMPAT
+#ifndef __MINGW64__
+// iconv is not available for mingw build
 #include <iconv.h>
+#endif
 static int iso8859_convert_utf8(char *input, size_t inputlen, char *output, size_t outputlen)
 {
     int resultLen = -1;
+#ifndef __MINGW64__
     size_t inbuferlen = inputlen;
     size_t outbuferlen = outputlen;
     iconv_t cd = iconv_open("ISO-8859-1", "UTF-8");
@@ -355,6 +359,7 @@ static int iso8859_convert_utf8(char *input, size_t inputlen, char *output, size
         }
         iconv_close(cd);
     }
+#endif
     return resultLen;
 }
 #endif
