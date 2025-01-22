@@ -1708,9 +1708,8 @@ action("gen_config_header") {
     ucc = "true"
   }
 
-  if (current_os == "mingw") {
-    ffmpeg_sys_root = "."
-  } else {
+  ffmpeg_sys_root = "."
+  if (sysroot != "") {
     ffmpeg_sys_root = rebase_path(sysroot, root_build_dir)
   }
 
