@@ -8939,11 +8939,12 @@ static int mov_read_header(AVFormatContext *s)
             AVStream *st = s->streams[i];
             MOVStreamContext *sc = st->priv_data;
             if (st->duration > 0) {
-#ifdef OHOS_CAL_DASH_BITRATE
-                st->codecpar->bit_rate = av_rescale(sc->referenced_size, ((int64_t) sc->time_scale) * 8, st->duration);
-#else
                 /* Akin to sc->data_size * 8 * sc->time_scale / st->duration but accounting for overflows. */
                 st->codecpar->bit_rate = av_rescale(sc->data_size, ((int64_t) sc->time_scale) * 8, st->duration);
+#ifdef OHOS_CAL_DASH_BITRATE
+                if (sc->has_sidx == 1) {
+                    st->codecpar->bit_rate = av_rescale(sc->referenced_size, ((int64_t) sc->time_scale) * 8, st->duration);
+                }
 #endif
                 if (st->codecpar->bit_rate == INT64_MIN) {
                     av_log(s, AV_LOG_WARNING, "Overflow during bit rate calculation %"PRId64" * 8 * %d\n",
