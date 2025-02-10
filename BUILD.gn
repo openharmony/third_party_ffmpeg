@@ -148,6 +148,7 @@ config("ffmpeg_config") {
     "-DOHOS_EXPAND_MP4_INFO",
     "-DOHOS_AV3A_DEMUXER",
     "-DOHOS_CHECK_NULL_PTR",
+    "-DOHOS_CAL_DASH_BITRATE",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]

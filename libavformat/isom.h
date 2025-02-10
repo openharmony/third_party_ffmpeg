@@ -258,6 +258,9 @@ typedef struct MOVStreamContext {
         AVEncryptionInfo *default_encrypted_sample;
         MOVEncryptionIndex *encryption_index;
     } cenc;
+#ifdef OHOS_CAL_DASH_BITRATE
+    int64_t referenced_size;
+#endif
 } MOVStreamContext;
 
 typedef struct MOVContext {
