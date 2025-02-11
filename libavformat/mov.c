@@ -5517,7 +5517,9 @@ static int mov_read_sidx(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     item_count = avio_rb16(pb);
     if (item_count == 0)
         return AVERROR_INVALIDDATA;
-
+#ifdef OHOS_CAL_DASH_BITRATE
+        sc->referenced_size = 0;
+#endif
     for (i = 0; i < item_count; i++) {
         int index;
         MOVFragmentStreamInfo * frag_stream_info;
@@ -5541,6 +5543,9 @@ static int mov_read_sidx(MOVContext *c, AVIOContext *pb, MOVAtom atom)
             return AVERROR_INVALIDDATA;
         offset += size;
         pts += duration;
+#ifdef OHOS_CAL_DASH_BITRATE
+        sc->referenced_size += size;
+#endif
     }
 
     st->duration = sc->track_end = pts;
@@ -8939,6 +8944,11 @@ static int mov_read_header(AVFormatContext *s)
             if (st->duration > 0) {
                 /* Akin to sc->data_size * 8 * sc->time_scale / st->duration but accounting for overflows. */
                 st->codecpar->bit_rate = av_rescale(sc->data_size, ((int64_t) sc->time_scale) * 8, st->duration);
+#ifdef OHOS_CAL_DASH_BITRATE
+                if (sc->has_sidx == 1) {
+                    st->codecpar->bit_rate = av_rescale(sc->referenced_size, ((int64_t) sc->time_scale) * 8, st->duration);
+                }
+#endif
                 if (st->codecpar->bit_rate == INT64_MIN) {
                     av_log(s, AV_LOG_WARNING, "Overflow during bit rate calculation %"PRId64" * 8 * %d\n",
                            sc->data_size, sc->time_scale);
