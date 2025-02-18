@@ -465,7 +465,11 @@ retry:
 
     // Allocates enough space if data_type is a int32 or float32 number, otherwise
     // worst-case requirement for output string in case of utf8 coded input
+#ifdef OHOS_MOOV_LEVEL_META
+    num = (data_type >= 21 && data_type <= 23) || (data_type == 67);
+#else
     num = (data_type >= 21 && data_type <= 23);
+#endif
     str_size_alloc = (num ? 512 : (raw ? str_size : str_size * 2)) + 1;
     str = av_mallocz(str_size_alloc);
     if (!str)
