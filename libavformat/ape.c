@@ -328,8 +328,10 @@ static int ape_read_header(AVFormatContext * s)
     }
 
 #ifdef OHOS_CUSTOM_INFO
-    if (s != NULL) {    
-        av_dict_set_int(&s->metadata, "max_frame_size", max_frame_size, 0);
+    if (s != NULL) {   
+        if (max_frame_size > extra_size) {
+            av_dict_set_int(&s->metadata, "max_frame_size", max_frame_size, 0);
+        }
         if (ape != NULL) {
             av_dict_set_int(&s->metadata, "sample_per_frame", ape->blocksperframe, 0);
         }
