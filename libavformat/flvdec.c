@@ -1421,7 +1421,7 @@ leave:
             !flv->broken_sizes) {
             av_log(s, AV_LOG_ERROR, "Packet mismatch %d %d %"PRId64"\n", last, orig_size + 11, flv->sum_flv_tag_size);
 #ifdef OHOS_OPT_COMPAT
-            if (s->p->error < 0 && (s->p->seekable & AVIO_SEEKABLE_NORMAL)) {
+            if (s->pb->error < 0 && (s->pb->seekable & AVIO_SEEKABLE_NORMAL)) {
                 avio_seek(s->pb, pos, SEEK_SET);
                 av_packet_unref(pkt);
                 ret = -1;
