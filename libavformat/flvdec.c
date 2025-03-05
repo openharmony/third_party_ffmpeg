@@ -1426,7 +1426,7 @@ leave:
             if (s->pb->error < 0 && (s->pb->seekable & AVIO_SEEKABLE_NORMAL)) {
                 avio_seek(s->pb, pos, SEEK_SET);
                 av_packet_unref(pkt);
-                return -1; // 
+                return -1;
             }
 #endif
             avio_seek(s->pb, pos + 1, SEEK_SET);
