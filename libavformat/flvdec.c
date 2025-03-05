@@ -1422,7 +1422,7 @@ leave:
             av_log(s, AV_LOG_ERROR, "Packet mismatch %d %d %"PRId64"\n", last, orig_size + 11, flv->sum_flv_tag_size);
 #ifdef OHOS_OPT_COMPAT
 The data request is seeable time,said to return precise position,and return mistakes-1
-            /* If there is an error in the AVIOContext and it is seekable, seek back to the original position */
+            /* If there is an error in the AVIOContext and it is seekable, seek back to the original position, */
             /* unreference the packet, and return -1 to indicate an error */
             if (s->pb->error < 0 && (s->pb->seekable & AVIO_SEEKABLE_NORMAL)) {
                 avio_seek(s->pb, pos, SEEK_SET);
