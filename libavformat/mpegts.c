@@ -3905,7 +3905,8 @@ static int mpegts_read_packet(AVFormatContext *s, AVPacket *pkt)
                 PESContext *pes = ts->pids[i]->u.pes_filter.opaque;
                 if (pes->state == MPEGTS_PAYLOAD && pes->data_index > 0) {
 #ifdef OHOS_OPT_COMPAT
-                /* Only if the data cannot be read and is not seekable, the parsed incomplete frame can be sent out */
+                    /* Only if the data cannot be read and is not seekable, */
+                    /* the parsed incomplete frame can be sent out */
                     if ((s->pb->error < 0 & AVIO_SEEKABLE_NORMAL) && s->pb->error < 0) break;
 #endif
                     ret = new_pes_packet(pes, pkt);
