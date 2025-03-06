@@ -163,7 +163,7 @@ FF_CONFIG_OPTIONS="
     --disable-sdl2
     --disable-bzlib
     --disable-lzma
-    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo,lrc,sami,ass,sup
     --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a,adts
     --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo
     --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus

@@ -1124,8 +1124,9 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavformat/asfdec_o.c",
 
     # "//third_party/ffmpeg/libavformat/asfenc.c",
-    # "//third_party/ffmpeg/libavformat/assdec.c",
-    # "//third_party/ffmpeg/libavformat/assenc.c",
+    "//third_party/ffmpeg/libavformat/assdec.c",
+    "//third_party/ffmpeg/libavformat/assenc.c",
+
     # "//third_party/ffmpeg/libavformat/ast.c",
     # "//third_party/ffmpeg/libavformat/astdec.c",
     # "//third_party/ffmpeg/libavformat/astenc.c",
@@ -1276,9 +1277,10 @@ ohos_source_set("ffmpeg_dynamic") {
 
     # "//third_party/ffmpeg/libavformat/lmlm4.c",
     # "//third_party/ffmpeg/libavformat/loasdec.c",
-    # "//third_party/ffmpeg/libavformat/lrc.c",
-    # "//third_party/ffmpeg/libavformat/lrcdec.c",
-    # "//third_party/ffmpeg/libavformat/lrcenc.c",
+    "//third_party/ffmpeg/libavformat/lrc.c",
+    "//third_party/ffmpeg/libavformat/lrcdec.c",
+    "//third_party/ffmpeg/libavformat/lrcenc.c",
+
     # "//third_party/ffmpeg/libavformat/lvfdec.c",
     # "//third_party/ffmpeg/libavformat/lxfdec.c",
     # "//third_party/ffmpeg/libavformat/m4vdec.c",
@@ -1459,7 +1461,8 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/rtspdec.c",
     # "//third_party/ffmpeg/libavformat/rtspenc.c",
     # "//third_party/ffmpeg/libavformat/s337m.c",
-    # "//third_party/ffmpeg/libavformat/samidec.c",
+    "//third_party/ffmpeg/libavformat/samidec.c",
+
     # "//third_party/ffmpeg/libavformat/sapdec.c",
     # "//third_party/ffmpeg/libavformat/sapenc.c",
     # "//third_party/ffmpeg/libavformat/sauce.c",
@@ -1502,8 +1505,9 @@ ohos_source_set("ffmpeg_dynamic") {
 
     # "//third_party/ffmpeg/libavformat/subviewer1dec.c",
     # "//third_party/ffmpeg/libavformat/subviewerdec.c",
-    # "//third_party/ffmpeg/libavformat/supdec.c",
-    # "//third_party/ffmpeg/libavformat/supenc.c",
+    "//third_party/ffmpeg/libavformat/supdec.c",
+    "//third_party/ffmpeg/libavformat/supenc.c",
+
     # "//third_party/ffmpeg/libavformat/svag.c",
     # "//third_party/ffmpeg/libavformat/swf.c",
     # "//third_party/ffmpeg/libavformat/swfdec.c",
