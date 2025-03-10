@@ -1104,7 +1104,7 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavformat/aacdec.c",
 
     # "//third_party/ffmpeg/libavformat/aadec.c",
-    "//third_party/ffmpeg/libavformat/ac3dec.c",
+    # "//third_party/ffmpeg/libavformat/ac3dec.c",
 
     # "//third_party/ffmpeg/libavformat/acm.c",
     # "//third_party/ffmpeg/libavformat/act.c",
@@ -1735,6 +1735,7 @@ ohos_source_set("ffmpeg_dynamic") {
       "//third_party/ffmpeg/libavcodec/eac3_core_bsf.c",
       "//third_party/ffmpeg/libavcodec/eac3_data.c",
       "//third_party/ffmpeg/libavcodec/fmtconvert.c",
+      "//third_party/ffmpeg/libavformat/ac3dec.c",
     ]
   }
   include_dirs = [
