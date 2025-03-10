@@ -214,7 +214,8 @@ ohos_source_set("ffmpeg_dynamic") {
 
     # "//third_party/ffmpeg/libavcodec/aasc.c",
     # "//third_party/ffmpeg/libavcodec/ac3.c",
-    # "//third_party/ffmpeg/libavcodec/ac3_parser.c",
+    "//third_party/ffmpeg/libavcodec/ac3_parser.c",
+
     # "//third_party/ffmpeg/libavcodec/ac3dec_data.c",
     # "//third_party/ffmpeg/libavcodec/ac3dec_fixed.c",
     # "//third_party/ffmpeg/libavcodec/ac3dec_float.c",
