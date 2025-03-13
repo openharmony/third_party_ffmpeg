@@ -394,7 +394,7 @@ static int parse_options(struct sbg_parser *p)
                 case 'T':
                     FORWARD_ERROR(parse_optarg(p, opt, &oarg));
                     r = str_to_time(oarg.s, &p->scs.start_ts);
-                    if (oarg.e != oarg.s + r || p->scs.opt_duration < 0) {
+                    if (oarg.e != oarg.s + r) {
                         snprintf(p->err_msg, sizeof(p->err_msg),
                                  "syntax error for option -T");
                         return AVERROR_INVALIDDATA;
