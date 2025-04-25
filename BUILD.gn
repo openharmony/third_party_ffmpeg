@@ -1768,7 +1768,17 @@ action("gen_config_header") {
       external_deps = [ "musl:soft_libc_musl_static" ]
     }
   }
-
+  inputs = [
+    "//third_party/ffmpeg/configure",
+    "//third_party/ffmpeg/libavfilter/allfilters.c",
+    "//third_party/ffmpeg/libavdevice/alldevices.c",
+    "//third_party/ffmpeg/libavformat/allformats.c",
+    "//third_party/ffmpeg/libavcodec/allcodecs.c",
+    "//third_party/ffmpeg/libavcodec/parsers.c",
+    "//third_party/ffmpeg/libavcodec/bitstream_filters.c",
+    "//third_party/ffmpeg/libavcodec/hwaccels.h",
+    "//third_party/ffmpeg/libavformat/protocols.c",
+  ]
   ohos_ffmpeg_enable_demuxers = ""
   ohos_ffmpeg_enable_parsers = ""
   ohos_ffmpeg_enable_decoders = ""
@@ -1807,6 +1817,18 @@ action("gen_config_header") {
   ]
 
   outputs = [ "${target_gen_dir}/include/config.h" ]
+  outputs += [
+    "${target_gen_dir}/include/libavcodec/codec_list.c",
+    "${target_gen_dir}/include/libavcodec/bsf_list.c",
+    "${target_gen_dir}/include/libavcodec/parser_list.c",
+    "${target_gen_dir}/include/libavformat/muxer_list.c",
+    "${target_gen_dir}/include/libavformat/demuxer_list.c",
+    "${target_gen_dir}/include/libavformat/protocol_list.c",
+    "${target_gen_dir}/include/libavfilter/filter_list.c",
+    "${target_gen_dir}/include/libavdevice/outdev_list.c",
+    "${target_gen_dir}/include/libavdevice/indev_list.c",
+    "${target_gen_dir}/include/libavutil/avconfig.h",
+  ]
 }
 
 ohos_shared_library("libohosffmpeg") {
