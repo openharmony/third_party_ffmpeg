@@ -200,10 +200,6 @@ static void adts_aac_get_duration(AVFormatContext *s, AVStream *st)
         return;
     }
     int64_t offset = 0;
-    // get profile
-    uint8_t profile = (header[0] >> 6) & 0x3;
-    st->codecpar->profile = profile;
-
     // get sample rate
     uint8_t sr_index = (header[0] >> 2) & 0xf;
     uint32_t sr = get_sample_rate(sr_index);
@@ -212,16 +208,7 @@ static void adts_aac_get_duration(AVFormatContext *s, AVStream *st)
         return;
     }
 
-    // get channel
-    uint8_t channel = (header[0] & 0x1) << 2 | (header[1] >> 6);
-    if(channel == 0) {
-        av_log(NULL, AV_LOG_ERROR, "adts_aac_read_header read channel error!\n");
-        return;
-    }
-
-    st->codecpar->channels = channel;
-    st->codecpar->sample_rate = (int)sr;
-    avpriv_set_pts_info(st, 64, 1, st->codecpar->sample_rate);
+    avpriv_set_pts_info(st, 64, 1, sr);
 
     int frame_size = 0;
     int raw_data_block_num = 0;
