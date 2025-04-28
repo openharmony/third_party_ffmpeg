@@ -1749,19 +1749,13 @@ ohos_source_set("ffmpeg_dynamic") {
     ]
   }
   if (ffmpeg_enable_codec_sami) {
-    sources += [
-      "//third_party/ffmpeg/libavformat/samidec.c",
-    ]
+    sources += [ "//third_party/ffmpeg/libavformat/samidec.c" ]
   }
   if (ffmpeg_enable_codec_ass) {
-    sources += [
-      "//third_party/ffmpeg/libavformat/assdec.c",
-    ]
+    sources += [ "//third_party/ffmpeg/libavformat/assdec.c" ]
   }
   if (ffmpeg_enable_codec_sup) {
-    sources += [
-      "//third_party/ffmpeg/libavformat/supdec.c",
-    ]
+    sources += [ "//third_party/ffmpeg/libavformat/supdec.c" ]
   }
   include_dirs = [
     "//third_party/ffmpeg/",
@@ -1821,6 +1815,9 @@ action("gen_config_header") {
   }
   if (ffmpeg_enable_codec_ass) {
     ohos_ffmpeg_enable_demuxers += "ass,"
+  }
+  if (ffmpeg_enable_codec_sup) {
+    ohos_ffmpeg_enable_demuxers += "sup,"
   }
 
   ucc = "false"
