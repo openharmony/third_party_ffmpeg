@@ -18,7 +18,11 @@
             "ffmpeg_enable_codec_rm",
             "ffmpeg_enable_codec_rv",
             "ffmpeg_enable_codec_cook",
-            "ffmpeg_enable_codec_ac3"
+            "ffmpeg_enable_codec_ac3",
+            "ffmpeg_enable_codec_lrc",
+            "ffmpeg_enable_codec_sami",
+            "ffmpeg_enable_codec_ass",
+            "ffmpeg_enable_codec_sup"
         ],
         "adapted_system_type": [ "standard" ],
         "rom": "",
