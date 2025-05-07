@@ -9441,9 +9441,6 @@ static int mov_seek_stream(AVFormatContext *s, AVStream *st, int64_t timestamp, 
             break;
         timestamp -= FFMAX(sc->min_sample_duration, 1);
 #endif
-        if (!sample || can_seek_to_key_sample(st, sample, timestamp))
-            break;
-        timestamp -= FFMAX(sc->min_sample_duration, 1);
     }
 
     mov_current_sample_set(sc, sample);
