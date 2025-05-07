@@ -9433,10 +9433,13 @@ static int mov_seek_stream(AVFormatContext *s, AVStream *st, int64_t timestamp, 
             sample = 0;
         if (sample < 0) /* not sure what to do */
             return AVERROR_INVALIDDATA;
-
+#ifdef OHOS_OPT_COMPAT
+        break;
+#else
         if (!sample || can_seek_to_key_sample(st, sample, timestamp))
             break;
         timestamp -= FFMAX(sc->min_sample_duration, 1);
+#endif
     }
 
     mov_current_sample_set(sc, sample);
