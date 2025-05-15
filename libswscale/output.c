@@ -2257,7 +2257,7 @@ yuv2gbrp_full_X_c(SwsContext *c, const int16_t *lumFilter,
         Y -= c->yuv2rgb_y_offset;
         Y *= c->yuv2rgb_y_coeff;
         Y += 1 << (SH-1);
-        R = Y + V * c->yuv2rgb_v2r_coeff;
+        R = Y + V * (unsigned)c->yuv2rgb_v2r_coeff;
         G = Y + V * (unsigned)c->yuv2rgb_v2g_coeff + U * (unsigned)c->yuv2rgb_u2g_coeff;
         B = Y +                                      U * (unsigned)c->yuv2rgb_u2b_coeff;
 
