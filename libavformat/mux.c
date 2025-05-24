@@ -272,6 +272,34 @@ FF_ENABLE_DEPRECATION_WARNINGS
                 }
             }
             break;
+#ifdef OHOS_AUXILIARY_TRACK
+        case AVMEDIA_TYPE_AUXILIARY:
+            if (par->codec_id == AV_CODEC_ID_H264 || par->codec_id == AV_CODEC_ID_H265) {
+                if ((par->width <= 0 || par->height <= 0) &&
+                    !(of->flags & AVFMT_NODIMENSIONS)) {
+                    av_log(s, AV_LOG_ERROR, "dimensions not set\n");
+                    ret = AVERROR(EINVAL);
+                    goto fail;
+                }
+                if (av_cmp_q(st->sample_aspect_ratio, par->sample_aspect_ratio)
+                    && fabs(av_q2d(st->sample_aspect_ratio) - av_q2d(par->sample_aspect_ratio)) > 0.004*av_q2d(st->sample_aspect_ratio)
+                ) {
+                    if (st->sample_aspect_ratio.num != 0 &&
+                        st->sample_aspect_ratio.den != 0 &&
+                        par->sample_aspect_ratio.num != 0 &&
+                        par->sample_aspect_ratio.den != 0) {
+                        av_log(s, AV_LOG_ERROR, "Aspect ratio mismatch between muxer "
+                            "(%d/%d) and encoder layer (%d/%d)\n",
+                            st->sample_aspect_ratio.num, st->sample_aspect_ratio.den,
+                            par->sample_aspect_ratio.num,
+                            par->sample_aspect_ratio.den);
+                        ret = AVERROR(EINVAL);
+                        goto fail;
+                    }
+                }
+            }
+            break;
+#endif
         }
 
         desc = avcodec_descriptor_get(par->codec_id);
