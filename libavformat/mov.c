@@ -5738,6 +5738,11 @@ static int mov_read_elst(MOVContext *c, AVIOContext *pb, MOVAtom atom)
                    c->fc->nb_streams-1, i, e->time);
             return AVERROR_INVALIDDATA;
         }
+        if (e->duration < 0) {
+            av_log(c->fc, AV_LOG_ERROR, "Track %d, edit %d: Invalid edit list duration=%"PRId64"\n",
+                   c->fc->nb_streams-1, i, e->duration);
+            return AVERROR_INVALIDDATA;
+        }
     }
     sc->elst_count = i;
 
@@ -9434,10 +9439,13 @@ static int mov_seek_stream(AVFormatContext *s, AVStream *st, int64_t timestamp, 
             sample = 0;
         if (sample < 0) /* not sure what to do */
             return AVERROR_INVALIDDATA;
-
+#ifdef OHOS_OPT_COMPAT
+        break;
+#else
         if (!sample || can_seek_to_key_sample(st, sample, timestamp))
             break;
         timestamp -= FFMAX(sc->min_sample_duration, 1);
+#endif
     }
 
     mov_current_sample_set(sc, sample);
