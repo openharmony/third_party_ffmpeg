@@ -2739,6 +2739,15 @@ static int mov_write_stsd_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext
     else if (track->par->codec_type == AVMEDIA_TYPE_TIMEDMETA)
         ret = mov_write_mebx_tag(s, pb, mov, track);
 #endif
+#ifdef OHOS_AUXILIARY_TRACK
+    else if (track->par->codec_type == AVMEDIA_TYPE_AUXILIARY) {
+        if (track->par->codec_id == AV_CODEC_ID_MP3 || track->par->codec_id == AV_CODEC_ID_AAC) {
+            ret = mov_write_audio_tag(s, pb, mov, track);
+        } else if (track->par->codec_id == AV_CODEC_ID_H265 || track->par->codec_id == AV_CODEC_ID_H264) {
+            ret = mov_write_video_tag(s, pb, mov, track);
+        }
+    }
+#endif
 
     if (ret < 0)
         return ret;
@@ -2953,6 +2962,10 @@ static int mov_write_stbl_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext
         return ret;
     mov_write_stts_tag(pb, track);
     if ((track->par->codec_type == AVMEDIA_TYPE_VIDEO ||
+#if OHOS_AUXILIARY_TRACK
+         ((track->par->codec_type == AVMEDIA_TYPE_AUXILIARY) &&
+          (track->par->codec_id == AV_CODEC_ID_H264 || track->par->codec_id == AV_CODEC_ID_H265)) ||
+#endif
          track->par->codec_id == AV_CODEC_ID_TRUEHD ||
          track->par->codec_id == AV_CODEC_ID_MPEGH_3D_AUDIO ||
 #ifdef OHOS_TIMED_META_TRACK
@@ -3161,6 +3174,10 @@ static int mov_write_hdlr_tag(AVFormatContext *s, AVIOContext *pb, MOVTrack *tra
 #ifdef OHOS_TIMED_META_TRACK
         } else if (track->par->codec_type == AVMEDIA_TYPE_TIMEDMETA) {
             hdlr_type = "meta";
+#endif
+#ifdef OHOS_AUXILIARY_TRACK
+        } else if (track->par->codec_type == AVMEDIA_TYPE_AUXILIARY) {
+            hdlr_type = "auxv";
 #endif
         } else {
             av_log(s, AV_LOG_WARNING,
@@ -3386,7 +3403,12 @@ static int mov_write_minf_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext
 
     avio_wb32(pb, 0); /* size */
     ffio_wfourcc(pb, "minf");
+#ifdef OHOS_AUXILIARY_TRACK
+    if (((track->par->codec_type == AVMEDIA_TYPE_AUXILIARY) && (track->par->codec_id == AV_CODEC_ID_H264 ||
+        track->par->codec_id == AV_CODEC_ID_H265)) || track->par->codec_type == AVMEDIA_TYPE_VIDEO)
+#else
     if (track->par->codec_type == AVMEDIA_TYPE_VIDEO)
+#endif
         mov_write_vmhd_tag(pb);
     else if (track->par->codec_type == AVMEDIA_TYPE_AUDIO)
         mov_write_smhd_tag(pb);
@@ -3611,8 +3633,15 @@ static int mov_write_tkhd_tag(AVIOContext *pb, MOVMuxContext *mov,
         write_matrix(pb,  1,  0,  0,  1, 0, 0);
     }
     /* Track width and height, for visual only */
+#ifdef OHOS_AUXILIARY_TRACK
+    if (st && (track->par->codec_type == AVMEDIA_TYPE_VIDEO ||
+               track->par->codec_type == AVMEDIA_TYPE_SUBTITLE ||
+               ((track->par->codec_type == AVMEDIA_TYPE_AUXILIARY) &&
+               (track->par->codec_id == AV_CODEC_ID_H264 || track->par->codec_id == AV_CODEC_ID_H265)))) {
+#else
     if (st && (track->par->codec_type == AVMEDIA_TYPE_VIDEO ||
                track->par->codec_type == AVMEDIA_TYPE_SUBTITLE)) {
+#endif
         int64_t track_width_1616;
         if (track->mode == MODE_MOV || track->mode == MODE_AVIF) {
             track_width_1616 = track->par->width * 0x10000ULL;
@@ -3762,18 +3791,18 @@ static int mov_write_edts_tag(AVIOContext *pb, MOVMuxContext *mov,
 
 static int mov_write_tref_tag(AVIOContext *pb, MOVTrack *track)
 {
-#ifdef OHOS_TIMED_META_TRACK
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
     int64_t pos = avio_tell(pb);
     int tref_index;
     avio_wb32(pb, 0);
     ffio_wfourcc(pb, "tref");
-    int64_t pos_cdsc = avio_tell(pb);
+    int64_t pos_box = avio_tell(pb);
     avio_wb32(pb, 0);
     avio_wl32(pb, track->tref_tag);
     for (tref_index = 0; tref_index < track->ref_track_count; tref_index++) {
         avio_wb32(pb, track->tref_ids[tref_index]);
     }
-    update_size(pb, pos_cdsc);
+    update_size(pb, pos_box);
     return update_size(pb, pos);
 #else
     avio_wb32(pb, 20);   // size
@@ -7266,6 +7295,50 @@ static int mov_create_timed_metadata_track(AVFormatContext *s, int index, int sr
 }
 #endif
 
+#ifdef OHOS_AUXILIARY_TRACK
+static int mov_auxiliary_track(AVFormatContext *s, int index, int32_t *trackId, int idCount)
+{
+    MOVMuxContext *mov  = s->priv_data;
+    MOVTrack *track     = &mov->tracks[index];
+    int ret;
+    const AVDictionaryEntry *track_ref_type = av_dict_get(s->streams[index]->metadata, "track_reference_type", NULL, 0);
+    char *tag = track_ref_type->value;
+    int track_tag = MKTAG(tag[0], tag[1], tag[2], tag[3]);
+    
+    track->mode      = mov->mode;
+    track->ref_track_count = idCount;
+    
+    ret = av_reallocp_array(&track->tref_ids, idCount, sizeof(int));
+    if (ret < 0)
+        return ret;
+    
+    for (int i = 0; i < idCount; i++) {
+        track->tref_ids[i] = trackId[i];
+    }
+    int src_index = track->tref_ids[0];
+    track->tag       = s->streams[index]->codecpar->codec_tag;
+    track->tref_tag  = (unsigned int)track_tag;
+    track->src_track = src_index;
+    track->timescale = mov->tracks[src_index].timescale;
+    
+    /* set st to src_st for metadata access*/
+    track->st = s->streams[index];
+
+    track->par = avcodec_parameters_alloc();
+    if (!track->par)
+        return AVERROR(ENOMEM);
+    track->par->codec_type = s->streams[index]->codecpar->codec_type;
+    track->par->codec_id = s->streams[index]->codecpar->codec_id;
+    track->par->width = s->streams[index]->codecpar->width;
+    track->par->height = s->streams[index]->codecpar->height;
+    track->par->codec_tag  = s->streams[index]->codecpar->codec_tag;
+    AVStream *src_st    = s->streams[src_index];
+    AVRational rate = src_st->avg_frame_rate;
+    track->st->avg_frame_rate = av_inv_q(rate);
+    return 0;
+}
+#endif
+
 /*
  * st->disposition controls the "enabled" flag in the tkhd tag.
  * QuickTime will not play a track if it is not enabled.  So make sure
@@ -7823,6 +7896,10 @@ static int mov_init(AVFormatContext *s)
         } else if (st->codecpar->codec_type == AVMEDIA_TYPE_TIMEDMETA) {
             track->timescale = (unsigned int)st->time_base.den;
 #endif
+#ifdef OHOS_AUXILIARY_TRACK
+        } else if (st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY) {
+            track->timescale = (unsigned int)st->time_base.den;
+#endif
         } else {
             track->timescale = mov->movie_timescale;
         }
@@ -8008,6 +8085,41 @@ static int mov_write_header(AVFormatContext *s)
                 if ((ret = mov_create_timed_metadata_track(s, i, track_id)) < 0)
                     return ret;
             }
+        }
+    }
+#endif
+
+#ifdef OHOS_AUXILIARY_TRACK
+    for (i = 0; i < s->nb_streams; i++) {
+        AVStream *st = s->streams[i];
+        if ((st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY) &&
+            (st->codecpar->codec_id == AV_CODEC_ID_H264 || st->codecpar->codec_id == AV_CODEC_ID_H265)) {
+            const AVDictionaryEntry *track_ids = av_dict_get(st->metadata, "reference_track_ids", NULL, 0);
+            int id_count = 1;
+            const char* id_v = track_ids->value;
+            while (*id_v) {
+                if (*id_v++ == ',') {
+                    id_count++;
+                }
+            }
+            int32_t *track_id = malloc(id_count * sizeof(int32_t));
+            const int base = 10;
+            const char start = '0';
+            int32_t sum = 0;
+            int num = 0;
+            const char* id_v2 = track_ids->value;
+            while (*id_v2) {
+                if (*id_v2 == ',') {
+                    track_id[num++] = sum;
+                    sum = 0;
+                    id_v2++;
+                }
+                sum = sum * base + *id_v2++ - start;
+            }
+            track_id[num] = sum;
+            
+            if ((ret = mov_auxiliary_track(s, i, track_id, id_count)) < 0)
+                return ret;
         }
     }
 #endif

@@ -599,7 +599,10 @@ static int select_reference_stream(AVFormatContext *s)
             AVMEDIA_TYPE_AUDIO,
             AVMEDIA_TYPE_SUBTITLE,
             AVMEDIA_TYPE_DATA,
-            AVMEDIA_TYPE_ATTACHMENT
+            AVMEDIA_TYPE_ATTACHMENT,
+#ifdef OHOS_AUXILIARY_TRACK
+            AVMEDIA_TYPE_AUXILIARY,
+#endif
         };
         enum AVMediaType type;
 

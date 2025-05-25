@@ -172,6 +172,7 @@ config("ffmpeg_config") {
     "-DOHOS_CHECK_NULL_PTR",
     "-DOHOS_CUSTOM_INFO",
     "-DOHOS_CAL_DASH_BITRATE",
+    "-DOHOS_AUXILIARY_TRACK",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
