@@ -2963,7 +2963,7 @@ static int mov_write_stbl_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext
     mov_write_stts_tag(pb, track);
     if ((track->par->codec_type == AVMEDIA_TYPE_VIDEO ||
 #if OHOS_AUXILIARY_TRACK
-         ((track->par->codec_type == AVMEDIA_TYPE_AUXILIARY) && 
+         ((track->par->codec_type == AVMEDIA_TYPE_AUXILIARY) &&
           (track->par->codec_id == AV_CODEC_ID_H264 || track->par->codec_id == AV_CODEC_ID_H265)) ||
 #endif
          track->par->codec_id == AV_CODEC_ID_TRUEHD ||

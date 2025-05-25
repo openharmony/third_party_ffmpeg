@@ -282,7 +282,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
                     goto fail;
                 }
                 if (av_cmp_q(st->sample_aspect_ratio, par->sample_aspect_ratio)
-                    && fabs(av_q2d(st->sample_aspect_ratio) - av_q2d(par->sample_aspect_ratio)) > 0.004*av_q2d(st->sample_aspect_ratio)
+                    && fabs(av_q2d(st->sample_aspect_ratio) - av_q2d(par->sample_aspect_ratio)) >
+                    0.004*av_q2d(st->sample_aspect_ratio)    // 0.004 value same as video
                 ) {
                     if (st->sample_aspect_ratio.num != 0 &&
                         st->sample_aspect_ratio.den != 0 &&
