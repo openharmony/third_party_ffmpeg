@@ -498,7 +498,6 @@ static void h264_mp4toannexb_flush(AVBSFContext *ctx)
 #ifdef OHOS_OPT_COMPAT
     s->new_idr = 1;
 #endif
-    
 }
 
 static const enum AVCodecID codec_ids[] = {
