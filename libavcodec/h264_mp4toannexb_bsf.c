@@ -34,6 +34,13 @@
 #include "defs.h"
 #include "h264.h"
 
+#ifdef OHOS_OPT_COMPAT
+    const int8_t DATA_LEN_3 = 3;
+    const int8_t DATA_LEN_4 = 4;
+    const int8_t START_CODE_LEN_3 = 3;
+    const int8_t START_CODE_LEN_4 = 4;
+#endif
+
 typedef struct H264BSFContext {
     uint8_t *sps;
     uint8_t *pps;
@@ -142,6 +149,25 @@ pps:
     return length_size;
 }
 
+#ifdef OHOS_OPT_COMPAT
+static int h264_mp4toannexb_get_start_code_len(uint8_t *data, int len)
+{
+    if (data == NULL || len < DATA_LEN_3) {
+        return -1;
+    }
+
+    if (len >= DATA_LEN_3 && AV_RB24(data) == 1) {
+        return START_CODE_LEN_3;
+    }
+
+    if (len >= DATA_LEN_4 && AV_RB32(data) == 1) {
+        return START_CODE_LEN_4;
+    }
+
+    return -2;
+}
+#endif
+
 static int h264_mp4toannexb_init(AVBSFContext *ctx)
 {
     H264BSFContext *s = ctx->priv_data;
@@ -154,6 +180,14 @@ static int h264_mp4toannexb_init(AVBSFContext *ctx)
         (extra_size >= 4 && AV_RB32(ctx->par_in->extradata) == 1)) {
         av_log(ctx, AV_LOG_VERBOSE,
                "The input looks like it is Annex B already\n");
+#ifdef OHOS_OPT_COMPAT
+            ret = h264_mp4toannexb_get_start_code_len(ctx->par_in->extradata, extra_size);
+            s->length_size      = ret < 0 ? 0 : ret;
+            s->new_idr          = 1;
+            s->idr_sps_seen     = 0;
+            s->idr_pps_seen     = 0;
+            s->extradata_parsed = 0;
+#endif
     } else if (extra_size >= 7) {
         ret = h264_extradata_to_annexb(ctx, AV_INPUT_BUFFER_PADDING_SIZE);
         if (ret < 0)
@@ -206,6 +240,86 @@ static void h264_mp4toannexb_modify_encryption_info(AVPacket *pkt, uint64_t new_
 }
 #endif
 
+#ifdef OHOS_OPT_COMPAT
+static int32_t h264_mp4toannexb_copy_data(AVBSFContext *ctx, AVPacket *opkt, AVPacket *in, int32_t copy_xps)
+{
+    uint8_t *out = NULL;
+    uint64_t out_size = 0;
+    int32_t ret = 0;
+
+    if (ctx == NULL || opkt == NULL || in == NULL) {
+        return AVERROR(EINVAL);
+    }
+
+    out_size = copy_xps ? (in->size + ctx->par_out->extradata_size) : in->size;
+    if (out_size > INT_MAX - AV_INPUT_BUFFER_PADDING_SIZE) {
+        return AVERROR_INVALIDDATA;
+    }
+
+    if ((ret = av_new_packet(opkt, out_size)) < 0) {
+        av_packet_unref(opkt);
+        return ret;
+    }
+        
+    out = opkt->data;
+    out_size = 0;
+    if (copy_xps) {
+        count_or_copy(&out, &out_size, ctx->par_out->extradata, ctx->par_out->extradata_size, -1, 1);
+    }
+    count_or_copy(&out, &out_size, in->data, in->size, -1, 1);
+
+    av_assert1(out_size == opkt->size);
+
+#ifdef OHOS_DRM
+    h264_mp4toannexb_modify_encryption_info(in, out_size, in->size, 1);
+#endif
+
+    ret = av_packet_copy_props(opkt, in);
+    if (ret < 0) {
+        av_packet_unref(opkt);
+        return ret;
+    }
+
+    return 0;
+}
+
+static int32_t h264_mp4toannexb_annexb_check(AVBSFContext *ctx, AVPacket *in, AVPacket *opkt, int32_t *copy_xps)
+{
+    if (ctx == NULL || in == NULL || opkt == NULL) {
+        return AVERROR(EINVAL);
+    }
+
+    H264BSFContext *s = ctx->priv_data;
+    uint8_t unit_type = -1;
+
+    if (in->size < s->length_size + 2) {
+        return AVERROR(EINVAL);
+    }
+
+    unit_type = in->data[s->length_size] & 0x1f;
+    if (unit_type == H264_NAL_SPS) {
+        s->idr_sps_seen = 1;
+        s->new_idr = 1;
+    }
+
+    if (!s->new_idr && unit_type == H264_NAL_IDR_SLICE && (in->data[s->length_size + 1] & 0x80)) {
+        s->new_idr = 1;
+    }
+                
+    if (s->new_idr == 1 && unit_type == H264_NAL_IDR_SLICE && !s->idr_sps_seen) {
+        *copy_xps = 1;
+        s->new_idr = 0;
+    }
+
+    if (!s->new_idr && unit_type == H264_NAL_SLICE) {
+        s->new_idr  = 1;
+        s->idr_sps_seen = 0;
+    }
+
+    return 0;
+}
+#endif
+
 static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
 {
     H264BSFContext *s = ctx->priv_data;
@@ -218,6 +332,7 @@ static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
     int ret;
 #ifdef OHOS_DRM
     uint64_t old_out_size;
+    int32_t copy_xps;
 #endif
 
     ret = ff_bsf_get_packet(ctx, &in);
@@ -226,6 +341,17 @@ static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
 
     /* nothing to filter */
     if (!s->extradata_parsed) {
+#ifdef OHOS_OPT_COMPAT
+        if (s->length_size == START_CODE_LEN_3 ||
+            s->length_size == START_CODE_LEN_4) {
+            if (h264_mp4toannexb_annexb_check(ctx, in, opkt, &copy_xps) >= 0) {
+                if (h264_mp4toannexb_copy_data(ctx, opkt, in, copy_xps) >= 0) {
+                    av_packet_free(&in);
+                    return 0;
+                }
+            }
+        }
+#endif
         av_packet_move_ref(opkt, in);
         av_packet_free(&in);
         return 0;
@@ -369,6 +495,10 @@ static void h264_mp4toannexb_flush(AVBSFContext *ctx)
     s->idr_sps_seen = 0;
     s->idr_pps_seen = 0;
     s->new_idr      = s->extradata_parsed;
+#ifdef OHOS_OPT_COMPAT
+    s->new_idr = 1;
+#endif
+    
 }
 
 static const enum AVCodecID codec_ids[] = {
