@@ -285,7 +285,7 @@ static int32_t h264_mp4toannexb_copy_data(AVBSFContext *ctx, AVPacket *opkt, AVP
 
 static int32_t h264_mp4toannexb_annexb_check(AVBSFContext *ctx, AVPacket *in, AVPacket *opkt, int32_t *copy_xps)
 {
-    if (ctx == NULL || in == NULL || opkt == NULL) {
+    if (ctx == NULL || in == NULL || opkt == NULL || copy_xps== NULL) {
         return AVERROR(EINVAL);
     }
 
