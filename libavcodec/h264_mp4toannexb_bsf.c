@@ -156,7 +156,7 @@ static int h264_mp4toannexb_get_start_code_len(uint8_t *data, int len)
         return -1;
     }
 
-    if (len >= DATA_LEN_3 && AV_RB24(data) == 1) {
+    if (AV_RB24(data) == 1) {
         return START_CODE_LEN_3;
     }
 
