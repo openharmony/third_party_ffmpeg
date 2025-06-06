@@ -5075,8 +5075,8 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
 #endif
 #ifdef OHOS_AUXILIARY_TRACK
     for (i = 0; i < mov->nb_streams; i++) {
-        MOVTrack *track = &mov->track[i];
-        for (int j = 0; j < mov->track[i].ref_track_count; j++) {
+        MOVTrack *track = &mov->tracks[i];
+        for (int j = 0; j < mov->tracks[i].ref_track_count; j++) {
             track->tref_ids[j] = mov->tracks[track->tref_ids[j]].track_id;    // update tref_ids.
         }
     }
