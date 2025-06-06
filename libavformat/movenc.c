@@ -5011,7 +5011,7 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
     if (mov->chapter_track)
         for (i = 0; i < s->nb_streams; i++) {
             mov->tracks[i].tref_tag = MKTAG('c','h','a','p');
-#ifdef OHOS_TIMED_META_TRACK
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
             mov->tracks[i].ref_track_count++;
             mov->tracks[i].tref_ids[0]  = mov->tracks[mov->chapter_track].track_id;
 #else
@@ -5022,7 +5022,7 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
         MOVTrack *track = &mov->tracks[i];
         if (track->tag == MKTAG('r','t','p',' ')) {
             track->tref_tag = MKTAG('h','i','n','t');
-#ifdef OHOS_TIMED_META_TRACK
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
             track->ref_track_count++;
             track->tref_ids[0] = mov->tracks[track->src_track].track_id;
 #else
@@ -5037,7 +5037,7 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
             if (fallback != NULL && size == sizeof(int)) {
                 if (*fallback >= 0 && *fallback < mov->nb_streams) {
                     track->tref_tag = MKTAG('f','a','l','l');
-#ifdef OHOS_TIMED_META_TRACK
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
                     track->ref_track_count++;
                     track->tref_ids[0] = mov->tracks[*fallback].track_id;
 #else
@@ -5051,7 +5051,7 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
         if (mov->tracks[i].tag == MKTAG('t','m','c','d')) {
             int src_trk = mov->tracks[i].src_track;
             mov->tracks[src_trk].tref_tag = mov->tracks[i].tag;
-#ifdef OHOS_TIMED_META_TRACK
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
             mov->tracks[src_trk].ref_track_count++;
             mov->tracks[src_trk].tref_ids[0]  = mov->tracks[i].track_id;
 #else
@@ -5073,7 +5073,14 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
         }
     }
 #endif
-
+#ifdef OHOS_AUXILIARY_TRACK
+    for (i = 0; i < mov->nb_streams; i++) {
+        MOVTrack *track = &mov->track[i];
+        for (int j = 0; j < mov->track[i].ref_track_count; j++) {
+            track->tref_ids[j] = mov->tracks[track->tref_ids[j]].track_id;    // update tref_ids.
+        }
+    }
+#endif
     mov_write_mvhd_tag(pb, mov);
     if (mov->mode != MODE_MOV && mov->mode != MODE_AVIF && !mov->iods_skip)
         mov_write_iods_tag(pb, mov);
@@ -7304,37 +7311,17 @@ static int mov_auxiliary_track(AVFormatContext *s, int index, int32_t *trackId, 
     const AVDictionaryEntry *track_ref_type = av_dict_get(s->streams[index]->metadata, "track_reference_type", NULL, 0);
     char *tag = track_ref_type->value;
     int track_tag = MKTAG(tag[0], tag[1], tag[2], tag[3]);
-    
-    track->mode      = mov->mode;
+
     track->ref_track_count = idCount;
-    
+
     ret = av_reallocp_array(&track->tref_ids, idCount, sizeof(int));
     if (ret < 0)
         return ret;
-    
+
     for (int i = 0; i < idCount; i++) {
         track->tref_ids[i] = trackId[i];
     }
-    int src_index = track->tref_ids[0];
-    track->tag       = s->streams[index]->codecpar->codec_tag;
     track->tref_tag  = (unsigned int)track_tag;
-    track->src_track = src_index;
-    track->timescale = mov->tracks[src_index].timescale;
-    
-    /* set st to src_st for metadata access*/
-    track->st = s->streams[index];
-
-    track->par = avcodec_parameters_alloc();
-    if (!track->par)
-        return AVERROR(ENOMEM);
-    track->par->codec_type = s->streams[index]->codecpar->codec_type;
-    track->par->codec_id = s->streams[index]->codecpar->codec_id;
-    track->par->width = s->streams[index]->codecpar->width;
-    track->par->height = s->streams[index]->codecpar->height;
-    track->par->codec_tag  = s->streams[index]->codecpar->codec_tag;
-    AVStream *src_st    = s->streams[src_index];
-    AVRational rate = src_st->avg_frame_rate;
-    track->st->avg_frame_rate = av_inv_q(rate);
     return 0;
 }
 #endif
@@ -7898,7 +7885,33 @@ static int mov_init(AVFormatContext *s)
 #endif
 #ifdef OHOS_AUXILIARY_TRACK
         } else if (st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY) {
-            track->timescale = (unsigned int)st->time_base.den;
+            if (track->par->codec_id == AV_CODEC_ID_H264 || track->par->codec_id == AV_CODEC_ID_H265) {
+                if (mov->video_track_timescale) {
+                    track->timescale = mov->video_track_timescale;
+                    if (mov->mode == MODE_ISM && mov->video_track_timescale != 10000000)    // assume 10000000
+                        av_log(s, AV_LOG_WARNING,
+                            "Warning: some tools, like mp4split, assume a timescale of 10000000 for ISMV.\n");
+                } else {
+                    track->timescale = st->time_base.den;
+                    while(track->timescale < 10000)    // need more than 10000
+                        track->timescale *= 2;    // 2
+                }
+                if (st->codecpar->width > 65535 || st->codecpar->height > 65535) {    // max 65535
+                    av_log(s, AV_LOG_ERROR, "Resolution %dx%d too large for mov/mp4\n",
+                        st->codecpar->width, st->codecpar->height);
+                    return AVERROR(EINVAL);
+                }
+                if (track->mode == MODE_MOV && track->timescale > 100000)     // more than 100000 is very high 
+                    av_log(s, AV_LOG_WARNING,
+                        "WARNING codec timebase is very high. If duration is too long,\n"
+                        "file may not be playable by quicktime. Specify a shorter timebase\n"
+                        "or choose different container.\n");
+                if (is_cover_image(st)) {
+                    track->cover_image = av_packet_alloc();
+                    if (!track->cover_image)
+                        return AVERROR(ENOMEM);
+                }
+            }
 #endif
         } else {
             track->timescale = mov->movie_timescale;
@@ -8387,7 +8400,7 @@ static int avif_write_trailer(AVFormatContext *s)
         // For animated avif with alpha channel, we need to write a tref tag
         // with type "auxl".
         mov->tracks[1].tref_tag = MKTAG('a', 'u', 'x', 'l');
-#ifdef OHOS_TIMED_META_TRACK
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
         mov->tracks[1].tref_ids[0] = 1;
 #else
         mov->tracks[1].tref_id = 1;
