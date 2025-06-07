@@ -119,7 +119,7 @@ typedef struct MOVTrack {
     int         audio_vbr;
     int         height; ///< active picture (w/o VBI) height for D-10/IMX
     uint32_t    tref_tag;
-#ifdef OHOS_TIMED_META_TRACK
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
     int         ref_track_count;
     int         *tref_ids; ///< trackIDs of the referenced tracks
 #else
