@@ -759,6 +759,12 @@ static int mov_write_esds_tag(AVIOContext *pb, MOVTrack *track) // Basic
         avio_w8(pb, (0x38 << 2) | 1); // flags (= NeroSubpicStream)
     else if (track->par->codec_type == AVMEDIA_TYPE_AUDIO)
         avio_w8(pb, 0x15); // flags (= Audiostream)
+#ifdef OHOS_AUXILIARY_TRACK
+    else if (track->par->codec_type == AVMEDIA_TYPE_AUXILIARY &&
+        (track->par->codec_id == AV_CODEC_ID_AAC || track->par->codec_id == AV_CODEC_ID_MP3)) {
+        avio_w8(pb, 0x15); // flags (= Audiostream)
+    }
+#endif
     else
         avio_w8(pb, 0x11); // flags (= Visualstream)
 
@@ -2802,8 +2808,12 @@ static int mov_write_stts_tag(AVIOContext *pb, MOVTrack *track)
     uint32_t entries = -1;
     uint32_t atom_size;
     int i;
-
+#ifdef OHOS_AUXILIARY_TRACK
+    if ((track->par->codec_type == AVMEDIA_TYPE_AUDIO || (track->par->codec_type == AVMEDIA_TYPE_AUXILIARY &&
+        (track->par->codec_id == AV_CODEC_ID_AAC || track->par->codec_id == AV_CODEC_ID_MP3))) && !track->audio_vbr) {
+#else
     if (track->par->codec_type == AVMEDIA_TYPE_AUDIO && !track->audio_vbr) {
+#endif
         stts_entries = av_malloc(sizeof(*stts_entries)); /* one entry */
         if (!stts_entries)
             return AVERROR(ENOMEM);
@@ -3410,7 +3420,12 @@ static int mov_write_minf_tag(AVFormatContext *s, AVIOContext *pb, MOVMuxContext
     if (track->par->codec_type == AVMEDIA_TYPE_VIDEO)
 #endif
         mov_write_vmhd_tag(pb);
+#ifdef OHOS_AUXILIARY_TRACK
+    else if (((track->par->codec_type == AVMEDIA_TYPE_AUXILIARY) && (track->par->codec_id == AV_CODEC_ID_AAC ||
+        track->par->codec_id == AV_CODEC_ID_MP3)) || track->par->codec_type == AVMEDIA_TYPE_AUDIO)
+#else
     else if (track->par->codec_type == AVMEDIA_TYPE_AUDIO)
+#endif
         mov_write_smhd_tag(pb);
     else if (track->par->codec_type == AVMEDIA_TYPE_SUBTITLE) {
         if (track->tag == MKTAG('t','e','x','t') || is_clcp_track(track)) {
@@ -3619,7 +3634,12 @@ static int mov_write_tkhd_tag(AVIOContext *pb, MOVMuxContext *mov,
     avio_wb16(pb, 0); /* layer */
     avio_wb16(pb, group); /* alternate group) */
     /* Volume, only for audio */
+#ifdef OHOS_AUXILIARY_TRACK
+    if (track->par->codec_type == AVMEDIA_TYPE_AUDIO || (track->par->codec_type == AVMEDIA_TYPE_AUXILIARY &&
+        (track->par->codec_id == AV_CODEC_ID_AAC || track->par->codec_id == AV_CODEC_ID_MP3)))
+#else
     if (track->par->codec_type == AVMEDIA_TYPE_AUDIO)
+#endif
         avio_wb16(pb, 0x0100);
     else
         avio_wb16(pb, 0);
@@ -7911,6 +7931,40 @@ static int mov_init(AVFormatContext *s)
                     if (!track->cover_image)
                         return AVERROR(ENOMEM);
                 }
+            } else if (track->par->codec_id == AV_CODEC_ID_AAC || track->par->codec_id == AV_CODEC_ID_MP3) {
+                track->timescale = st->codecpar->sample_rate;
+                if (!st->codecpar->frame_size && !av_get_bits_per_sample(st->codecpar->codec_id)) {
+                    av_log(s, AV_LOG_WARNING, "track %d: codec frame size is not set\n", i);
+                    track->audio_vbr = 1;
+                } else if (st->codecpar->codec_id == AV_CODEC_ID_ADPCM_MS ||
+                        st->codecpar->codec_id == AV_CODEC_ID_ADPCM_IMA_WAV ||
+                        st->codecpar->codec_id == AV_CODEC_ID_ILBC){
+                    if (!st->codecpar->block_align) {
+                        av_log(s, AV_LOG_ERROR, "track %d: codec block align is not set for adpcm\n", i);
+                        return AVERROR(EINVAL);
+                    }
+                    track->sample_size = st->codecpar->block_align;
+                } else if (st->codecpar->frame_size > 1){ /* assume compressed audio */
+                    track->audio_vbr = 1;
+                } else {
+                    track->sample_size = (av_get_bits_per_sample(st->codecpar->codec_id) >> 3) *
+                                        st->codecpar->ch_layout.nb_channels;
+                }
+                if (st->codecpar->codec_id == AV_CODEC_ID_ILBC ||
+                    st->codecpar->codec_id == AV_CODEC_ID_ADPCM_IMA_QT) {
+                    track->audio_vbr = 1;
+                }
+                if (track->mode != MODE_MOV &&
+                    track->par->codec_id == AV_CODEC_ID_MP3 && track->timescale < 16000) {
+                    if (s->strict_std_compliance >= FF_COMPLIANCE_NORMAL) {
+                        av_log(s, AV_LOG_ERROR, "track %d: muxing mp3 at %dhz is not standard, to mux anyway set strict to -1\n",
+                            i, track->par->sample_rate);
+                        return AVERROR(EINVAL);
+                    } else {
+                        av_log(s, AV_LOG_WARNING, "track %d: muxing mp3 at %dhz is not standard in MP4\n",
+                            i, track->par->sample_rate);
+                    }
+                }
             }
 #endif
         } else {
@@ -8106,7 +8160,8 @@ static int mov_write_header(AVFormatContext *s)
     for (i = 0; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
         if ((st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY) &&
-            (st->codecpar->codec_id == AV_CODEC_ID_H264 || st->codecpar->codec_id == AV_CODEC_ID_H265)) {
+            (st->codecpar->codec_id == AV_CODEC_ID_H264 || st->codecpar->codec_id == AV_CODEC_ID_H265 ||
+            st->codecpar->codec_id == AV_CODEC_ID_AAC || st->codecpar->codec_id == AV_CODEC_ID_MP3)) {
             const AVDictionaryEntry *track_ids = av_dict_get(st->metadata, "reference_track_ids", NULL, 0);
             int id_count = 1;
             const char* id_v = track_ids->value;
