@@ -214,7 +214,12 @@ static int init_muxer(AVFormatContext *s, AVDictionary **options)
 
         if (!st->time_base.num) {
             /* fall back on the default timebase values */
+#ifdef OHOS_AUXILIARY_TRACK
+            if ((par->codec_type == AVMEDIA_TYPE_AUDIO || (par->codec_type == AVMEDIA_TYPE_AUXILIARY &&
+                (par->codec_id == AV_CODEC_ID_AAC || par->codec_id == AV_CODEC_ID_MP3))) && par->sample_rate)
+#else
             if (par->codec_type == AVMEDIA_TYPE_AUDIO && par->sample_rate)
+#endif
                 avpriv_set_pts_info(st, 64, 1, par->sample_rate);
             else
                 avpriv_set_pts_info(st, 33, 1, 90000);
@@ -298,6 +303,32 @@ FF_ENABLE_DEPRECATION_WARNINGS
                         goto fail;
                     }
                 }
+            } else if (par->codec_id == AV_CODEC_ID_AAC || par->codec_id == AV_CODEC_ID_MP3) {
+                if (par->sample_rate <= 0) {
+                    av_log(s, AV_LOG_ERROR, "sample rate not set\n");
+                    ret = AVERROR(EINVAL);
+                    goto fail;
+                }
+
+#if FF_API_OLD_CHANNEL_LAYOUT
+FF_DISABLE_DEPRECATION_WARNINGS
+                /* if the caller is using the deprecated channel layout API,
+                * convert it to the new style */
+                if (!par->ch_layout.nb_channels &&
+                    par->channels) {
+                    if (par->channel_layout) {
+                        av_channel_layout_from_mask(&par->ch_layout, par->channel_layout);
+                    } else {
+                        par->ch_layout.order       = AV_CHANNEL_ORDER_UNSPEC;
+                        par->ch_layout.nb_channels = par->channels;
+                    }
+                }
+FF_ENABLE_DEPRECATION_WARNINGS
+#endif
+
+                if (!par->block_align)
+                    par->block_align = par->ch_layout.nb_channels *
+                                    av_get_bits_per_sample(par->codec_id) >> 3; // 3 means divide by 8 
             }
             break;
 #endif
@@ -407,6 +438,15 @@ static int init_pts(AVFormatContext *s)
 #ifdef OHOS_TIMED_META_TRACK
         case AVMEDIA_TYPE_TIMEDMETA:
             den = (int64_t)st->time_base.num * st->time_base.den;
+            break;
+#endif
+#ifdef OHOS_AUXILIARY_TRACK
+        case AVMEDIA_TYPE_AUXILIARY:
+            if (st->codecpar->codec_id == AV_CODEC_ID_AAC || st->codecpar->codec_id == AV_CODEC_ID_MP3) {
+                den = (int64_t)st->time_base.num * st->codecpar->sample_rate;
+            } else if (st->codecpar->codec_id == AV_CODEC_ID_H264 || st->codecpar->codec_id == AV_CODEC_ID_H265) {
+                den = (int64_t)st->time_base.num * st->time_base.den;
+            }
             break;
 #endif
         default:
@@ -646,6 +686,24 @@ static void guess_pkt_duration(AVFormatContext *s, AVStream *st, AVPacket *pkt)
         }
         break;
         }
+#ifdef OHOS_AUXILIARY_TRACK
+    case AVMEDIA_TYPE_AUXILIARY:
+        if (st->codecpar->codec_id == AV_CODEC_ID_AAC || st->codecpar->codec_id == AV_CODEC_ID_MP3) {
+            int frame_size = av_get_audio_frame_duration2(st->codecpar, pkt->size);
+            if (frame_size && st->codecpar->sample_rate) {
+                pkt->duration = av_rescale_q(frame_size,
+                                            (AVRational){1, st->codecpar->sample_rate},
+                                            st->time_base);
+            }
+        } else if (st->codecpar->codec_id == AV_CODEC_ID_H264 || st->codecpar->codec_id == AV_CODEC_ID_H265) {
+            if (st->avg_frame_rate.num > 0 && st->avg_frame_rate.den > 0) {
+                pkt->duration = av_rescale_q(1, av_inv_q(st->avg_frame_rate), st->time_base);
+            } else if (st->time_base.num * 1000LL > st->time_base.den) { // 1000
+                pkt->duration = 1;
+            }
+        }
+        break;
+#endif
     }
 }
 
