@@ -96,6 +96,24 @@ int avcodec_parameters_copy(AVCodecParameters *dst, const AVCodecParameters *src
     return 0;
 }
 
+#ifdef OHOS_AUXILIARY_TRACK
+int is_audio_track(AVCodecParameters *par)
+{
+    switch (par->codec_id) {
+        case AV_CODEC_ID_AAC:
+        case AV_CODEC_ID_AAC_LATM:
+        case AV_CODEC_ID_MP1:
+        case AV_CODEC_ID_MP2:
+        case AV_CODEC_ID_MP3:
+        case AV_CODEC_ID_AVS3DA:
+        case AV_CODEC_ID_AC3:
+            return 1;
+        default:
+            return 0;
+    }
+}
+#endif
+
 int avcodec_parameters_from_context(AVCodecParameters *par,
                                     const AVCodecContext *codec)
 {
@@ -115,6 +133,13 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
 
     switch (par->codec_type) {
     case AVMEDIA_TYPE_VIDEO:
+#ifdef OHOS_AUXILIARY_TRACK
+    case AVMEDIA_TYPE_AUXILIARY:
+        if (is_audio_track(par)) {
+            par->format = codec->sample_fmt;
+            break;
+        }
+#endif
         par->format              = codec->pix_fmt;
         par->width               = codec->width;
         par->height              = codec->height;
@@ -196,6 +221,13 @@ int avcodec_parameters_to_context(AVCodecContext *codec,
 
     switch (par->codec_type) {
     case AVMEDIA_TYPE_VIDEO:
+#ifdef OHOS_AUXILIARY_TRACK
+    case AVMEDIA_TYPE_AUXILIARY:
+        if (is_audio_track(par)) {
+            codec->sample_fmt = par->format;
+            break;
+        }
+#endif
         codec->pix_fmt                = par->format;
         codec->width                  = par->width;
         codec->height                 = par->height;
