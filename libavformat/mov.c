@@ -812,6 +812,11 @@ static int mov_read_hdlr(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     else if ((type == MKTAG('s','u','b','p')) || (type == MKTAG('c','l','c','p')))
 #endif
         st->codecpar->codec_type = AVMEDIA_TYPE_SUBTITLE;
+#ifdef OHOS_AUXILIARY_TRACK
+    else if (type == MKTAG('a','u','x','v')) {
+        st->codecpar->codec_type = AVMEDIA_TYPE_AUXILIARY;
+    }
+#endif
     avio_rb32(pb); /* component  manufacture */
     avio_rb32(pb); /* component flags */
     avio_rb32(pb); /* component flags mask */
@@ -834,7 +839,7 @@ static int mov_read_hdlr(MOVContext *c, AVIOContext *pb, MOVAtom atom)
             int off = (!c->isom && title_str[0] == title_size - 1);
             // flag added so as to not set stream handler name if already set from mdia->hdlr
             av_dict_set(&st->metadata, "handler_name", title_str + off, AV_DICT_DONT_OVERWRITE);
-#ifdef OHOS_TIMED_META_TRACK
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
             if (!strncmp(title_str + off, "timed_metadata", 14) && type == MKTAG('m', 'e', 't' ,'a')) {
                 st->codecpar->codec_type = AVMEDIA_TYPE_TIMEDMETA;
             }
@@ -2174,8 +2179,12 @@ static int mov_codec_id(AVStream *st, uint32_t format)
         ((format & 0xFFFF) == 'm' + ('s' << 8) ||
          (format & 0xFFFF) == 'T' + ('S' << 8)))
         id = ff_codec_get_id(ff_codec_wav_tags, av_bswap32(format) & 0xFFFF);
-
+#ifdef OHOS_AUXILIARY_TRACK
+    if (st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO &&
+        st->codecpar->codec_type != AVMEDIA_TYPE_AUXILIARY && id > 0) {
+#else
     if (st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO && id > 0) {
+#endif
         st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
     } else if (st->codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
                /* skip old ASF MPEG-4 tag */
@@ -2183,7 +2192,11 @@ static int mov_codec_id(AVStream *st, uint32_t format)
         id = ff_codec_get_id(ff_codec_movvideo_tags, format);
         if (id <= 0)
             id = ff_codec_get_id(ff_codec_bmp_tags, format);
+#ifdef OHOS_AUXILIARY_TRACK
+        if (id > 0 && st->codecpar->codec_type != AVMEDIA_TYPE_AUXILIARY)
+#else
         if (id > 0)
+#endif
             st->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
         else if (st->codecpar->codec_type == AVMEDIA_TYPE_DATA ||
                     (st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE &&
@@ -2193,7 +2206,7 @@ static int mov_codec_id(AVStream *st, uint32_t format)
                 st->codecpar->codec_type = AVMEDIA_TYPE_SUBTITLE;
             else
                 id = ff_codec_get_id(ff_codec_movdata_tags, format);
-#ifdef OHOS_TIMED_META_TRACK
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
         } else if (st->codecpar->codec_type == AVMEDIA_TYPE_TIMEDMETA) {
             id = AV_CODEC_ID_FFMETADATA;
         }
@@ -2443,7 +2456,7 @@ static int mov_rewrite_dvd_sub_extradata(AVStream *st)
 
     return 0;
 }
-#ifdef OHOS_TIMED_META_TRACK
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
 static int mov_parse_mebx_keyd(MOVContext *c, AVIOContext *pb, AVStream *st)
 {
     int atom_size = (int)avio_rb32(pb);
@@ -2489,20 +2502,55 @@ static int mov_parse_mebx_data(MOVContext *c, AVIOContext *pb,
     }
     return 0;
 }
-static int mov_read_cdsc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
     AVStream *st;
 
     if (c->fc->nb_streams < 1)
         return 0;
     st = c->fc->streams[c->fc->nb_streams - 1];
-    int src_track_id = (int)avio_rb32(pb);
-    char* metaKeyStr;
-    metaKeyStr = av_d2str(src_track_id - 1);
-    if (!metaKeyStr)
-        return AVERROR(ENOMEM);
-    av_dict_set(&st->metadata, "src_track_id", metaKeyStr, 0);
-    av_freep(&metaKeyStr);
+
+    if (st == NULL) {
+        av_log(c->fc, AV_LOG_ERROR, "Stream is invalid %d\n", c->fc->nb_streams - 1);
+        return AVERROR_INVALIDDATA;
+    }
+    MOVAtom subAtom;
+    subAtom.size = avio_rb32(pb);
+    if (subAtom.size < 8) {
+        av_log(c->fc, AV_LOG_ERROR, "Atom invalid size: %d\n", subAtom.size);
+        return AVERROR_INVALIDDATA;
+    }
+    subAtom.type = avio_rl32(pb);
+    av_dict_set(&st->metadata, "track_reference_type", av_fourcc2str(subAtom.type), 0);
+
+    uint32_t id_count = (subAtom.size - 8) / 4;
+    if (id_count == 0) {
+        return 0;
+    }
+    if (id_count > (UINT32_MAX / sizeof(int32_t))) {
+        return AVERROR_INVALIDDATA;
+    }
+    int track_ids[id_count];
+    uint32_t total_size = id_count * sizeof(int32_t);
+    for (uint32_t i = 0; i < id_count; i++) {
+        int track_id = (int)avio_rb32(pb);
+        track_ids[i] = track_id - 1;
+    }
+    if (subAtom.type == MKTAG('c','d','s','c')) {
+        char* metaKeyStr = av_d2str(track_ids[0]);
+        if (!metaKeyStr)
+            return AVERROR(ENOMEM);
+        av_dict_set(&st->metadata, "src_track_id", metaKeyStr, 0);
+        av_freep(&metaKeyStr);
+    }
+    char result[total_size];
+    for (uint32_t i = 0; i < id_count; i++) {
+        int ret = snprintf(result + strlen(result), sizeof(result) - strlen(result), "%d,", track_ids[i]);
+        if (ret < 0) {
+            return AVERROR(ENOMEM);
+        }
+    }
+    av_dict_set(&st->metadata, "reference_track_ids", result, 0);
     return 0;
 }
 #endif
@@ -2557,8 +2605,11 @@ static int mov_finalize_stsd_codec(MOVContext *c, AVIOContext *pb,
                                    AVStream *st, MOVStreamContext *sc)
 {
     FFStream *const sti = ffstream(st);
-
+#ifdef OHOS_AUXILIARY_TRACK
+    if (need_parse_audio_info(st) == 1 &&
+#else
     if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO &&
+#endif
         !st->codecpar->sample_rate && sc->time_scale > 1)
         st->codecpar->sample_rate = sc->time_scale;
 
@@ -2606,7 +2657,13 @@ static int mov_finalize_stsd_codec(MOVContext *c, AVIOContext *pb,
     case AV_CODEC_ID_MP2:
     case AV_CODEC_ID_MP3:
         /* force type after stsd for m1a hdlr */
+#ifdef OHOS_AUXILIARY_TRACK
+        if (st->codecpar->codec_type != AVMEDIA_TYPE_AUXILIARY) {
+            st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
+        }
+#else
         st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
+#endif
         break;
     case AV_CODEC_ID_GSM:
     case AV_CODEC_ID_ADPCM_MS:
@@ -2723,9 +2780,17 @@ int ff_mov_read_stsd_entries(MOVContext *c, AVIOContext *pb, int entries)
                av_fourcc2str(format), st->codecpar->codec_type);
 
         st->codecpar->codec_id = id;
-        if (st->codecpar->codec_type==AVMEDIA_TYPE_VIDEO) {
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_video_info(st) == 1) {
+#else
+        if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+#endif
             mov_parse_stsd_video(c, pb, st, sc);
-        } else if (st->codecpar->codec_type==AVMEDIA_TYPE_AUDIO) {
+#ifdef OHOS_AUXILIARY_TRACK
+        } else if (need_parse_audio_info(st) == 1) {
+#else
+        } else if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+#endif
             mov_parse_stsd_audio(c, pb, st, sc);
             if (st->codecpar->sample_rate < 0) {
                 av_log(c->fc, AV_LOG_ERROR, "Invalid sample rate %d\n", st->codecpar->sample_rate);
@@ -2739,7 +2804,7 @@ int ff_mov_read_stsd_entries(MOVContext *c, AVIOContext *pb, int entries)
             mov_parse_stsd_subtitle(c, pb, st, sc,
                                     size - (avio_tell(pb) - start_pos));
         } else {
-#ifdef OHOS_TIMED_META_TRACK
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
             if (st->codecpar->codec_type != AVMEDIA_TYPE_TIMEDMETA) {
                 ret = mov_parse_stsd_data(c, pb, st, sc,
                                           size - (avio_tell(pb) - start_pos));
@@ -2982,6 +3047,51 @@ static int mov_read_stps(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     return 0;
 }
 
+#ifdef OHOS_AUXILIARY_TRACK
+int need_parse_video_info(AVStream *st)
+{
+    if (st == NULL || st->codecpar == NULL) {
+        return 0;
+    }
+    int is_video_codec = 0;
+    switch (st->codecpar->codec_id) {
+        case AV_CODEC_ID_MPEG4:
+        case AV_CODEC_ID_H264:
+        case AV_CODEC_ID_HEVC:
+        case AV_CODEC_ID_VVC:
+            is_video_codec = 1;
+            break;
+        default:
+            break;
+    }
+    return (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+        || (st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY && is_video_codec == 1);
+}
+
+int need_parse_audio_info(AVStream *st)
+{
+    if (st == NULL || st->codecpar == NULL) {
+        return 0;
+    }
+    int is_audio_codec = 0;
+    switch (st->codecpar->codec_id) {
+        case AV_CODEC_ID_AAC:
+        case AV_CODEC_ID_AAC_LATM:
+        case AV_CODEC_ID_MP1:
+        case AV_CODEC_ID_MP2:
+        case AV_CODEC_ID_MP3:
+        case AV_CODEC_ID_AVS3DA:
+        case AV_CODEC_ID_AC3:
+            is_audio_codec = 1;
+            break;
+        default:
+            break;
+    }
+    return (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+        || (st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY && is_audio_codec == 1);
+}
+#endif
+
 static int mov_read_stss(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
     AVStream *st;
@@ -3004,7 +3114,11 @@ static int mov_read_stss(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     if (!entries) {
         sc->keyframe_absent = 1;
+#ifdef OHOS_AUXILIARY_TRACK
+        if (!sti->need_parsing && need_parse_video_info(st) == 1)
+#else
         if (!sti->need_parsing && st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+#endif
             sti->need_parsing = AVSTREAM_PARSE_HEADERS;
         return 0;
     }
@@ -3898,7 +4012,11 @@ static void mov_fix_index(MOVContext *mov, AVStream *st)
 
         // If we encounter a non-negative edit list reset the skip_samples/start_pad fields and set them
         // according to the edit list below.
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_audio_info(st) == 1) {
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+#endif
             if (first_non_zero_audio_edit < 0) {
                 first_non_zero_audio_edit = 1;
             } else {
@@ -3914,7 +4032,11 @@ static void mov_fix_index(MOVContext *mov, AVStream *st)
         // We find closest previous key frame and preserve it and consequent frames in index.
         // All frames which are outside edit list entry time boundaries will be dropped after decoding.
         search_timestamp = edit_list_media_time;
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_audio_info(st) == 1) {
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+#endif
             // Audio decoders like AAC need need a decoder delay samples previous to the current sample,
             // to correctly decode this frame. Hence for audio we seek to a frame 1 sec. before the
             // edit_list_media_time to cover the decoder delay.
@@ -3977,7 +4099,11 @@ static void mov_fix_index(MOVContext *mov, AVStream *st)
             }
 
             if (curr_cts < edit_list_media_time || curr_cts >= (edit_list_duration + edit_list_media_time)) {
+#ifdef OHOS_AUXILIARY_TRACK
+                if (need_parse_audio_info(st) == 1 && st->codecpar->codec_id != AV_CODEC_ID_VORBIS &&
+#else
                 if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO && st->codecpar->codec_id != AV_CODEC_ID_VORBIS &&
+#endif
                     curr_cts < edit_list_media_time && curr_cts + frame_duration > edit_list_media_time &&
                     first_non_zero_audio_edit > 0) {
                     packet_skip_samples = edit_list_media_time - curr_cts;
@@ -4012,7 +4138,11 @@ static void mov_fix_index(MOVContext *mov, AVStream *st)
                         frame_duration_buffer[num_discarded_begin - 1] = frame_duration;
 
                         // Increment skip_samples for the first non-zero audio edit list
+#ifdef OHOS_AUXILIARY_TRACK
+                        if (need_parse_audio_info(st) == 1 &&
+#else
                         if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO &&
+#endif
                             first_non_zero_audio_edit > 0 && st->codecpar->codec_id != AV_CODEC_ID_VORBIS) {
                             sti->skip_samples += frame_duration;
                         }
@@ -4056,12 +4186,20 @@ static void mov_fix_index(MOVContext *mov, AVStream *st)
 
             // Break when found first key frame after edit entry completion
             if ((curr_cts + frame_duration >= (edit_list_duration + edit_list_media_time)) &&
+#ifdef OHOS_AUXILIARY_TRACK
+                ((flags & AVINDEX_KEYFRAME) || ((need_parse_audio_info(st) == 1)))) {
+#else
                 ((flags & AVINDEX_KEYFRAME) || ((st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)))) {
+#endif
                 if (ctts_data_old) {
                     // If we have CTTS and this is the first keyframe after edit elist,
                     // wait for one more, because there might be trailing B-frames after this I-frame
                     // that do belong to the edit.
+#ifdef OHOS_AUXILIARY_TRACK
+                    if (need_parse_audio_info(st) == 0 && found_keyframe_after_edit == 0) {
+#else
                     if (st->codecpar->codec_type != AVMEDIA_TYPE_AUDIO && found_keyframe_after_edit == 0) {
+#endif
                         found_keyframe_after_edit = 1;
                         continue;
                     }
@@ -4087,7 +4225,11 @@ static void mov_fix_index(MOVContext *mov, AVStream *st)
 
     // If the minimum pts turns out to be greater than zero after fixing the index, then we subtract the
     // dts by that amount to make the first pts zero.
+#ifdef OHOS_AUXILIARY_TRACK
+    if (need_parse_video_info(st) == 1) {
+#else
     if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+#endif
         if (msc->min_corrected_pts > 0) {
             av_log(mov->fc, AV_LOG_DEBUG, "Offset DTS by %"PRId64" to make first pts zero.\n", msc->min_corrected_pts);
             for (int i = 0; i < sti->nb_index_entries; ++i)
@@ -4247,7 +4389,11 @@ static void mov_build_index(MOVContext *mov, AVStream *st)
     }
 
     /* only use old uncompressed audio chunk demuxing when stts specifies it */
+#ifdef OHOS_AUXILIARY_TRACK
+    if (!(need_parse_audio_info(st) == 1 &&
+#else
     if (!(st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO &&
+#endif
           sc->stts_count == 1 && sc->stts_data[0].duration == 1)) {
         unsigned int current_sample = 0;
         unsigned int stts_sample = 0;
@@ -4341,7 +4487,11 @@ static void mov_build_index(MOVContext *mov, AVStream *st)
                 if (sc->keyframe_absent
                     && !sc->stps_count
                     && !rap_group_present
+#ifdef OHOS_AUXILIARY_TRACK
+                    && (need_parse_audio_info(st) == 1 || (i==0 && j==0)))
+#else
                     && (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO || (i==0 && j==0)))
+#endif
                      keyframe = 1;
                 if (keyframe)
                     distance = 0;
@@ -4369,7 +4519,11 @@ static void mov_build_index(MOVContext *mov, AVStream *st)
                     av_log(mov->fc, AV_LOG_TRACE, "AVIndex stream %d, sample %u, offset %"PRIx64", dts %"PRId64", "
                             "size %u, distance %u, keyframe %d\n", st->index, current_sample,
                             current_offset, current_dts, sample_size, distance, keyframe);
+#ifdef OHOS_AUXILIARY_TRACK
+                    if (need_parse_video_info(st) == 1 && sti->nb_index_entries < 100)
+#else
                     if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && sti->nb_index_entries < 100)
+#endif
                         ff_rfps_add_frame(mov->fc, st, current_dts);
                 }
 
@@ -4497,7 +4651,11 @@ static void mov_build_index(MOVContext *mov, AVStream *st)
     }
 
     // Update start time of the stream.
+#ifdef OHOS_AUXILIARY_TRACK
+    if (st->start_time == AV_NOPTS_VALUE && need_parse_video_info(st) == 1 && sti->nb_index_entries > 0) {
+#else
     if (st->start_time == AV_NOPTS_VALUE && st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && sti->nb_index_entries > 0) {
+#endif
         st->start_time = sti->index_entries[0].timestamp + sc->dts_shift;
         if (sc->ctts_data) {
             st->start_time += sc->ctts_data[0].duration;
@@ -4694,7 +4852,11 @@ static int mov_read_trak(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         sc->pb_is_copied = 1;
     }
 
+#ifdef OHOS_AUXILIARY_TRACK
+    if (need_parse_video_info(st) == 1) {
+#else
     if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+#endif
         if (!st->sample_aspect_ratio.num && st->codecpar->width && st->codecpar->height &&
             sc->height && sc->width &&
             (st->codecpar->width != sc->width || st->codecpar->height != sc->height)) {
@@ -5360,8 +5522,11 @@ static int mov_read_trun(MOVContext *c, AVIOContext *pb, MOVAtom atom)
                    sc->time_offset, flags & MOV_TRUN_SAMPLE_CTS);
             pts = AV_NOPTS_VALUE;
         }
-
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_audio_info(st) == 1)
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+#endif
             keyframe = 1;
         else
             keyframe =
@@ -7819,7 +7984,13 @@ static int mov_read_iloc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         return AVERROR(ENOMEM);
 
     st->priv_data = sc;
+#ifdef OHOS_AUXILIARY_TRACK
+    if (st->codecpar->codec_type != AVMEDIA_TYPE_AUXILIARY) {
+        st->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
+    }
+#else
     st->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
+#endif
     st->codecpar->codec_id = AV_CODEC_ID_AV1;
     sc->ffindex = st->index;
     c->trak_index = st->index;
@@ -8127,7 +8298,11 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('t','f','h','d'), mov_read_tfhd }, /* track fragment header */
 { MKTAG('t','r','a','k'), mov_read_trak },
 { MKTAG('t','r','a','f'), mov_read_default },
+#if defined(OHOS_TIMED_META_TRACK) || defined(OHOS_AUXILIARY_TRACK)
+{ MKTAG('t','r','e','f'), mov_read_tref },
+#else
 { MKTAG('t','r','e','f'), mov_read_default },
+#endif
 { MKTAG('t','m','c','d'), mov_read_tmcd },
 { MKTAG('c','h','a','p'), mov_read_chap },
 { MKTAG('t','r','e','x'), mov_read_trex },
@@ -8185,9 +8360,6 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('i','l','o','c'), mov_read_iloc },
 { MKTAG('p','c','m','C'), mov_read_pcmc }, /* PCM configuration box */
 { MKTAG('p','i','t','m'), mov_read_pitm },
-#ifdef OHOS_TIMED_META_TRACK
-{ MKTAG('c','d','s','c'), mov_read_cdsc },
-#endif
 #ifdef OHOS_AV3A_DEMUXER
 { MKTAG('d','c','a','3'), mov_read_dca3 },
 #endif
@@ -8441,7 +8613,11 @@ static void mov_read_chapters(AVFormatContext *s)
         sc = st->priv_data;
         cur_pos = avio_tell(sc->pb);
 
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_video_info(st) == 1) {
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+#endif
             st->disposition |= AV_DISPOSITION_ATTACHED_PIC | AV_DISPOSITION_TIMED_THUMBNAILS;
             if (sti->nb_index_entries) {
                 // Retrieve the first frame, if possible
@@ -8717,7 +8893,11 @@ static int tmcd_is_referenced(AVFormatContext *s, int tmcd_id)
         AVStream *st = s->streams[i];
         MOVStreamContext *sc = st->priv_data;
 
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_video_info(st) == 1 &&
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
+#endif
             sc->timecode_track == tmcd_id)
             return 1;
     }
@@ -8918,11 +9098,19 @@ static int mov_read_header(AVFormatContext *s)
         FFStream *const sti = ffstream(st);
         MOVStreamContext *sc = st->priv_data;
         fix_timescale(mov, sc);
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_audio_info(st) == 1 &&
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO &&
+#endif
             st->codecpar->codec_id   == AV_CODEC_ID_AAC) {
             sti->skip_samples = sc->start_pad;
         }
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_video_info(st) == 1 && sc->nb_frames_for_fps > 0 && sc->duration_for_fps > 0)
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && sc->nb_frames_for_fps > 0 && sc->duration_for_fps > 0)
+#endif
             av_reduce(&st->avg_frame_rate.num, &st->avg_frame_rate.den,
                       sc->time_scale*(int64_t)sc->nb_frames_for_fps, sc->duration_for_fps, INT_MAX);
         if (st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
@@ -8952,7 +9140,8 @@ static int mov_read_header(AVFormatContext *s)
                 st->codecpar->bit_rate = av_rescale(sc->data_size, ((int64_t) sc->time_scale) * 8, st->duration);
 #ifdef OHOS_CAL_DASH_BITRATE
                 if (sc->has_sidx == 1) {
-                    st->codecpar->bit_rate = av_rescale(sc->referenced_size, ((int64_t) sc->time_scale) * 8, st->duration);
+                    st->codecpar->bit_rate = av_rescale(
+                        sc->referenced_size, ((int64_t) sc->time_scale) * 8, st->duration);
                 }
 #endif
                 if (st->codecpar->bit_rate == INT64_MIN) {
@@ -8995,14 +9184,21 @@ static int mov_read_header(AVFormatContext *s)
     for (i = 0; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
         MOVStreamContext *sc = st->priv_data;
-
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_audio_info(st) == 1) {
+#else
         switch (st->codecpar->codec_type) {
         case AVMEDIA_TYPE_AUDIO:
+#endif
             err = ff_replaygain_export(st, s->metadata);
             if (err < 0)
                 return err;
+#ifdef OHOS_AUXILIARY_TRACK
+        } else if (need_parse_video_info(st) == 1) {
+#else
             break;
         case AVMEDIA_TYPE_VIDEO:
+#endif
             if (sc->display_matrix) {
                 err = av_stream_add_side_data(st, AV_PKT_DATA_DISPLAYMATRIX, (uint8_t*)sc->display_matrix,
                                               sizeof(int32_t) * 9);
@@ -9489,8 +9685,11 @@ static int64_t mov_get_skip_samples(AVStream *st, int sample)
     int64_t first_ts = sti->index_entries[0].timestamp;
     int64_t ts = sti->index_entries[sample].timestamp;
     int64_t off;
-
+#ifdef OHOS_AUXILIARY_TRACK
+    if (need_parse_audio_info(st) == 0)
+#else
     if (st->codecpar->codec_type != AVMEDIA_TYPE_AUDIO)
+#endif
         return 0;
 
     /* compute skip samples according to stream start_pad, seek ts and first ts */
