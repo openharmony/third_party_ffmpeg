@@ -2511,22 +2511,28 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     st = c->fc->streams[c->fc->nb_streams - 1];
 
     if (st == NULL) {
+        av_log(c->fc, AV_LOG_ERROR, "Stream is invalid %d\n", c->fc->nb_streams - 1);
         return AVERROR_INVALIDDATA;
     }
     MOVAtom subAtom;
     subAtom.size = avio_rb32(pb);
+    if (subAtom.size < 8) {
+        av_log(c->fc, AV_LOG_ERROR, "Atom invalid size: %d\n", subAtom.size);
+        return AVERROR_INVALIDDATA;
+    }
     subAtom.type = avio_rl32(pb);
     av_dict_set(&st->metadata, "track_reference_type", av_fourcc2str(subAtom.type), 0);
 
-    int32_t id_count = (subAtom.size - 8) / 4;
-    if (id_count < 0) {
-        return AVERROR_INVALIDDATA;
-    } else if (id_count == 0) {
+    uint32_t id_count = (subAtom.size - 8) / 4;
+    if (id_count == 0) {
         return 0;
     }
-    int32_t track_ids[id_count];
-    int total_size = id_count * sizeof(int32_t);
-    for (int32_t i = 0; i < id_count; i++) {
+    if (id_count > (UINT32_MAX / sizeof(int32_t))) {
+        return AVERROR_INVALIDDATA;
+    }
+    int track_ids[id_count];
+    uint32_t total_size = id_count * sizeof(int32_t);
+    for (uint32_t i = 0; i < id_count; i++) {
         int track_id = (int)avio_rb32(pb);
         track_ids[i] = track_id - 1;
     }
@@ -2538,7 +2544,7 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         av_freep(&metaKeyStr);
     }
     char result[total_size];
-    for (int32_t i = 0; i < id_count; i++) {
+    for (uint32_t i = 0; i < id_count; i++) {
         int ret = snprintf(result + strlen(result), sizeof(result) - strlen(result), "%d,", track_ids[i]);
         if (ret < 0) {
             return AVERROR(ENOMEM);
