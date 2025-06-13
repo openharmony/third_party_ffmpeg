@@ -2186,7 +2186,11 @@ static int mov_codec_id(AVStream *st, uint32_t format)
     if (st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO && id > 0) {
 #endif
         st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
+#ifdef OHOS_AUXILIARY_TRACK
+    } else if (!(need_parse_audio_info_with_id(st, id) == 1) &&
+#else
     } else if (st->codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
+#endif
                /* skip old ASF MPEG-4 tag */
                format && format != MKTAG('m','p','4','s')) {
         id = ff_codec_get_id(ff_codec_movvideo_tags, format);
@@ -3075,6 +3079,29 @@ int need_parse_audio_info(AVStream *st)
     }
     int is_audio_codec = 0;
     switch (st->codecpar->codec_id) {
+        case AV_CODEC_ID_AAC:
+        case AV_CODEC_ID_AAC_LATM:
+        case AV_CODEC_ID_MP1:
+        case AV_CODEC_ID_MP2:
+        case AV_CODEC_ID_MP3:
+        case AV_CODEC_ID_AVS3DA:
+        case AV_CODEC_ID_AC3:
+            is_audio_codec = 1;
+            break;
+        default:
+            break;
+    }
+    return (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+        || (st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY && is_audio_codec == 1);
+}
+
+int need_parse_audio_info_with_id(AVStream *st, int id)
+{
+    if (st == NULL || st->codecpar == NULL) {
+        return 0;
+    }
+    int is_audio_codec = 0;
+    switch (id) {
         case AV_CODEC_ID_AAC:
         case AV_CODEC_ID_AAC_LATM:
         case AV_CODEC_ID_MP1:
@@ -4196,7 +4223,7 @@ static void mov_fix_index(MOVContext *mov, AVStream *st)
                     // wait for one more, because there might be trailing B-frames after this I-frame
                     // that do belong to the edit.
 #ifdef OHOS_AUXILIARY_TRACK
-                    if (need_parse_audio_info(st) == 0 && found_keyframe_after_edit == 0) {
+                    if (!(need_parse_audio_info(st) == 1) && found_keyframe_after_edit == 0) {
 #else
                     if (st->codecpar->codec_type != AVMEDIA_TYPE_AUDIO && found_keyframe_after_edit == 0) {
 #endif
@@ -9686,7 +9713,7 @@ static int64_t mov_get_skip_samples(AVStream *st, int sample)
     int64_t ts = sti->index_entries[sample].timestamp;
     int64_t off;
 #ifdef OHOS_AUXILIARY_TRACK
-    if (need_parse_audio_info(st) == 0)
+    if (!(need_parse_audio_info(st) == 1))
 #else
     if (st->codecpar->codec_type != AVMEDIA_TYPE_AUDIO)
 #endif
