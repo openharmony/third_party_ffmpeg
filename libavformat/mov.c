@@ -91,6 +91,9 @@ static int mov_read_default(MOVContext *c, AVIOContext *pb, MOVAtom atom);
 static int mov_read_mfra(MOVContext *c, AVIOContext *f);
 static int64_t add_ctts_entry(MOVCtts** ctts_data, unsigned int* ctts_count, unsigned int* allocated_size,
                               int count, int duration);
+static int need_parse_video_info(AVStream *st);
+static int need_parse_audio_info(AVStream *st);
+static int need_parse_audio_info_with_id(AVStream *st, int id);
 
 static int mov_metadata_track_or_disc_number(MOVContext *c, AVIOContext *pb,
                                              unsigned len, const char *key)
@@ -3052,7 +3055,7 @@ static int mov_read_stps(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 }
 
 #ifdef OHOS_AUXILIARY_TRACK
-int need_parse_video_info(AVStream *st)
+static int need_parse_video_info(AVStream *st)
 {
     if (st == NULL || st->codecpar == NULL) {
         return 0;
@@ -3072,7 +3075,7 @@ int need_parse_video_info(AVStream *st)
         || (st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY && is_video_codec == 1);
 }
 
-int need_parse_audio_info(AVStream *st)
+static int need_parse_audio_info(AVStream *st)
 {
     if (st == NULL || st->codecpar == NULL) {
         return 0;
@@ -3095,7 +3098,7 @@ int need_parse_audio_info(AVStream *st)
         || (st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY && is_audio_codec == 1);
 }
 
-int need_parse_audio_info_with_id(AVStream *st, int id)
+static int need_parse_audio_info_with_id(AVStream *st, int id)
 {
     if (st == NULL || st->codecpar == NULL) {
         return 0;

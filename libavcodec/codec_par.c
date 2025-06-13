@@ -97,9 +97,9 @@ int avcodec_parameters_copy(AVCodecParameters *dst, const AVCodecParameters *src
 }
 
 #ifdef OHOS_AUXILIARY_TRACK
-int is_video_track(AVCodecParameters *par)
+int is_video_track(int codec_id)
 {
-    switch (par->codec_id) {
+    switch (codec_id) {
         case AV_CODEC_ID_MPEG4:
         case AV_CODEC_ID_H264:
         case AV_CODEC_ID_HEVC:
@@ -110,9 +110,9 @@ int is_video_track(AVCodecParameters *par)
     }
 }
 
-int is_audio_track(AVCodecParameters *par)
+int is_audio_track(int codec_id)
 {
-    switch (par->codec_id) {
+    switch (codec_id) {
         case AV_CODEC_ID_AAC:
         case AV_CODEC_ID_AAC_LATM:
         case AV_CODEC_ID_MP1:
@@ -145,7 +145,7 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
     par->level                 = codec->level;
 
 #ifdef OHOS_AUXILIARY_TRACK
-    if (par->codec_type == AVMEDIA_TYPE_VIDEO || is_video_track(par)) {
+    if (par->codec_type == AVMEDIA_TYPE_VIDEO || is_video_track(codec->codec_id)) {
 #else
     switch (par->codec_type) {
     case AVMEDIA_TYPE_VIDEO:
@@ -162,7 +162,7 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
         par->sample_aspect_ratio = codec->sample_aspect_ratio;
         par->video_delay         = codec->has_b_frames;
 #ifdef OHOS_AUXILIARY_TRACK
-    } else if (par->codec_type == AVMEDIA_TYPE_AUDIO || is_audio_track(par)) {
+    } else if (par->codec_type == AVMEDIA_TYPE_AUDIO || is_audio_track(codec->codec_id)) {
 #else
         break;
     case AVMEDIA_TYPE_AUDIO:
@@ -240,7 +240,7 @@ int avcodec_parameters_to_context(AVCodecContext *codec,
     codec->level                 = par->level;
 
 #ifdef OHOS_AUXILIARY_TRACK
-    if (par->codec_type == AVMEDIA_TYPE_VIDEO || is_video_track(par)) {
+    if (par->codec_type == AVMEDIA_TYPE_VIDEO || is_video_track(par->codec_id)) {
 #else
     switch (par->codec_type) {
     case AVMEDIA_TYPE_VIDEO:
@@ -257,7 +257,7 @@ int avcodec_parameters_to_context(AVCodecContext *codec,
         codec->sample_aspect_ratio    = par->sample_aspect_ratio;
         codec->has_b_frames           = par->video_delay;
 #ifdef OHOS_AUXILIARY_TRACK
-    } else if (par->codec_type == AVMEDIA_TYPE_AUDIO || is_audio_track(par)) {
+    } else if (par->codec_type == AVMEDIA_TYPE_AUDIO || is_audio_track(par->codec_id)) {
 #else
         break;
     case AVMEDIA_TYPE_AUDIO:

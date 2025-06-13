@@ -46,6 +46,9 @@
 #include "internal.h"
 #include "url.h"
 
+static int need_parse_video_info(AVStream *st);
+static int need_parse_audio_info(AVStream *st);
+
 static int64_t wrap_timestamp(const AVStream *st, int64_t timestamp)
 {
     const FFStream *const sti = cffstream(st);
@@ -95,6 +98,51 @@ static const AVCodec *find_probe_decoder(AVFormatContext *s, const AVStream *st,
 
     return codec;
 }
+
+#ifdef OHOS_AUXILIARY_TRACK
+static int need_parse_video_info(AVStream *st)
+{
+    if (st == NULL || st->codecpar == NULL) {
+        return 0;
+    }
+    int is_video_codec = 0;
+    switch (st->codecpar->codec_id) {
+        case AV_CODEC_ID_MPEG4:
+        case AV_CODEC_ID_H264:
+        case AV_CODEC_ID_HEVC:
+        case AV_CODEC_ID_VVC:
+            is_video_codec = 1;
+            break;
+        default:
+            break;
+    }
+    return (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+        || (st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY && is_video_codec == 1);
+}
+
+static int need_parse_audio_info(AVStream *st)
+{
+    if (st == NULL || st->codecpar == NULL) {
+        return 0;
+    }
+    int is_audio_codec = 0;
+    switch (st->codecpar->codec_id) {
+        case AV_CODEC_ID_AAC:
+        case AV_CODEC_ID_AAC_LATM:
+        case AV_CODEC_ID_MP1:
+        case AV_CODEC_ID_MP2:
+        case AV_CODEC_ID_MP3:
+        case AV_CODEC_ID_AVS3DA:
+        case AV_CODEC_ID_AC3:
+            is_audio_codec = 1;
+            break;
+        default:
+            break;
+    }
+    return (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+        || (st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY && is_audio_codec == 1);
+}
+#endif
 
 static int set_codec_from_probe_data(AVFormatContext *s, AVStream *st,
                                      AVProbeData *pd)
@@ -665,8 +713,12 @@ static void compute_frame_duration(AVFormatContext *s, int *pnum, int *pden,
 
     *pnum = 0;
     *pden = 0;
+#ifdef OHOS_AUXILIARY_TRACK
+    if (need_parse_video_info(st)) {
+#else
     switch (st->codecpar->codec_type) {
     case AVMEDIA_TYPE_VIDEO:
+#endif
         if (st->r_frame_rate.num && (!pc || !codec_framerate.num)) {
             *pnum = st->r_frame_rate.den;
             *pden = st->r_frame_rate.num;
@@ -692,8 +744,12 @@ static void compute_frame_duration(AVFormatContext *s, int *pnum, int *pden,
             if (sti->avctx->ticks_per_frame > 1 && !pc)
                 *pnum = *pden = 0;
         }
+#ifdef OHOS_AUXILIARY_TRACK
+    } else if (need_parse_audio_info(st)) {
+#else
         break;
     case AVMEDIA_TYPE_AUDIO:
+#endif
         if (sti->avctx_inited) {
             frame_size  = av_get_audio_frame_duration(sti->avctx, pkt->size);
             sample_rate = sti->avctx->sample_rate;
@@ -702,12 +758,18 @@ static void compute_frame_duration(AVFormatContext *s, int *pnum, int *pden,
             sample_rate = st->codecpar->sample_rate;
         }
         if (frame_size <= 0 || sample_rate <= 0)
+#ifdef OHOS_AUXILIARY_TRACK
+            return;
+#else
             break;
+#endif
         *pnum = frame_size;
         *pden = sample_rate;
+#ifndef OHOS_AUXILIARY_TRACK
         break;
     default:
         break;
+#endif
     }
 }
 
@@ -854,7 +916,11 @@ static void update_initial_timestamps(AVFormatContext *s, int stream_index,
 
         if (st->start_time == AV_NOPTS_VALUE && pktl_it->pkt.pts != AV_NOPTS_VALUE) {
             st->start_time = pktl_it->pkt.pts;
+#ifdef OHOS_AUXILIARY_TRACK
+            if (need_parse_audio_info(st) && st->codecpar->sample_rate)
+#else
             if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO && st->codecpar->sample_rate)
+#endif
                 st->start_time = av_sat_add64(st->start_time, av_rescale_q(sti->skip_samples, (AVRational){1, st->codecpar->sample_rate}, st->time_base));
         }
     }
@@ -863,10 +929,18 @@ static void update_initial_timestamps(AVFormatContext *s, int stream_index,
         update_dts_from_pts(s, stream_index, pktl);
 
     if (st->start_time == AV_NOPTS_VALUE) {
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_audio_info(st) || !(pkt->flags & AV_PKT_FLAG_DISCARD)) {
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO || !(pkt->flags & AV_PKT_FLAG_DISCARD)) {
+#endif
             st->start_time = pts;
         }
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_audio_info(st) && st->codecpar->sample_rate)
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO && st->codecpar->sample_rate)
+#endif
             st->start_time = av_sat_add64(st->start_time, av_rescale_q(sti->skip_samples, (AVRational){1, st->codecpar->sample_rate}, st->time_base));
     }
 }
@@ -949,8 +1023,11 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
 #endif
     if (s->flags & AVFMT_FLAG_NOFILLIN)
         return;
-
+#ifdef OHOS_AUXILIARY_TRACK
+    if (need_parse_video_info(st) && pkt->dts != AV_NOPTS_VALUE) {
+#else
     if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && pkt->dts != AV_NOPTS_VALUE) {
+#endif
         if (pkt->dts == pkt->pts && sti->last_dts_for_order_check != AV_NOPTS_VALUE) {
             if (sti->last_dts_for_order_check <= pkt->dts) {
                 sti->dts_ordered++;
@@ -1190,7 +1267,11 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt,
 
         /* set the duration */
         out_pkt->duration = (sti->parser->flags & PARSER_FLAG_COMPLETE_FRAMES) ? pkt->duration : 0;
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_audio_info(st)) {
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+#endif
             if (sti->avctx->sample_rate > 0) {
                 out_pkt->duration =
                     av_rescale_q_rnd(sti->parser->duration,
@@ -1695,7 +1776,11 @@ static void estimate_timings_from_bit_rate(AVFormatContext *ic)
                     break;
                 }
                 bit_rate += st->codecpar->bit_rate;
+#ifdef OHOS_AUXILIARY_TRACK
+            } else if (need_parse_video_info(st) && sti->codec_info_nb_frames > 1) {
+#else
             } else if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && sti->codec_info_nb_frames > 1) {
+#endif
                 // If we have a videostream with packets but without a bitrate
                 // then consider the sum not known
                 bit_rate = 0;
@@ -1829,6 +1914,9 @@ static void estimate_timings_from_pts(AVFormatContext *ic, int64_t old_offset)
                 switch (st->codecpar->codec_type) {
                     case AVMEDIA_TYPE_VIDEO:
                     case AVMEDIA_TYPE_AUDIO:
+#ifdef OHOS_AUXILIARY_TRACK
+                    case AVMEDIA_TYPE_AUXILIARY:
+#endif
                         if (st->duration == AV_NOPTS_VALUE)
                             is_end = 0;
                 }
@@ -1849,6 +1937,9 @@ static void estimate_timings_from_pts(AVFormatContext *ic, int64_t old_offset)
             switch (st->codecpar->codec_type) {
             case AVMEDIA_TYPE_VIDEO:
             case AVMEDIA_TYPE_AUDIO:
+#ifdef OHOS_AUXILIARY_TRACK
+            case AVMEDIA_TYPE_AUXILIARY:
+#endif
                 if (st->start_time != AV_NOPTS_VALUE || sti->first_dts != AV_NOPTS_VALUE) {
                     av_log(ic, AV_LOG_WARNING, "stream %d : no PTS found at end of file, duration not set\n", i);
                 } else
@@ -1960,8 +2051,12 @@ static int has_codec_parameters(const AVStream *st, const char **errmsg_ptr)
     if (   avctx->codec_id == AV_CODEC_ID_NONE
         && avctx->codec_type != AVMEDIA_TYPE_DATA)
         FAIL("unknown codec");
+#ifdef OHOS_AUXILIARY_TRACK
+    if (need_parse_audio_info(st)) {
+#else
     switch (avctx->codec_type) {
     case AVMEDIA_TYPE_AUDIO:
+#endif
         if (!avctx->frame_size && determinable_frame_size(avctx))
             FAIL("unspecified frame size");
         if (sti->info->found_decoder >= 0 &&
@@ -1973,8 +2068,12 @@ static int has_codec_parameters(const AVStream *st, const char **errmsg_ptr)
             FAIL("unspecified number of channels");
         if (sti->info->found_decoder >= 0 && !sti->nb_decoded_frames && avctx->codec_id == AV_CODEC_ID_DTS)
             FAIL("no decodable DTS frames");
+#ifdef OHOS_AUXILIARY_TRACK
+    } else if (need_parse_video_info(st)) {
+#else
         break;
     case AVMEDIA_TYPE_VIDEO:
+#endif
         if (!avctx->width)
 #ifdef OHOS_OPTIMIZE_DELAY
         if (!(st->codecpar->codec_id == AV_CODEC_ID_HEVC) &&
@@ -1986,12 +2085,20 @@ static int has_codec_parameters(const AVStream *st, const char **errmsg_ptr)
         if (st->codecpar->codec_id == AV_CODEC_ID_RV30 || st->codecpar->codec_id == AV_CODEC_ID_RV40)
             if (!st->sample_aspect_ratio.num && !st->codecpar->sample_aspect_ratio.num && !sti->codec_info_nb_frames)
                 FAIL("no frame in rv30/40 and no sar");
+#ifdef OHOS_AUXILIARY_TRACK
+    } else if (avctx->codec_type == AVMEDIA_TYPE_SUBTITLE) {
+#else
         break;
     case AVMEDIA_TYPE_SUBTITLE:
+#endif
         if (avctx->codec_id == AV_CODEC_ID_HDMV_PGS_SUBTITLE && !avctx->width)
             FAIL("unspecified size");
+#ifdef OHOS_AUXILIARY_TRACK
+    } else if (avctx->codec_type == AVMEDIA_TYPE_DATA) {
+#else
         break;
     case AVMEDIA_TYPE_DATA:
+#endif
         if (avctx->codec_id == AV_CODEC_ID_NONE) return 1;
     }
 
@@ -2066,7 +2173,11 @@ static int try_decode_frame(AVFormatContext *s, AVStream *st,
              (avctx->codec->capabilities & AV_CODEC_CAP_CHANNEL_CONF)))) {
         got_picture = 0;
         if (avctx->codec_type == AVMEDIA_TYPE_VIDEO ||
+#ifdef OHOS_AUXILIARY_TRACK
+            avctx->codec_type == AVMEDIA_TYPE_AUDIO || avctx->codec_type == AVMEDIA_TYPE_AUXILIARY) {
+#else
             avctx->codec_type == AVMEDIA_TYPE_AUDIO) {
+#endif
             ret = avcodec_send_packet(avctx, &pkt);
             if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
                 break;
@@ -2253,8 +2364,11 @@ void ff_rfps_calculate(AVFormatContext *ic)
     for (unsigned i = 0; i < ic->nb_streams; i++) {
         AVStream *const st  = ic->streams[i];
         FFStream *const sti = ffstream(st);
-
+#ifdef OHOS_AUXILIARY_TRACK
+        if (!(need_parse_video_info(st) == 1))
+#else
         if (st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO)
+#endif
             continue;
         // the check for tb_unreliable() is not completely correct, since this is not about handling
         // an unreliable/inexact time base, but a time base that is finer than necessary, as e.g.
@@ -2474,8 +2588,11 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         AVStream *const st  = ic->streams[i];
         FFStream *const sti = ffstream(st);
         AVCodecContext *const avctx = sti->avctx;
-
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_video_info(st) ||
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ||
+#endif
             st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
 /*            if (!st->time_base.num)
                 st->time_base = */
@@ -2571,7 +2688,11 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
                        sti->info->codec_info_duration_fields/2 :
                        sti->info->duration_count;
             if (!(st->r_frame_rate.num && st->avg_frame_rate.num) &&
+#ifdef OHOS_AUXILIARY_TRACK
+                need_parse_video_info(st)) {
+#else
                 st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+#endif
                 if (count < fps_analyze_framecount)
                     break;
             }
@@ -2587,7 +2708,11 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
                 !(ic->iformat->flags & AVFMT_NOTIMESTAMPS) &&
                 sti->codec_info_nb_frames < ((st->disposition & AV_DISPOSITION_ATTACHED_PIC) ? 1 : ic->max_ts_probe) &&
                 (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO ||
+#ifdef OHOS_AUXILIARY_TRACK
+                 st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO || st->codecpar->codec_type == AVMEDIA_TYPE_AUXILIARY))
+#else
                  st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO))
+#endif
                 break;
         }
         analyzed_all_streams = 0;
@@ -2738,7 +2863,11 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
                                                          ? sti->parser->repeat_pict + 1 : 2;
             }
         }
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_video_info(st)) {
+#else
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+#endif
 #if FF_API_R_FRAME_RATE
             ff_rfps_add_frame(ic, st, pkt->dts);
 #endif
@@ -2824,8 +2953,11 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         AVStream *const st  = ic->streams[i];
         FFStream *const sti = ffstream(st);
         AVCodecContext *const avctx = sti->avctx;
-
+#ifdef OHOS_AUXILIARY_TRACK
+        if (need_parse_video_info(st)) {
+#else
         if (avctx->codec_type == AVMEDIA_TYPE_VIDEO) {
+#endif
             if (avctx->codec_id == AV_CODEC_ID_RAWVIDEO && !avctx->codec_tag && !avctx->bits_per_coded_sample) {
                 uint32_t tag= avcodec_pix_fmt_to_codec_tag(avctx->pix_fmt);
                 if (avpriv_pix_fmt_find(PIX_FMT_LIST_RAW, tag) == avctx->pix_fmt)
@@ -2889,7 +3021,11 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
                 st->sample_aspect_ratio = av_mul_q(sti->display_aspect_ratio,
                                                    hw_ratio);
             }
+#ifdef OHOS_AUXILIARY_TRACK
+        } else if (need_parse_audio_info(st)) {
+#else
         } else if (avctx->codec_type == AVMEDIA_TYPE_AUDIO) {
+#endif
             if (!avctx->bits_per_coded_sample)
                 avctx->bits_per_coded_sample =
                     av_get_bits_per_sample(avctx->codec_id);
@@ -2929,7 +3065,11 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
 
         /* if no packet was ever seen, update context now for has_codec_parameters */
         if (!sti->avctx_inited) {
+#ifdef OHOS_AUXILIARY_TRACK
+            if (need_parse_audio_info(st) &&
+#else
             if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO &&
+#endif
                 st->codecpar->format == AV_SAMPLE_FMT_NONE)
                 st->codecpar->format = sti->avctx->sample_fmt;
             ret = avcodec_parameters_to_context(sti->avctx, st->codecpar);
