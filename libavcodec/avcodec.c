@@ -134,8 +134,14 @@ int attribute_align_arg avcodec_open2(AVCodecContext *avctx, const AVCodec *code
         codec = avctx->codec;
     codec2 = ffcodec(codec);
 
+#ifdef OHOS_AUXILIARY_TRACK
+    if ((avctx->codec_type != AVMEDIA_TYPE_AUXILIARY && avctx->codec_type != AVMEDIA_TYPE_UNKNOWN &&
+         avctx->codec_type != codec->type) ||
+        (avctx->codec_id   != AV_CODEC_ID_NONE     && avctx->codec_id   != codec->id)) {
+#else
     if ((avctx->codec_type != AVMEDIA_TYPE_UNKNOWN && avctx->codec_type != codec->type) ||
         (avctx->codec_id   != AV_CODEC_ID_NONE     && avctx->codec_id   != codec->id)) {
+#endif
         av_log(avctx, AV_LOG_ERROR, "Codec type or id mismatches\n");
         return AVERROR(EINVAL);
     }
