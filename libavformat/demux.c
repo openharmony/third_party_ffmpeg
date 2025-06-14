@@ -3099,6 +3099,11 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
 
         if (sti->avctx_inited) {
             ret = avcodec_parameters_from_context(st->codecpar, sti->avctx);
+            AVDictionaryEntry *valPtr = av_dict_get(
+                st->metadata, "track_reference_type", valPtr, AV_DICT_IGNORE_SUFFIX);
+            if (valPtr != NULL) {
+                st->codecpar->codec_type = AVMEDIA_TYPE_AUXILIARY;
+            }
             if (ret < 0)
                 goto find_stream_info_err;
             ret = add_coded_side_data(st, sti->avctx);
