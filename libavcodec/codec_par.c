@@ -97,9 +97,22 @@ int avcodec_parameters_copy(AVCodecParameters *dst, const AVCodecParameters *src
 }
 
 #ifdef OHOS_AUXILIARY_TRACK
-int is_audio_track(AVCodecParameters *par)
+int is_video_track(int codec_id)
 {
-    switch (par->codec_id) {
+    switch (codec_id) {
+        case AV_CODEC_ID_MPEG4:
+        case AV_CODEC_ID_H264:
+        case AV_CODEC_ID_HEVC:
+        case AV_CODEC_ID_VVC:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+int is_audio_track(int codec_id)
+{
+    switch (codec_id) {
         case AV_CODEC_ID_AAC:
         case AV_CODEC_ID_AAC_LATM:
         case AV_CODEC_ID_MP1:
@@ -131,14 +144,11 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
     par->profile               = codec->profile;
     par->level                 = codec->level;
 
+#ifdef OHOS_AUXILIARY_TRACK
+    if (par->codec_type == AVMEDIA_TYPE_VIDEO || is_video_track(codec->codec_id)) {
+#else
     switch (par->codec_type) {
     case AVMEDIA_TYPE_VIDEO:
-#ifdef OHOS_AUXILIARY_TRACK
-    case AVMEDIA_TYPE_AUXILIARY:
-        if (is_audio_track(par)) {
-            par->format = codec->sample_fmt;
-            break;
-        }
 #endif
         par->format              = codec->pix_fmt;
         par->width               = codec->width;
@@ -151,8 +161,12 @@ int avcodec_parameters_from_context(AVCodecParameters *par,
         par->chroma_location     = codec->chroma_sample_location;
         par->sample_aspect_ratio = codec->sample_aspect_ratio;
         par->video_delay         = codec->has_b_frames;
+#ifdef OHOS_AUXILIARY_TRACK
+    } else if (par->codec_type == AVMEDIA_TYPE_AUDIO || is_audio_track(codec->codec_id)) {
+#else
         break;
     case AVMEDIA_TYPE_AUDIO:
+#endif
         par->format           = codec->sample_fmt;
 #if FF_API_OLD_CHANNEL_LAYOUT
 FF_DISABLE_DEPRECATION_WARNINGS
@@ -186,11 +200,17 @@ FF_ENABLE_DEPRECATION_WARNINGS
         par->initial_padding  = codec->initial_padding;
         par->trailing_padding = codec->trailing_padding;
         par->seek_preroll     = codec->seek_preroll;
+#ifdef OHOS_AUXILIARY_TRACK
+    } else if (par->codec_type == AVMEDIA_TYPE_SUBTITLE) {
+#else
         break;
     case AVMEDIA_TYPE_SUBTITLE:
+#endif
         par->width  = codec->width;
         par->height = codec->height;
+#ifndef OHOS_AUXILIARY_TRACK
         break;
+#endif
     }
 
     if (codec->extradata) {
@@ -219,14 +239,11 @@ int avcodec_parameters_to_context(AVCodecContext *codec,
     codec->profile               = par->profile;
     codec->level                 = par->level;
 
+#ifdef OHOS_AUXILIARY_TRACK
+    if (par->codec_type == AVMEDIA_TYPE_VIDEO || is_video_track(par->codec_id)) {
+#else
     switch (par->codec_type) {
     case AVMEDIA_TYPE_VIDEO:
-#ifdef OHOS_AUXILIARY_TRACK
-    case AVMEDIA_TYPE_AUXILIARY:
-        if (is_audio_track(par)) {
-            codec->sample_fmt = par->format;
-            break;
-        }
 #endif
         codec->pix_fmt                = par->format;
         codec->width                  = par->width;
@@ -239,8 +256,12 @@ int avcodec_parameters_to_context(AVCodecContext *codec,
         codec->chroma_sample_location = par->chroma_location;
         codec->sample_aspect_ratio    = par->sample_aspect_ratio;
         codec->has_b_frames           = par->video_delay;
+#ifdef OHOS_AUXILIARY_TRACK
+    } else if (par->codec_type == AVMEDIA_TYPE_AUDIO || is_audio_track(par->codec_id)) {
+#else
         break;
     case AVMEDIA_TYPE_AUDIO:
+#endif
         codec->sample_fmt       = par->format;
 #if FF_API_OLD_CHANNEL_LAYOUT
 FF_DISABLE_DEPRECATION_WARNINGS
@@ -275,11 +296,17 @@ FF_ENABLE_DEPRECATION_WARNINGS
         codec->initial_padding  = par->initial_padding;
         codec->trailing_padding = par->trailing_padding;
         codec->seek_preroll     = par->seek_preroll;
+#ifdef OHOS_AUXILIARY_TRACK
+    } else if (par->codec_type == AVMEDIA_TYPE_SUBTITLE) {
+#else
         break;
     case AVMEDIA_TYPE_SUBTITLE:
+#endif
         codec->width  = par->width;
         codec->height = par->height;
+#ifndef OHOS_AUXILIARY_TRACK
         break;
+#endif
     }
 
     if (par->extradata) {
