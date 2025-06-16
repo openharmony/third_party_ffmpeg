@@ -94,6 +94,7 @@ static int64_t add_ctts_entry(MOVCtts** ctts_data, unsigned int* ctts_count, uns
 static int need_parse_video_info(AVStream *st);
 static int need_parse_audio_info(AVStream *st);
 static int need_parse_audio_info_with_id(AVStream *st, int id);
+static const MOVParseTableEntry mov_default_parse_table[];
 
 static int mov_metadata_track_or_disc_number(MOVContext *c, AVIOContext *pb,
                                              unsigned len, const char *key)
@@ -2521,6 +2522,7 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         av_log(c->fc, AV_LOG_ERROR, "Stream is invalid %d\n", c->fc->nb_streams - 1);
         return AVERROR_INVALIDDATA;
     }
+    c->atom_depth++;
     MOVAtom subAtom;
     subAtom.size = avio_rb32(pb);
     if (subAtom.size < 8) {
@@ -2529,7 +2531,20 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     }
     subAtom.type = avio_rl32(pb);
     av_dict_set(&st->metadata, "track_reference_type", av_fourcc2str(subAtom.type), 0);
-
+    int (*parse)(MOVContext*, AVIOContext*, MOVAtom) = NULL;
+    for (int i = 0; mov_default_parse_table[i].type; i++) {
+        if (mov_default_parse_table[i].type == subAtom.type) {
+            parse = mov_default_parse_table[i].parse;
+            break;
+        }
+    }
+    if (parse != NULL) {
+        int err = parse(c, pb, subAtom);
+        if (err < 0) {
+            c->atom_depth--;
+        }
+        return err;
+    }
     uint32_t id_count = (subAtom.size - 8) / 4;
     if (id_count == 0) {
         return 0;
