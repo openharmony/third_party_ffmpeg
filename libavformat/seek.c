@@ -463,7 +463,6 @@ int64_t ff_gen_search(AVFormatContext *s, int stream_index, int64_t target_ts,
     }
 
     av_assert0(ts_min < ts_max);
-    
     no_change = 0;
     while (pos_min < pos_limit) {
         av_log(s, AV_LOG_TRACE,
