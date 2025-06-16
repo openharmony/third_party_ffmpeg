@@ -298,6 +298,11 @@ static av_unused int64_t flac_read_timestamp(AVFormatContext *s, int stream_inde
                 // calculate frame start position from next frame backwards
                 *ppos = parser->next_frame_offset - size;
                 pts = parser->pts;
+#ifdef OHOS_OPT_COMPAT
+                AVRational frame_interval_q = av_make_q(parser->duration, 1);
+                AVRational frame_interval_seconds = av_mul_q(frame_interval_q, st->time_base);
+                st->r_frame_rate = av_inv_q(frame_interval_seconds);
+#endif
                 break;
             }
         } else if (ret < 0)
