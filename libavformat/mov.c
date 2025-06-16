@@ -819,6 +819,7 @@ static int mov_read_hdlr(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 #ifdef OHOS_AUXILIARY_TRACK
     else if (type == MKTAG('a','u','x','v')) {
         st->codecpar->codec_type = AVMEDIA_TYPE_AUXILIARY;
+        av_dict_set(&st->metadata, "handler_type", "auxv", AV_DICT_DONT_OVERWRITE);
     }
 #endif
     avio_rb32(pb); /* component  manufacture */
