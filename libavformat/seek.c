@@ -30,6 +30,12 @@
 #include "demux.h"
 #include "internal.h"
 
+#ifdef OHOS_OPT_COMPAT
+const float SEEK_OPT_POSE_RATE = (4.0 / 5.0);
+const int OPTIMIZATION_SUPPORTED = 1;
+const int OPTIMIZATION_NOT_SUPPORTED = 0;
+#endif
+
 void avpriv_update_cur_dts(AVFormatContext *s, AVStream *ref_st, int64_t timestamp)
 {
     for (unsigned i = 0; i < s->nb_streams; i++) {
@@ -388,6 +394,35 @@ int ff_find_last_ts(AVFormatContext *s, int stream_index, int64_t *ts, int64_t *
     return 0;
 }
 
+#ifdef OHOS_OPT_COMPAT
+int isOptimizationType(struct AVInputFormat *ifmt) {
+    if (ifmt == NULL) {
+        return OPTIMIZATION_NOT_SUPPORTED;
+    }
+    if (ifmt->raw_codec_id == AV_CODEC_ID_FLAC) {
+        return OPTIMIZATION_SUPPORTED;
+    }
+    return OPTIMIZATION_NOT_SUPPORTED;
+}
+
+int seekResultCheck(int64_t target_ts, int64_t cur_ts, AVRational *frame_rate, AVRational *time_base) {
+    if (frame_rate == NULL || time_base == NULL) {
+        return OPTIMIZATION_NOT_SUPPORTED;
+    }
+
+    if (frame_rate->num == 0 || frame_rate->den == 0 || time_base->num == 0 || time_base->den == 0) {
+        return OPTIMIZATION_NOT_SUPPORTED;
+    }
+
+    if (target_ts <= INT64_MIN + cur_ts) {
+        return OPTIMIZATION_NOT_SUPPORTED;
+    }
+    
+    int64_t interval = av_q2d(av_inv_q(*frame_rate)) / av_q2d(*time_base);
+    return abs(target_ts - cur_ts) <= interval ? OPTIMIZATION_SUPPORTED : OPTIMIZATION_NOT_SUPPORTED;
+}
+#endif
+
 int64_t ff_gen_search(AVFormatContext *s, int stream_index, int64_t target_ts,
                       int64_t pos_min, int64_t pos_max, int64_t pos_limit,
                       int64_t ts_min, int64_t ts_max,
@@ -400,6 +435,11 @@ int64_t ff_gen_search(AVFormatContext *s, int stream_index, int64_t target_ts,
     int64_t start_pos;
     int no_change;
     int ret;
+#ifdef OHOS_OPT_COMPAT
+    int64_t ts_gap_min = 0;
+    int64_t ts_tmp = 0;
+    int isOpt = isOptimizationType(s->iformat);
+#endif
 
     av_log(s, AV_LOG_TRACE, "gen_seek: %d %s\n", stream_index, av_ts2str(target_ts));
 
@@ -427,7 +467,6 @@ int64_t ff_gen_search(AVFormatContext *s, int stream_index, int64_t target_ts,
     }
 
     av_assert0(ts_min < ts_max);
-
     no_change = 0;
     while (pos_min < pos_limit) {
         av_log(s, AV_LOG_TRACE,
@@ -444,6 +483,11 @@ int64_t ff_gen_search(AVFormatContext *s, int stream_index, int64_t target_ts,
         } else if (no_change == 1) {
             // bisection if interpolation did not change min / max pos last time
             pos = (pos_min + pos_limit) >> 1;
+#ifdef OHOS_OPT_COMPAT
+            if (isOpt) {
+                pos = (pos_limit - pos_min) * SEEK_OPT_POSE_RATE + pos_min;
+            }
+#endif
         } else {
             /* linear search if bisection failed, can only happen if there
              * are very few or no keyframes between min/max */
@@ -457,6 +501,30 @@ int64_t ff_gen_search(AVFormatContext *s, int stream_index, int64_t target_ts,
 
         // May pass pos_limit instead of -1.
         ts = read_timestamp(s, stream_index, &pos, INT64_MAX, read_timestamp_func);
+#ifdef OHOS_OPT_COMPAT
+        if (isOpt) {
+            if (seekResultCheck(target_ts, ts, &s->streams[stream_index]->r_frame_rate,
+                                &s->streams[stream_index]->time_base)) {
+                pos_max = pos;
+                pos_min = pos;
+                ts_min = ts;
+                ts_max = ts;
+                break;
+            }
+            if (pos == pos_max) {
+                ts_tmp = ts - target_ts;
+                if (ts_gap_min == ts_tmp) {
+                    pos_max = pos;
+                    pos_min = pos;
+                    ts_min = ts;
+                    ts_max = ts;
+                    break;
+                } else {
+                    ts_gap_min = ts_tmp;
+                }
+            }
+        }
+#endif
         if (pos == pos_max)
             no_change++;
         else
