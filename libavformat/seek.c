@@ -511,28 +511,24 @@ int64_t ff_gen_search(AVFormatContext *s, int stream_index, int64_t target_ts,
                 ts_max = ts;
                 break;
             }
-        }
-        if (pos == pos_max) {
-            no_change++;
-            ts_tmp = ts - target_ts;
-            if (ts_gap_min == ts_tmp) {
-                pos_max = pos;
-                pos_min = pos;
-                ts_min = ts;
-                ts_max = ts;
-                break;
-            } else {
-                ts_gap_min = ts_tmp;
+            if (pos == pos_max) {
+                ts_tmp = ts - target_ts;
+                if (ts_gap_min == ts_tmp) {
+                    pos_max = pos;
+                    pos_min = pos;
+                    ts_min = ts;
+                    ts_max = ts;
+                    break;
+                } else {
+                    ts_gap_min = ts_tmp;
+                }
             }
-        } else {
-            no_change = 0;
         }
-#else
+#endif
         if (pos == pos_max)
             no_change++;
         else
             no_change = 0;
-#endif
         av_log(s, AV_LOG_TRACE, "%"PRId64" %"PRId64" %"PRId64" / %s %s %s"
                 " target:%s limit:%"PRId64" start:%"PRId64" noc:%d\n",
                 pos_min, pos, pos_max,
