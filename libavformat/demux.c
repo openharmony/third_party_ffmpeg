@@ -3099,11 +3099,12 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
 
         if (sti->avctx_inited) {
             ret = avcodec_parameters_from_context(st->codecpar, sti->avctx);
-            AVDictionaryEntry *valPtr = av_dict_get(
-                st->metadata, "track_reference_type", valPtr, AV_DICT_IGNORE_SUFFIX);
-            if (valPtr != NULL && st->codecpar->codec_type != AVMEDIA_TYPE_TIMEDMETA) {
+#ifdef OHOS_AUXILIARY_TRACK
+            AVDictionaryEntry *valPtr = av_dict_get(st->metadata, "handler_type", valPtr, AV_DICT_IGNORE_SUFFIX);
+            if (valPtr != NULL && strcmp(valPtr->value, "auxv") == 0) {
                 st->codecpar->codec_type = AVMEDIA_TYPE_AUXILIARY;
             }
+#endif
             if (ret < 0)
                 goto find_stream_info_err;
             ret = add_coded_side_data(st, sti->avctx);
