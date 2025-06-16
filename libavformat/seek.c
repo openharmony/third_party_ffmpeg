@@ -413,9 +413,13 @@ int seekResultCheck(int64_t target_ts, int64_t cur_ts, AVRational *frame_rate, A
     if (frame_rate->num == 0 || frame_rate->den == 0 || time_base->num == 0 || time_base->den == 0) {
         return OPTIMIZATION_NOT_SUPPORTED;
     }
+
+    if (target_ts <= INT64_MIN + cur_ts) {
+        return OPTIMIZATION_NOT_SUPPORTED;
+    }
     
     int64_t interval = av_q2d(av_inv_q(*frame_rate)) / av_q2d(*time_base);
-    return abs(target_ts - cur_ts) <= interval;
+    return abs(target_ts - cur_ts) <= interval ? OPTIMIZATION_SUPPORTED : OPTIMIZATION_NOT_SUPPORTED;
 }
 #endif
 
