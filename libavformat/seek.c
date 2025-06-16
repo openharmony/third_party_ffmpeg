@@ -32,8 +32,8 @@
 
 #ifdef OHOS_OPT_COMPAT
 const float SEEK_OPT_POSE_RATE = (4.0 / 5.0);
-const int SUPPORT_OPT = 1;
-const int NOT_SUPPORT_OPT = 0;
+const int OPTIMIZATION_SUPPORTED = 1;
+const int OPTIMIZATION_NOT_SUPPORTED = 0;
 #endif
 
 void avpriv_update_cur_dts(AVFormatContext *s, AVStream *ref_st, int64_t timestamp)
@@ -397,25 +397,25 @@ int ff_find_last_ts(AVFormatContext *s, int stream_index, int64_t *ts, int64_t *
 #ifdef OHOS_OPT_COMPAT
 int isOptimizationType(struct AVInputFormat *ifmt) {
     if (ifmt == NULL) {
-        return NOT_SUPPORT_OPT;
+        return OPTIMIZATION_NOT_SUPPORTED;
     }
     if (ifmt->raw_codec_id == AV_CODEC_ID_FLAC) {
-        return SUPPORT_OPT;
+        return OPTIMIZATION_SUPPORTED;
     }
-    return NOT_SUPPORT_OPT;
+    return OPTIMIZATION_NOT_SUPPORTED;
 }
 
 int seekResultCheck(int64_t target_ts, int64_t cur_ts, AVRational *frame_rate, AVRational *time_base) {
     if (frame_rate == NULL || time_base == NULL) {
-        return NOT_SUPPORT_OPT;
+        return OPTIMIZATION_NOT_SUPPORTED;
     }
 
     if (frame_rate->num == 0 || frame_rate->den == 0 || time_base->num == 0 || time_base->den == 0) {
-        return NOT_SUPPORT_OPT;
+        return OPTIMIZATION_NOT_SUPPORTED;
     }
     
     int64_t interval = av_q2d(av_inv_q(*frame_rate)) / av_q2d(*time_base);
-    return abs(target_ts - cur_ts) < interval;
+    return abs(target_ts - cur_ts) <= interval;
 }
 #endif
 
