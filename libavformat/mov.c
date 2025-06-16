@@ -94,7 +94,9 @@ static int64_t add_ctts_entry(MOVCtts** ctts_data, unsigned int* ctts_count, uns
 static int need_parse_video_info(AVStream *st);
 static int need_parse_audio_info(AVStream *st);
 static int need_parse_audio_info_with_id(AVStream *st, int id);
+#ifdef OHOS_AUXILIARY_TRACK
 static const MOVParseTableEntry mov_default_parse_table[];
+#endif
 
 static int mov_metadata_track_or_disc_number(MOVContext *c, AVIOContext *pb,
                                              unsigned len, const char *key)
