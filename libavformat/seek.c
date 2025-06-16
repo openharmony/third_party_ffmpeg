@@ -431,6 +431,11 @@ int64_t ff_gen_search(AVFormatContext *s, int stream_index, int64_t target_ts,
     int64_t start_pos;
     int no_change;
     int ret;
+#ifdef OHOS_OPT_COMPAT
+    int64_t ts_gap_min = 0;
+    int64_t ts_tmp = 0;
+    int isOpt = isOptimizationType(s->iformat);
+#endif
 
     av_log(s, AV_LOG_TRACE, "gen_seek: %d %s\n", stream_index, av_ts2str(target_ts));
 
@@ -458,14 +463,8 @@ int64_t ff_gen_search(AVFormatContext *s, int stream_index, int64_t target_ts,
     }
 
     av_assert0(ts_min < ts_max);
-
+    
     no_change = 0;
-
-#ifdef OHOS_OPT_COMPAT
-    int64_t ts_gap_min = 0;
-    int64_t ts_tmp = 0;
-    int isOpt = isOptimizationType(s->iformat);
-#endif
     while (pos_min < pos_limit) {
         av_log(s, AV_LOG_TRACE,
                 "pos_min=0x%"PRIx64" pos_max=0x%"PRIx64" dts_min=%s dts_max=%s\n",
