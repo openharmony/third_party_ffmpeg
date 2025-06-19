@@ -2576,6 +2576,7 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         }
     }
     av_dict_set(&st->metadata, "reference_track_ids", result, 0);
+    c->atom_depth--;
     return 0;
 }
 #endif
