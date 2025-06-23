@@ -1266,6 +1266,13 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt,
         }
 
         /* set the duration */
+#ifdef OHOS_CHECK_NULL_PTR
+        if (!sti || !sti->parser) {
+            av_log(s, AV_LOG_ERROR, "Null pointer detected in parse_packet\n");
+            ret = AVERROR(EINVAL);
+            goto fail;
+        }
+#endif
         out_pkt->duration = (sti->parser->flags & PARSER_FLAG_COMPLETE_FRAMES) ? pkt->duration : 0;
 #ifdef OHOS_AUXILIARY_TRACK
         if (need_parse_audio_info(st)) {
