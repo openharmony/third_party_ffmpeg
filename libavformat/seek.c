@@ -449,7 +449,7 @@ int64_t ff_gen_search(AVFormatContext *s, int stream_index, int64_t target_ts,
 #ifdef OHOS_ABORT_FIX
         if (ts_min == -0x20000000) {
             s->pb->error = AVERROR_INVALIDDATA;
-            av_log(s, AV_LOG_ERROR, "read_timestamp failed at the beginning\n")
+            av_log(s, AV_LOG_ERROR, "read_timestamp failed at the beginning\n");
             return -1;
         }
 #endif
