@@ -2161,7 +2161,7 @@ static int dash_write_packet(AVFormatContext *s, AVPacket *pkt)
         if (index == -0x20000000) {
             s->pb->error = AVERROR_INVALIDDATA;
             av_log(s, AV_LOG_ERROR, "dash_write_packet returned an error: %d\n", index);
-            retrun index;
+            return index;
         }
 #else
         av_parser_parse2(os->parser, os->parser_avctx,

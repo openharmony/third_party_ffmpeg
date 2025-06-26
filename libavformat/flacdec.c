@@ -294,7 +294,7 @@ static av_unused int64_t flac_read_timestamp(AVFormatContext *s, int stream_inde
         if (index == -0x20000000) {
             s->pb->error = AVERROR_INVALIDDATA;
             av_log(s, AV_LOG_ERROR, "flac_read_timestamp returned an error: %d\n", index);
-            retrun index;
+            return index;
         }
 #else
         av_parser_parse2(parser, ffstream(st)->avctx,
