@@ -1229,6 +1229,14 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt,
         len = av_parser_parse2(sti->parser, sti->avctx,
                                &out_pkt->data, &out_pkt->size, data, size,
                                pkt->pts, pkt->dts, pkt->pos);
+#ifdef OHOS_ABORT_FIX
+        if (len <= -0x20000000) {
+            s->pb->error = AVERROR_INVALIDDATA;
+            av_log(s, AV_LOG_ERROR, "Parser returned an error: %d\n", len);
+            ret = AVERROR(EINVAL);
+            goto fail;
+        }
+#endif
 
         pkt->pts = pkt->dts = AV_NOPTS_VALUE;
         pkt->pos = -1;
@@ -1350,8 +1358,17 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
             for (unsigned i = 0; i < s->nb_streams; i++) {
                 AVStream *const st  = s->streams[i];
                 FFStream *const sti = ffstream(st);
+#ifdef OHOS_ABORT_FIX
+                if (sti->parser && sti->need_parsing) {
+                    av_log(s, AV_LOG_DEBUG, "Flushing parser for stream %d\n", i);
+                    ret = parse_packet(s, pkt, st->index, 1);
+                    if (ret < 0)
+                        return ret;
+                }
+#else
                 if (sti->parser && sti->need_parsing)
                     parse_packet(s, pkt, st->index, 1);
+#endif
             }
             /* all remaining packets are now in parse_queue =>
              * really terminate parsing */

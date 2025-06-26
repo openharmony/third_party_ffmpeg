@@ -162,7 +162,15 @@ int av_parser_parse2(AVCodecParserContext *s, AVCodecContext *avctx,
     /* WARNING: the returned index can be negative */
     index = s->parser->parser_parse(s, avctx, (const uint8_t **) poutbuf,
                                     poutbuf_size, buf, buf_size);
+#ifdef OHOS_ABORT_FIX
+    if (index <= -0x20000000) {
+        av_log(NULL, AV_LOG_ERROR,
+               "Parser returned an error code %d, which is not allowed.\n", index);
+        return -0x20000000;
+    }
+#else
     av_assert0(index > -0x20000000); // The API does not allow returning AVERROR codes
+#endif
 #define FILL(name) if(s->name > 0 && avctx->name <= 0) avctx->name = s->name
     if (avctx->codec_type == AVMEDIA_TYPE_VIDEO) {
         FILL(field_order);

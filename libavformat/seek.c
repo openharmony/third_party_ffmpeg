@@ -446,6 +446,13 @@ int64_t ff_gen_search(AVFormatContext *s, int stream_index, int64_t target_ts,
     if (ts_min == AV_NOPTS_VALUE) {
         pos_min = si->data_offset;
         ts_min  = read_timestamp(s, stream_index, &pos_min, INT64_MAX, read_timestamp_func);
+#ifdef OHOS_ABORT_FIX
+        if (ts_min == -0x20000000) {
+            s->pb->error = AVERROR_INVALIDDATA;
+            av_log(s, AV_LOG_ERROR, "read_timestamp failed at the beginning\n")
+            return -1;
+        }
+#endif
         if (ts_min == AV_NOPTS_VALUE)
             return -1;
     }

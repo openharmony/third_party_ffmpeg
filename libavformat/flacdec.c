@@ -287,10 +287,20 @@ static av_unused int64_t flac_read_timestamp(AVFormatContext *s, int stream_inde
                 av_assert1(!pkt->size);
             }
         }
+#ifdef OHOS_ABORT_FIX
+        int index = av_parser_parse2(parser, ffstream(st)->avctx,
+                                     &data, &size, pkt->data, pkt->size,
+                                     pkt->pts, pkt->dts, *ppos);
+        if (index <= -0x20000000) {
+            s->pb->error = AVERROR_INVALIDDATA;
+            av_log(s, AV_LOG_ERROR, "flac_read_timestamp returned an error: %d\n", index);
+            retrun index;
+        }
+#else
         av_parser_parse2(parser, ffstream(st)->avctx,
                          &data, &size, pkt->data, pkt->size,
                          pkt->pts, pkt->dts, *ppos);
-
+#endif
         av_packet_unref(pkt);
         if (size) {
             if (parser->pts != AV_NOPTS_VALUE){
