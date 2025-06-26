@@ -163,7 +163,7 @@ int av_parser_parse2(AVCodecParserContext *s, AVCodecContext *avctx,
     index = s->parser->parser_parse(s, avctx, (const uint8_t **) poutbuf,
                                     poutbuf_size, buf, buf_size);
 #ifdef OHOS_ABORT_FIX
-    if (index <= -0x20000000) {
+    if (index == -0x20000000) {
         av_log(NULL, AV_LOG_ERROR,
                "Parser returned an error code %d, which is not allowed.\n", index);
         return -0x20000000;
