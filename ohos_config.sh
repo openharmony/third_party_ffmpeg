@@ -53,12 +53,12 @@ FF_CONFIG_OPTIONS="
     --disable-bzlib
     --disable-lzma
     --disable-vulkan
-    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo,ac3
     --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a,adts
     --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo
-    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus
+    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus,ac3
     --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
-    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb
+    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb,ac3
     --enable-decoder=png,bmp
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
@@ -163,12 +163,12 @@ FF_CONFIG_OPTIONS="
     --disable-sdl2
     --disable-bzlib
     --disable-lzma
-    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo,ac3
     --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a,adts
     --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo
-    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus
+    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus,ac3
     --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
-    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb
+    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb,ac3
     --enable-decoder=png,bmp
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
