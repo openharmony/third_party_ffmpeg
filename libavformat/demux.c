@@ -1230,7 +1230,7 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt,
                                &out_pkt->data, &out_pkt->size, data, size,
                                pkt->pts, pkt->dts, pkt->pos);
 #ifdef OHOS_ABORT_FIX
-        if (len <= -0x20000000) {
+        if (len == -0x20000000) {
             s->pb->error = AVERROR_INVALIDDATA;
             av_log(s, AV_LOG_ERROR, "Parser returned an error: %d\n", len);
             ret = AVERROR(EINVAL);
