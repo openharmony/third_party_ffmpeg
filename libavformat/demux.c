@@ -1343,6 +1343,9 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
 {
     FFFormatContext *const si = ffformatcontext(s);
     int ret, got_packet = 0;
+#ifdef OHOS_ABORT_FIX
+    int index = 0;
+#endif
     AVDictionary *metadata = NULL;
 
     while (!got_packet && !si->parse_queue.head) {
@@ -1361,9 +1364,9 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
 #ifdef OHOS_ABORT_FIX
                 if (sti->parser && sti->need_parsing) {
                     av_log(s, AV_LOG_DEBUG, "Flushing parser for stream %d\n", i);
-                    ret = parse_packet(s, pkt, st->index, 1);
-                    if (ret < 0)
-                        return ret;
+                    index = parse_packet(s, pkt, st->index, 1);
+                    if (index < 0)
+                        return index;
                 }
 #else
                 if (sti->parser && sti->need_parsing)
