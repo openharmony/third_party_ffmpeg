@@ -1363,7 +1363,6 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
                 FFStream *const sti = ffstream(st);
 #ifdef OHOS_ABORT_FIX
                 if (sti->parser && sti->need_parsing) {
-                    av_log(s, AV_LOG_DEBUG, "Flushing parser for stream %d\n", i);
                     index = parse_packet(s, pkt, st->index, 1);
                     if (index < 0)
                         return index;
