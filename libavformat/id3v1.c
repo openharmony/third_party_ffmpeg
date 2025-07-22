@@ -284,6 +284,11 @@ void ff_id3v1_read(AVFormatContext *s)
     if (s->pb->seekable & AVIO_SEEKABLE_NORMAL) {
         /* XXX: change that */
         filesize = avio_size(s->pb);
+#ifdef OHOS_FILESIZE_FIX
+        if (filesize == 2147483646) {// to fix source filesize error
+            return;
+        }
+#endif
         if (filesize > 128) {
             avio_seek(s->pb, filesize - 128, SEEK_SET);
             ret = avio_read(s->pb, buf, ID3v1_TAG_SIZE);

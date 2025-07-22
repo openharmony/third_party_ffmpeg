@@ -168,6 +168,7 @@ config("ffmpeg_config") {
     "-DOHOS_CAL_DASH_BITRATE",
     "-DOHOS_AUXILIARY_TRACK",
     "-DOHOS_ABORT_FIX",
+    "-DOHOS_SOURCE_FILESIZE_ERROR_FIX",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
