@@ -105,9 +105,20 @@ old_flac_header (AVFormatContext * s, int idx)
         goto fail;
 
     parser->flags = PARSER_FLAG_COMPLETE_FRAMES;
+#ifdef OHOS_ABORT_FIX
+    int index = av_parser_parse2(parser, avctx,
+                                 &data, &size, os->buf + os->pstart, os->psize,
+                                 AV_NOPTS_VALUE, AV_NOPTS_VALUE, -1);
+    if (index == -0x20000000) {
+        s->pb->error = AVERROR_INVALIDDATA;
+        ret = index;
+        goto fail;
+    }
+#else
     av_parser_parse2(parser, avctx,
                      &data, &size, os->buf + os->pstart, os->psize,
                      AV_NOPTS_VALUE, AV_NOPTS_VALUE, -1);
+#endif
 
     av_parser_close(parser);
 
