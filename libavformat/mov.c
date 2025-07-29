@@ -502,6 +502,7 @@ retry:
                 sprintf(hex + 2 * i, "%02x", str[i]);
             }
             hex[str_size * 2] = 0;
+            
             av_free(str);
             str = hex;
         }        
