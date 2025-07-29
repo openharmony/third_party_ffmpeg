@@ -484,7 +484,31 @@ retry:
     if (parse)
         parse(c, pb, str_size, key);
     else {
+#ifdef OHOS_MOOV_LEVEL_META
+        if (data_type == 0 && !strncmp(key, "moov_level_meta_key_", 20)) {
+            int ret = ffio_read_size(pb, str, str_size);
+            if (ret < 0) {
+                free(str);
+                return ret;
+            }
+            str[str_size] = 0;
+
+            char *hex = av_mallocz(str_size * 2 + 1);
+            if (!hex) {
+                free(str);
+                return AVERROR(ENOMEM);
+            }
+            for (uint32_t i = 0; i < str_size; i++) {
+                sprintf(hex + 2 * i, "%02x", str[i]);
+            }
+            hex[str_size * 2] = 0;
+            av_free(str);
+            str = hex;
+        }        
+        else if (!raw && (data_type == 3 || (data_type == 0 && (langcode < 0x400 || langcode == 0x7fff)))) { // MAC Encoded
+#else
         if (!raw && (data_type == 3 || (data_type == 0 && (langcode < 0x400 || langcode == 0x7fff)))) { // MAC Encoded
+#endif
             mov_read_mac_string(c, pb, str_size, str, str_size_alloc);
 #ifdef OHOS_MOOV_LEVEL_META
         } else if (data_type == 21 || data_type == 67) { // BE signed integer, variable size
@@ -551,6 +575,9 @@ retry:
         if (!strncmp(key, "moov_level_meta_key_", 20)) {
             char* typeStr;
             switch(data_type) {
+            case 0:
+                typeStr = av_asprintf("%s%s", "00000000", str); // reserved
+                break;
             case 1:
                 typeStr = av_asprintf("%s%s", "00000001", str); // string
                 break;
