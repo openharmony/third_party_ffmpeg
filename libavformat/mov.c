@@ -498,15 +498,17 @@ retry:
                 free(str);
                 return AVERROR(ENOMEM);
             }
+            const char hex_chars[] = "0123456789abcdef";
             for (uint32_t i = 0; i < str_size; i++) {
-                sprintf(hex + 2 * i, "%02x", str[i]);
+                hex[i * 2] = hex_chars[str[i] >> 4];
+                hex[i * 2 + 1] = hex_chars[str[i] & 0x0F];
             }
             hex[str_size * 2] = 0;
             
             av_free(str);
             str = hex;
-        }        
-        else if (!raw && (data_type == 3 || (data_type == 0 && (langcode < 0x400 || langcode == 0x7fff)))) { // MAC Encoded
+        }
+        else if (!raw && (data_type == 3 || (data_type == 0 && (langcode < 0x400 || langcode == 0x7fff)))) {
 #else
         if (!raw && (data_type == 3 || (data_type == 0 && (langcode < 0x400 || langcode == 0x7fff)))) { // MAC Encoded
 #endif
