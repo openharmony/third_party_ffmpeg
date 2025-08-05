@@ -4201,6 +4201,20 @@ static int mov_write_moov_level_meta_data_tag(AVIOContext *pb, const char *data)
             avio_wb32(pb, 67); // int
             avio_wb32(pb, 0);
             avio_wb32(pb, atoi(data + 8));
+        }  else if (strncmp(data, "00000000", 8) == 0) { // size 8
+            uint8_t *hex_data = av_malloc(data_len >> 1 + 1);
+            if (!hex_data) {
+                av_log(NULL, AV_LOG_ERROR, "write moov_level meta malloc fail, data_len:%d.", data_len);
+                return 0;
+            }
+            int out_len = ff_hex_to_data(hex_data, data + 8);
+            size = 16 + out_len; // size 16
+            avio_wb32(pb, size); /* size */
+            ffio_wfourcc(pb, "data");
+            avio_wb32(pb, 0); // reserve for no type
+            avio_wb32(pb, 0);
+            avio_write(pb, hex_data, out_len);
+            av_free(hex_data);
         } else {
             size = 16 + 4;
             avio_wb32(pb, size); /* size */
