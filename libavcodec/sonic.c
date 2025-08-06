@@ -921,7 +921,10 @@ static av_cold int sonic_decode_init(AVCodecContext *avctx)
 
     s->num_taps = (get_bits(&gb, 5)+1)<<5;
     if (get_bits1(&gb)) // XXX FIXME
-        av_log(avctx, AV_LOG_INFO, "Custom quant table\n");
+        
+
+    if (s->num_taps > 128)
+        return AVERROR_INVALIDDATA;
 
     s->block_align = 2048LL*s->samplerate/(44100*s->downsampling);
     s->frame_size = s->channels*s->block_align*s->downsampling;
