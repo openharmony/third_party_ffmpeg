@@ -4202,7 +4202,7 @@ static int mov_write_moov_level_meta_data_tag(AVIOContext *pb, const char *data)
             avio_wb32(pb, 0);
             avio_wb32(pb, atoi(data + 8));
         }  else if (strncmp(data, "00000000", 8) == 0) { // size 8
-            uint8_t *hex_data = av_malloc(data_len >> 1 + 1);
+            uint8_t *hex_data = av_malloc((data_len >> 1) + 1);
             if (!hex_data) {
                 av_log(NULL, AV_LOG_ERROR, "write moov_level meta malloc fail, data_len:%d.", data_len);
                 return 0;
