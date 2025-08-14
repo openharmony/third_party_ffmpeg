@@ -1741,6 +1741,9 @@ ohos_source_set("ffmpeg_dynamic") {
   if (ffmpeg_enable_demuxer_sup) {
     sources += [ "//third_party/ffmpeg/libavformat/supdec.c" ]
   }
+  if (is_cross_platform_build && target_os == "ios") {
+    sources += [ "//third_party/ffmpeg/libavutil/hwcontext_videotoolbox.c", ]
+  }
   include_dirs = [
     "//third_party/ffmpeg/",
     "//third_party/ffmpeg/libavformat/",
@@ -1868,4 +1871,7 @@ ohos_static_library("libohosffmpeg_static") {
   subsystem_name = "thirdparty"
   cflags = [ "-Wno-array-parameter" ]
   ldflags = ldflags_asm
+  if (is_cross_platform_build && target_os == "ios") {
+    libs = [ "iconv" ]
+  }
 }
