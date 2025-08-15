@@ -217,7 +217,7 @@ int av_vorbis_parse_frame_flags(AVVorbisParseContext *s, const uint8_t *buf,
 {
     int duration = 0;
 #ifdef OHOS_CHECK_NULL_PTR
-    if (!s || !buf || buf_size < 0) {
+    if (!s || !buf) {
         av_log(s, AV_LOG_ERROR, "Invalid parameters: s=%p, buf=%p, buf_size=%d\n", s, buf, buf_size);
         return AVERROR_INVALIDDATA;
     }
