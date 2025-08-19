@@ -169,6 +169,7 @@ config("ffmpeg_config") {
     "-DOHOS_AUXILIARY_TRACK",
     "-DOHOS_ABORT_FIX",
     "-DOHOS_SOURCE_FILESIZE_ERROR_FIX",
+    "-DOHOS_AIGC",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
