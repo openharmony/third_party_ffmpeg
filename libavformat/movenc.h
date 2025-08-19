@@ -287,6 +287,9 @@ typedef struct MOVMuxContext {
 #ifdef OHOS_TIMED_META_TRACK
 #define FF_MOV_FLAG_TIMED_METADATA        (1 << 24)
 #endif
+#ifdef OHOS_AIGC
+#define FF_MOV_FLAG_AIGC                  (1 << 25)
+#endif
 
 int ff_mov_write_packet(AVFormatContext *s, AVPacket *pkt);
 
