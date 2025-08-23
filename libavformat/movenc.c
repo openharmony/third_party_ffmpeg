@@ -4933,8 +4933,6 @@ static int mov_write_udta_meta_tag(AVIOContext *pb, MOVMuxContext *mov, AVFormat
     mov_write_udta_meta_ilst_tag(pb, mov, s);
     mov_write_ilst_tag(pb, mov, s);
 
-    // gnre
-    mov_write_gnre_tag(pb, mov, s);
     size = update_size(pb, pos);
     return size;
 }
@@ -4981,6 +4979,7 @@ static int mov_write_udta_tag(AVIOContext *pb, MOVMuxContext *mov,
         mov_write_raw_metadata_tag(s, pb_buf, "XMP_", "xmp");
 #ifdef OHOS_AIGC
     } else if (mov->flags & FF_MOV_FLAG_AIGC) {
+        mov_write_gnre_tag(pb, mov, s);
         mov_write_geo_tag(s, pb_buf);
         mov_write_udta_meta_tag(pb_buf, mov, s);
         mov_write_loci_tag(s, pb_buf);
@@ -8590,9 +8589,6 @@ static int avif_write_trailer(AVFormatContext *s)
 #endif
     }
     mov_write_identification(pb, s);
-#ifdef OHOS_AIGC
-    if (!(mov->flags & FF_MOV_FLAG_AIGC))
-#endif
     mov_write_meta_tag(pb, mov, s);
 
     moov_size = get_moov_size(s);
