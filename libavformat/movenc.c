@@ -4445,9 +4445,10 @@ static int mov_write_geo_tag(AVFormatContext *s, AVIOContext *pb)
 
 static int mov_write_gnre_tag(AVIOContext* pb, MOVMuxContext* mov, AVFormatContext* s)
 {
-    int64_t pos = avio_tell(pb);
     AVDictionaryEntry *t;
+    int64_t ret = 0;
     if ((t = av_dict_get(s->metadata, "genre", NULL, 0))) {
+        int64_t pos = avio_tell(pb);
         avio_wb32(pb, 0); /* size */
         ffio_wfourcc(pb, "gnre");
         avio_wb32(pb, 0);
@@ -4455,8 +4456,9 @@ static int mov_write_gnre_tag(AVIOContext* pb, MOVMuxContext* mov, AVFormatConte
         avio_write(pb, t->value, strlen(t->value) + 1);
         avio_wb32(pb, 0);
         avio_wb32(pb, 0);
+        ret = update_size(pb, pos);
     }
-    return update_size(pb, pos);
+    return ret;
 }
 #endif
 
