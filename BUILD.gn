@@ -163,6 +163,7 @@ config("ffmpeg_config") {
     "-DOHOS_CUSTOM_INFO",
     "-DOHOS_CAL_DASH_BITRATE",
     "-DOHOS_ABORT_FIX",
+    "-DOHOS_AIGC",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
