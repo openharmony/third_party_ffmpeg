@@ -4870,7 +4870,6 @@ static int mov_write_udta_meta_tag(AVIOContext *pb, MOVMuxContext *mov, AVFormat
     mov_write_mdta_hdlr_tag(pb, mov, s);
     mov_write_udta_meta_keys_tag(pb, mov, s);
     mov_write_udta_meta_ilst_tag(pb, mov, s);
-    mov_write_ilst_tag(pb, mov, s);
 
     size = update_size(pb, pos);
     return size;
