@@ -827,6 +827,12 @@ static int mov_read_hdlr(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     av_log(c->fc, AV_LOG_TRACE, "ctype=%s\n", av_fourcc2str(ctype));
     av_log(c->fc, AV_LOG_TRACE, "stype=%s\n", av_fourcc2str(type));
 
+#ifdef OHOS_MP4_GLTF_DEMUXER
+    AVDictionaryEntry *is_file_meta = av_dict_get(c->fc->metadata, "is_file_meta", NULL, 0);
+    if (type == MKTAG('g','l','t','f') && is_file_meta && strcmp(is_file_meta->value, "1") == 0) {
+        av_dict_set(&c->fc->metadata, "is_hdlr_type_gltf", "1", 0);
+    }
+#endif
     if (c->trak_index < 0) {  // meta not inside a trak
         if (type == MKTAG('m','d','t','a')) {
             c->found_hdlr_mdta = 1;
@@ -8463,6 +8469,34 @@ static int mov_read_default(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         int (*parse)(MOVContext*, AVIOContext*, MOVAtom) = NULL;
         a.size = avio_rb32(pb);
         a.type = avio_rl32(pb);
+#ifdef OHOS_MP4_GLTF_DEMUXER
+        if (atom.type == MKTAG('r','o','o','t') && a.type == MKTAG('m','e','t','a')) {
+            av_dict_set(&c->fc->metadata, "is_file_meta", "1", 0);
+        }
+        AVDictionaryEntry *is_file_meta = av_dict_get(c->fc->metadata, "is_file_meta", NULL, 0);
+        if (is_file_meta && strcmp(is_file_meta->value, "1") == 0) {
+            switch (a.type) {
+                case MKTAG('h','d','l','r'):
+                    av_dict_set(&c->fc->metadata, "meta_hdlr", "1", 0);
+                    break;
+                case MKTAG('i','l','o','c'):
+                    av_dict_set(&c->fc->metadata, "meta_iloc", "1", 0);
+                    break;
+                case MKTAG('i','i','n','f'):
+                    av_dict_set(&c->fc->metadata, "meta_iinf", "1", 0);
+                    break;
+                case MKTAG('i','d','a','t'):
+                    av_dict_set(&c->fc->metadata, "meta_idat", "1", 0);
+                    int64_t idat_pos = avio_tell(pb);
+                    if (idat_pos >= 0) {
+                        av_dict_set_int(&c->fc->metadata, "idat_pos", idat_pos, 0);
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+#endif
         if (avio_feof(pb))
             break;
         if (((a.type == MKTAG('f','r','e','e') && c->moov_retry) ||
@@ -8541,6 +8575,11 @@ static int mov_read_default(MOVContext *c, AVIOContext *pb, MOVAtom atom)
             int64_t start_pos = avio_tell(pb);
             int64_t left;
             int err = parse(c, pb, a);
+#ifdef OHOS_MP4_GLTF_DEMUXER
+            if (atom.type == MKTAG('r','o','o','t') && a.type == MKTAG('m','e','t','a')) {
+                av_dict_set(&c->fc->metadata, "is_file_meta", NULL, 0);
+            }
+#endif
             if (err < 0) {
                 c->atom_depth --;
                 return err;
