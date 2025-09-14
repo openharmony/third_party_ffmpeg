@@ -5249,7 +5249,7 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
         mov_write_udta_tag(pb, mov, s);
 
 #ifdef OHOS_AIGC
-    // if include AIGC, skip write moov level meta
+    // if include AIGC, skip write moov level meta.
     if (mov->flags & FF_MOV_FLAG_AIGC) {
         return update_size(pb, pos);
     }
