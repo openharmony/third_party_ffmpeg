@@ -1229,6 +1229,12 @@ static int get_cluster_duration(MOVTrack *track, int cluster_idx)
 
     next_dts -= track->cluster[cluster_idx].dts;
 
+#ifdef OHOS_OPT_COMPAT
+    if (next_dts < 0 || next_dts > INT_MAX) {
+        av_log(NULL, AV_LOG_ERROR, "Duration of cluster %d is out of range, next dts : %"PRId64"\n",
+            cluster_idx, next_dts);
+    }
+#endif
     av_assert0(next_dts >= 0);
     av_assert0(next_dts <= INT_MAX);
 
