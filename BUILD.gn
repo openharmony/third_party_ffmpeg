@@ -6,6 +6,7 @@ declare_args() {
   ffmpeg_enable_codec_rm = false
   ffmpeg_enable_codec_rv = false
   ffmpeg_enable_codec_cook = false
+  ffmpeg_enable_codec_eac3 = false
   ffmpeg_enable_demuxer_lrc = false
   ffmpeg_enable_demuxer_sami = false
   ffmpeg_enable_demuxer_ass = false
@@ -1800,6 +1801,11 @@ action("gen_config_header") {
   if (ffmpeg_enable_codec_cook) {
     ohos_ffmpeg_enable_parsers += "cook,"
     ohos_ffmpeg_enable_decoders += "cook,"
+  }
+  if (ffmpeg_enable_codec_eac3) {
+    ohos_ffmpeg_enable_demuxers += "eac3,"
+    ohos_ffmpeg_enable_parsers += "ac3,"
+    ohos_ffmpeg_enable_decoders += "eac3,"
   }
   if (ffmpeg_enable_demuxer_lrc) {
     ohos_ffmpeg_enable_demuxers += "lrc,"

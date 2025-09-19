@@ -18,6 +18,7 @@
             "ffmpeg_enable_codec_rm",
             "ffmpeg_enable_codec_rv",
             "ffmpeg_enable_codec_cook",
+            "ffmpeg_enable_codec_eac3",
             "ffmpeg_enable_demuxer_lrc",
             "ffmpeg_enable_demuxer_sami",
             "ffmpeg_enable_demuxer_ass",
