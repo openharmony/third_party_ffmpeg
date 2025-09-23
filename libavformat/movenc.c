@@ -98,6 +98,9 @@ static const AVOption options[] = {
 #ifdef OHOS_TIMED_META_TRACK
     { "use_timed_meta_track", "Use timed meta data track for linking metadata to another track", 0, AV_OPT_TYPE_CONST, {.i64 = FF_MOV_FLAG_TIMED_METADATA}, INT_MIN, INT_MAX, AV_OPT_FLAG_ENCODING_PARAM, "movflags" },
 #endif
+#ifdef OHOS_AIGC
+    { "aigc", "include AIGC info", 0, AV_OPT_TYPE_CONST, {.i64 = FF_MOV_FLAG_AIGC}, INT_MIN, INT_MAX, AV_OPT_FLAG_ENCODING_PARAM, "movflags" },
+#endif
     FF_RTP_FLAG_OPTS(MOVMuxContext, rtp_flags),
     { "skip_iods", "Skip writing iods atom.", offsetof(MOVMuxContext, iods_skip), AV_OPT_TYPE_BOOL, {.i64 = 1}, 0, 1, AV_OPT_FLAG_ENCODING_PARAM},
     { "iods_audio_profile", "iods audio profile atom.", offsetof(MOVMuxContext, iods_audio_profile), AV_OPT_TYPE_INT, {.i64 = -1}, -1, 255, AV_OPT_FLAG_ENCODING_PARAM},
@@ -4450,9 +4453,10 @@ static int mov_write_geo_tag(AVFormatContext *s, AVIOContext *pb)
 
 static int mov_write_gnre_tag(AVIOContext* pb, MOVMuxContext* mov, AVFormatContext* s)
 {
-    int64_t pos = avio_tell(pb);
     AVDictionaryEntry *t;
+    int64_t ret = 0;
     if ((t = av_dict_get(s->metadata, "genre", NULL, 0))) {
+        int64_t pos = avio_tell(pb);
         avio_wb32(pb, 0); /* size */
         ffio_wfourcc(pb, "gnre");
         avio_wb32(pb, 0);
@@ -4460,8 +4464,9 @@ static int mov_write_gnre_tag(AVIOContext* pb, MOVMuxContext* mov, AVFormatConte
         avio_write(pb, t->value, strlen(t->value) + 1);
         avio_wb32(pb, 0);
         avio_wb32(pb, 0);
+        ret = update_size(pb, pos);
     }
-    return update_size(pb, pos);
+    return ret;
 }
 #endif
 
@@ -4652,6 +4657,82 @@ static int mov_write_mdta_ilst_tag(AVIOContext *pb, MOVMuxContext *mov,
     }
     return update_size(pb, pos);
 }
+
+#ifdef OHOS_AIGC
+static int mov_write_udta_meta_keys_tag(AVIOContext *pb, MOVMuxContext *mov, AVFormatContext *s)
+{
+    AVDictionaryEntry *t = NULL;
+    int64_t pos = avio_tell(pb);
+    int64_t curpos, entry_pos;
+    int count = 0;
+
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "keys");
+    avio_wb32(pb, 0);
+    entry_pos = avio_tell(pb);
+    avio_wb32(pb, 0); /* entry count */
+
+    const char *key_tag = "moov_level_meta_key_";
+    size_t key_tag_len = strlen(key_tag);
+    while (t = av_dict_get(s->metadata, "", t, AV_DICT_IGNORE_SUFFIX)) {
+        size_t key_len = strlen(t->key);
+        if (key_len > key_tag_len && strncmp(t->key, key_tag, key_tag_len) == 0) {
+            avio_wb32(pb, key_len + 8 - key_tag_len);
+            ffio_wfourcc(pb, "mdta");
+            avio_write(pb, t->key + key_tag_len, key_len - key_tag_len);
+            count += 1;
+        }
+    }
+
+    if (av_dict_get(s->metadata, "aigc", t, AV_DICT_IGNORE_SUFFIX)) {
+        size_t key_len = strlen("AIGC");
+        avio_wb32(pb, key_len + 8);
+        ffio_wfourcc(pb, "mdta");
+        avio_write(pb, "AIGC", key_len);
+        count += 1;
+    }
+    curpos = avio_tell(pb);
+    avio_seek(pb, entry_pos, SEEK_SET);
+    avio_wb32(pb, count); // rewrite entry count
+    avio_seek(pb, curpos, SEEK_SET);
+
+    return update_size(pb, pos);
+}
+
+static int mov_write_udta_meta_ilst_tag(AVIOContext *pb, MOVMuxContext *mov, AVFormatContext *s)
+{
+    AVDictionaryEntry *t = NULL;
+    int64_t pos = avio_tell(pb);
+    int count = 1; /* keys are 1-index based */
+
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "ilst");
+
+    const char *key_tag = "moov_level_meta_key_";
+    size_t key_tag_len = strlen(key_tag);
+    while (t = av_dict_get(s->metadata, "", t, AV_DICT_IGNORE_SUFFIX)) {
+        size_t key_len = strlen(t->key);
+        if (key_len > key_tag_len && strncmp(t->key, key_tag, key_tag_len) == 0) {
+            int64_t entry_pos = avio_tell(pb);
+            avio_wb32(pb, 0); /* size */
+            avio_wb32(pb, count); /* key */
+            mov_write_moov_level_meta_data_tag(pb, t->value);
+            update_size(pb, entry_pos);
+            count += 1;
+        }
+    }
+
+    if (t = av_dict_get(s->metadata, "AIGC", t, AV_DICT_IGNORE_SUFFIX)) {
+        int64_t entry_pos = avio_tell(pb);
+        avio_wb32(pb, 0); /* size */
+        avio_wb32(pb, count); /* key */
+        mov_write_string_data_tag(pb, t->value, 0, 1);
+        update_size(pb, entry_pos);
+        count += 1;
+    }
+    return update_size(pb, pos);
+}
+#endif
 
 /* meta data tags */
 static int mov_write_meta_tag(AVIOContext *pb, MOVMuxContext *mov,
@@ -4847,6 +4928,25 @@ static int mov_write_chpl_tag(AVIOContext *pb, AVFormatContext *s)
     return update_size(pb, pos);
 }
 
+#ifdef OHOS_AIGC
+static int mov_write_udta_meta_tag(AVIOContext *pb, MOVMuxContext *mov, AVFormatContext *s)
+{
+    int size = 0;
+    int64_t pos = avio_tell(pb);
+    avio_wb32(pb, 0); /* size */
+    ffio_wfourcc(pb, "meta");
+    avio_wb32(pb, 0);
+
+    // udta meta
+    mov_write_mdta_hdlr_tag(pb, mov, s);
+    mov_write_udta_meta_keys_tag(pb, mov, s);
+    mov_write_udta_meta_ilst_tag(pb, mov, s);
+
+    size = update_size(pb, pos);
+    return size;
+}
+#endif
+
 static int mov_write_udta_tag(AVIOContext *pb, MOVMuxContext *mov,
                               AVFormatContext *s)
 {
@@ -4886,6 +4986,13 @@ static int mov_write_udta_tag(AVIOContext *pb, MOVMuxContext *mov,
         mov_write_string_metadata(s, pb_buf, "\251xyz", "location",    0);
         mov_write_string_metadata(s, pb_buf, "\251key", "keywords",    0);
         mov_write_raw_metadata_tag(s, pb_buf, "XMP_", "xmp");
+#ifdef OHOS_AIGC
+    } else if (mov->flags & FF_MOV_FLAG_AIGC) {
+        mov_write_gnre_tag(pb, mov, s);
+        mov_write_geo_tag(s, pb_buf);
+        mov_write_udta_meta_tag(pb_buf, mov, s);
+        mov_write_loci_tag(s, pb_buf);
+#endif
     } else {
 #ifdef OHOS_MOOV_LEVEL_META
         if (av_dict_get(s->metadata, "moov_level_meta_flag", NULL, 0)) {
@@ -5148,6 +5255,13 @@ static int mov_write_moov_tag(AVIOContext *pb, MOVMuxContext *mov,
         mov_write_uuidusmt_tag(pb, s);
     else if (mov->mode != MODE_AVIF)
         mov_write_udta_tag(pb, mov, s);
+
+#ifdef OHOS_AIGC
+    // if include AIGC, skip write moov level meta
+    if (mov->flags & FF_MOV_FLAG_AIGC) {
+        return update_size(pb, pos);
+    }
+#endif
 
 #ifdef OHOS_MOOV_LEVEL_META
     if (av_dict_get(s->metadata, "moov_level_meta_flag", NULL, 0)) {
