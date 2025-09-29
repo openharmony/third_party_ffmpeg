@@ -521,7 +521,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/gifdec.c",
     "//third_party/ffmpeg/libavcodec/golomb.c",
 
-    # "//third_party/ffmpeg/libavcodec/gsm_parser.c",
+    "//third_party/ffmpeg/libavcodec/gsm_parser.c",
     "//third_party/ffmpeg/libavcodec/gsmdec.c",
     "//third_party/ffmpeg/libavcodec/gsmdec_data.c",
     "//third_party/ffmpeg/libavcodec/h261.c",
@@ -1241,7 +1241,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/gif.c",
     # "//third_party/ffmpeg/libavformat/gifdec.c",
     # "//third_party/ffmpeg/libavformat/gopher.c",
-    # "//third_party/ffmpeg/libavformat/gsmdec.c",
+    "//third_party/ffmpeg/libavformat/gsmdec.c",
     # "//third_party/ffmpeg/libavformat/gxf.c",
     # "//third_party/ffmpeg/libavformat/gxfenc.c",
     # "//third_party/ffmpeg/libavformat/h263dec.c",
