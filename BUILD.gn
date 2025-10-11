@@ -681,7 +681,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/microdvddec.c",
     # "//third_party/ffmpeg/libavcodec/mimic.c",
     # "//third_party/ffmpeg/libavcodec/mjpeg2jpeg_bsf.c",
-    # "//third_party/ffmpeg/libavcodec/mjpeg_parser.c",
+    "//third_party/ffmpeg/libavcodec/mjpeg_parser.c",
     # "//third_party/ffmpeg/libavcodec/mjpega_dump_header_bsf.c",
     # "//third_party/ffmpeg/libavcodec/mjpegbdec.c",
     "//third_party/ffmpeg/libavcodec/mjpegdec.c",
