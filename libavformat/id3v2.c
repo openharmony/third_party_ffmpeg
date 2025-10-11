@@ -446,7 +446,7 @@ static void read_ttag(AVFormatContext *s, AVIOContext *pb, int taglen,
             standard_filed = find_generic_field(key, ff_id3v2_4_metadata_conv);
         }
         const char *base_key = standard_filed ? standard_filed : key;
-        char *key_encoding = av_asprintf("%encoding", base_key);
+        char *key_encoding = av_asprintf("%sencoding", base_key);
         if (!key_encoding) {
             av_log(s, AV_LOG_ERROR, "Error allocating memory\n");
             return;
