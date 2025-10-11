@@ -766,7 +766,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/mss3.c",
     # "//third_party/ffmpeg/libavcodec/mss34dsp.c",
     # "//third_party/ffmpeg/libavcodec/mss4.c",
-    # "//third_party/ffmpeg/libavcodec/msvideo1.c",
+    "//third_party/ffmpeg/libavcodec/msvideo1.c",
     # "//third_party/ffmpeg/libavcodec/msvideo1enc.c",
     # "//third_party/ffmpeg/libavcodec/mvcdec.c",
     # "//third_party/ffmpeg/libavcodec/mxpegdec.c",
