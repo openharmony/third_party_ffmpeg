@@ -359,6 +359,20 @@ static int iso8859_convert_utf8(char *input, size_t inputlen, char *output, size
 }
 #endif
 
+#ifdef OHOS_ID3_ENCODING_FIX
+static const char *find_generic_field(const char *native_key, const AVMetadataConv *conv)
+{
+    if (!conv || !native_key)
+        return NULL;
+    for (; conv->native || conv->generic; conv++) {
+        if (!av_strcasecmp(native_key, conv->native)) {
+            return conv->generic;
+        }
+    }
+    return NULL;
+}
+#endif
+
 /**
  * Parse a text tag.
  */
@@ -423,6 +437,25 @@ static void read_ttag(AVFormatContext *s, AVIOContext *pb, int taglen,
 #else
     if (dst)
         av_dict_set(metadata, key, dst, dict_flags);
+#endif
+#ifdef OHOS_ID3_ENCODING_FIX
+    if (key) {
+        const char *standard_filed = NULL;
+        standard_filed = find_generic_field(key, ff_id3v2_34_metadata_conv);
+        if (!standard_filed) {
+            standard_filed = find_generic_field(key, ff_id3v2_4_metadata_conv);
+        }
+        const char *base_key = standard_filed ? standard_filed : key;
+        char *key_encoding = av_asprintf("%sencoding", base_key);
+        if (!key_encoding) {
+            av_log(s, AV_LOG_ERROR, "Error allocating memory\n");
+            return;
+        }
+        if (av_dict_set_int(metadata, key_encoding, encoding, AV_DICT_DONT_OVERWRITE) < 0) {
+            av_log(s, AV_LOG_ERROR, "Error setting encoding\n");
+        }
+        av_freep(&key_encoding);
+    }
 #endif
 }
 
