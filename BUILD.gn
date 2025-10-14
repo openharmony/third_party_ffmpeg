@@ -800,8 +800,8 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/parser.c",
     "//third_party/ffmpeg/libavcodec/parsers.c",
 
-    # "//third_party/ffmpeg/libavcodec/pcm-bluray.c",
-    # "//third_party/ffmpeg/libavcodec/pcm-dvd.c",
+    "//third_party/ffmpeg/libavcodec/pcm-bluray.c",
+    "//third_party/ffmpeg/libavcodec/pcm-dvd.c",
     # "//third_party/ffmpeg/libavcodec/pcm-dvdenc.c",
     # "//third_party/ffmpeg/libavcodec/pcm.c",
     # "//third_party/ffmpeg/libavcodec/pcx.c",
