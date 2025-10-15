@@ -325,6 +325,9 @@ static const struct {
     int (*extract)(AVBSFContext *ctx, AVPacket *pkt,
                    uint8_t **data, int *size);
 } extract_tab[] = {
+#ifdef OHOS_VC1_DECODE
+    { AV_CODEC_ID_VC1,        extract_extradata_vc1     },
+#else
     { AV_CODEC_ID_AV1,        extract_extradata_av1     },
     { AV_CODEC_ID_AVS2,       extract_extradata_mpeg4   },
     { AV_CODEC_ID_AVS3,       extract_extradata_mpeg4   },
@@ -335,6 +338,7 @@ static const struct {
     { AV_CODEC_ID_MPEG2VIDEO, extract_extradata_mpeg12  },
     { AV_CODEC_ID_MPEG4,      extract_extradata_mpeg4   },
     { AV_CODEC_ID_VC1,        extract_extradata_vc1     },
+#endif
 };
 
 static int extract_extradata_init(AVBSFContext *ctx)
