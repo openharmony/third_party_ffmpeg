@@ -177,6 +177,7 @@ config("ffmpeg_config") {
     "-DOHOS_AIGC",
     "-DOHOS_MP4_GLTF_DEMUXER",
     "-DOHOS_ID3_ENCODING_FIX",
+    "-DOHOS_VC1_DECODE",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
@@ -292,7 +293,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/aura.c",
     # "//third_party/ffmpeg/libavcodec/av1_frame_split_bsf.c",
     # "//third_party/ffmpeg/libavcodec/av1_metadata_bsf.c",
-    # "//third_party/ffmpeg/libavcodec/av1_parse.c",
+    "//third_party/ffmpeg/libavcodec/av1_parse.c",
     # "//third_party/ffmpeg/libavcodec/av1_parser.c",
     "//third_party/ffmpeg/libavcodec/av3a_parser.c",
     "//third_party/ffmpeg/libavcodec/avcodec.c",
@@ -468,7 +469,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/evrcdec.c",
     "//third_party/ffmpeg/libavcodec/exif.c",
 
-    # "//third_party/ffmpeg/libavcodec/extract_extradata_bsf.c",
+    "//third_party/ffmpeg/libavcodec/extract_extradata_bsf.c",
     # "//third_party/ffmpeg/libavcodec/faandct.c",
     # "//third_party/ffmpeg/libavcodec/faanidct.c",
     # "//third_party/ffmpeg/libavcodec/faxcompr.c",
