@@ -241,8 +241,6 @@ ohos_source_set("ffmpeg_dynamic") {
 
     "//third_party/ffmpeg/libavcodec/adpcm.c",
     "//third_party/ffmpeg/libavcodec/adpcm_data.c",
-    "//third_party/ffmpeg/libavcodec/g722dec.c",
-    "//third_party/ffmpeg/libavcodec/g726.c",
     "//third_party/ffmpeg/libavformat/xa.c",
     "//third_party/ffmpeg/libavcodec/adts_header.c",
     "//third_party/ffmpeg/libavcodec/adts_parser.c",
