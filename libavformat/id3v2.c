@@ -410,7 +410,25 @@ static void read_ttag(AVFormatContext *s, AVIOContext *pb, int taglen,
         dict_flags |= AV_DICT_DONT_STRDUP_KEY;
     } else if (!*dst)
         av_freep(&dst);
-
+#ifdef OHOS_ID3_ENCODING_FIX
+    if (key) {
+        const char *standard_filed = NULL;
+        standard_filed = find_generic_field(key, ff_id3v2_34_metadata_conv);
+        if (!standard_filed) {
+            standard_filed = find_generic_field(key, ff_id3v2_4_metadata_conv);
+        }
+        const char *base_key = standard_filed ? standard_filed : key;
+        char *key_encoding = av_asprintf("%sencoding", base_key);
+        if (!key_encoding) {
+            av_log(s, AV_LOG_ERROR, "Error allocating memory\n");
+            return;
+        }
+        if (av_dict_set_int(metadata, key_encoding, encoding, AV_DICT_DONT_OVERWRITE) < 0) {
+            av_log(s, AV_LOG_ERROR, "Error setting encoding\n");
+        }
+        av_freep(&key_encoding);
+    }
+#endif
 #ifdef OHOS_OPT_COMPAT
     if (dst) {
         if (encoding == ID3v2_ENCODING_ISO8859) {
@@ -437,25 +455,6 @@ static void read_ttag(AVFormatContext *s, AVIOContext *pb, int taglen,
 #else
     if (dst)
         av_dict_set(metadata, key, dst, dict_flags);
-#endif
-#ifdef OHOS_ID3_ENCODING_FIX
-    if (key) {
-        const char *standard_filed = NULL;
-        standard_filed = find_generic_field(key, ff_id3v2_34_metadata_conv);
-        if (!standard_filed) {
-            standard_filed = find_generic_field(key, ff_id3v2_4_metadata_conv);
-        }
-        const char *base_key = standard_filed ? standard_filed : key;
-        char *key_encoding = av_asprintf("%sencoding", base_key);
-        if (!key_encoding) {
-            av_log(s, AV_LOG_ERROR, "Error allocating memory\n");
-            return;
-        }
-        if (av_dict_set_int(metadata, key_encoding, encoding, AV_DICT_DONT_OVERWRITE) < 0) {
-            av_log(s, AV_LOG_ERROR, "Error setting encoding\n");
-        }
-        av_freep(&key_encoding);
-    }
 #endif
 }
 
