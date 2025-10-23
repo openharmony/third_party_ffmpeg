@@ -1352,7 +1352,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/mpsubdec.c",
     # "//third_party/ffmpeg/libavformat/msf.c",
     # "//third_party/ffmpeg/libavformat/msnwc_tcp.c",
-    # "//third_party/ffmpeg/libavformat/mtaf.c",
+    "//third_party/ffmpeg/libavformat/mtaf.c",
     # "//third_party/ffmpeg/libavformat/mtv.c",
     # "//third_party/ffmpeg/libavformat/musx.c",
     "//third_party/ffmpeg/libavformat/mux.c",
