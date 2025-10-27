@@ -62,7 +62,7 @@ FF_CONFIG_OPTIONS="
     --enable-decoder=png,bmp
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
-    --enable-bsf=h264_mp4toannexb
+    --enable-bsf=h264_mp4toannexb,extract_extradata
     --enable-protocol=file
     --enable-cross-compile
     --enable-shared
@@ -172,7 +172,7 @@ FF_CONFIG_OPTIONS="
     --enable-decoder=png,bmp
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
-    --enable-bsf=h264_mp4toannexb
+    --enable-bsf=h264_mp4toannexb,extract_extradata
     --enable-protocol=file
     --enable-lsp
     --enable-filter=crop,transpose,vflip,hflip
