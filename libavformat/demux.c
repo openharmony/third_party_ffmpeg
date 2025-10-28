@@ -2474,6 +2474,9 @@ static int extract_extradata_init(AVStream *st)
     const AVBitStreamFilter *f;
     int ret;
 
+    if (st->codecpar->codec_id != AV_CODEC_ID_VC1) {
+        goto finish;
+    }
     f = av_bsf_get_by_name("extract_extradata");
     if (!f)
         goto finish;
