@@ -171,6 +171,7 @@ config("ffmpeg_config") {
     "-DOHOS_SOURCE_FILESIZE_ERROR_FIX",
     "-DOHOS_AIGC",
     "-DOHOS_MP4_GLTF_DEMUXER",
+    "-DOHOS_ID3_ENCODING_FIX",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
