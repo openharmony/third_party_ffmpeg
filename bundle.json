@@ -22,7 +22,8 @@
             "ffmpeg_enable_demuxer_lrc",
             "ffmpeg_enable_demuxer_sami",
             "ffmpeg_enable_demuxer_ass",
-            "ffmpeg_enable_demuxer_sup"
+            "ffmpeg_enable_demuxer_sup",
+            "ffmpeg_enable_codec_vc1"
         ],
         "adapted_system_type": [ "standard" ],
         "rom": "",
