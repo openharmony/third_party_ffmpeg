@@ -609,7 +609,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/iff.c",
     "//third_party/ffmpeg/libavcodec/iirfilter.c",
 
-    # "//third_party/ffmpeg/libavcodec/ilbcdec.c",
+    "//third_party/ffmpeg/libavcodec/ilbcdec.c",
     # "//third_party/ffmpeg/libavcodec/imc.c",
     "//third_party/ffmpeg/libavcodec/imgconvert.c",
 
@@ -1275,7 +1275,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/idroqenc.c",
     # "//third_party/ffmpeg/libavformat/iff.c",
     # "//third_party/ffmpeg/libavformat/ifv.c",
-    # "//third_party/ffmpeg/libavformat/ilbc.c",
+    "//third_party/ffmpeg/libavformat/ilbc.c",
     "//third_party/ffmpeg/libavformat/img2.c",
 
     # "//third_party/ffmpeg/libavformat/img2_alias_pix.c",
