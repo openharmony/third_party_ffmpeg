@@ -78,7 +78,7 @@ DECLARE_ALIGNED(8, const uint8_t, ff_dither_8x8_73)[][8] = {
 { 11,  66,   7,  62,  10,  65,   6,  60, },
 { 48,  30,  43,  25,  47,  29,  42,  24, },
 {  0,  55,  14,  68,   3,  58,  17,  72, },
-};7
+};
 
 #if 1
 DECLARE_ALIGNED(8, const uint8_t, ff_dither_8x8_220)[][8] = {
