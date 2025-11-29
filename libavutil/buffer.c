@@ -273,7 +273,10 @@ AVBufferPool *av_buffer_pool_init2(size_t size, void *opaque,
     if (!pool)
         return NULL;
 
-    ff_mutex_init(&pool->mutex, NULL);
+    if (ff_mutex_init(&pool->mutex, NULL)) {
+        av_free(pool);
+        return NULL;
+    }
 
     pool->size      = size;
     pool->opaque    = opaque;
@@ -292,7 +295,10 @@ AVBufferPool *av_buffer_pool_init(size_t size, AVBufferRef* (*alloc)(size_t size
     if (!pool)
         return NULL;
 
-    ff_mutex_init(&pool->mutex, NULL);
+    if (ff_mutex_init(&pool->mutex, NULL)) {
+        av_free(pool);
+        return NULL;
+    }
 
     pool->size     = size;
     pool->alloc    = alloc ? alloc : av_buffer_alloc;
@@ -349,9 +355,6 @@ static void pool_release_buffer(void *opaque, uint8_t *data)
 {
     BufferPoolEntry *buf = opaque;
     AVBufferPool *pool = buf->pool;
-
-    if(CONFIG_MEMORY_POISONING)
-        memset(buf->data, FF_MEMORY_POISON, pool->size);
 
     ff_mutex_lock(&pool->mutex);
     buf->next = pool->pool;

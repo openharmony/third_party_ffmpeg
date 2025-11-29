@@ -614,7 +614,8 @@ static int ipmovie_read_header(AVFormatContext *s)
 
     ipmovie->avf = s;
 
-    avio_read(pb, signature_buffer, sizeof(signature_buffer));
+    if (avio_read(pb, signature_buffer, sizeof(signature_buffer)) != sizeof(signature_buffer))
+        return AVERROR_INVALIDDATA;
     while (memcmp(signature_buffer, signature, sizeof(signature))) {
         memmove(signature_buffer, signature_buffer + 1, sizeof(signature_buffer) - 1);
         signature_buffer[sizeof(signature_buffer) - 1] = avio_r8(pb);
@@ -700,9 +701,9 @@ static int ipmovie_read_packet(AVFormatContext *s,
     }
 }
 
-const AVInputFormat ff_ipmovie_demuxer = {
-    .name           = "ipmovie",
-    .long_name      = NULL_IF_CONFIG_SMALL("Interplay MVE"),
+const FFInputFormat ff_ipmovie_demuxer = {
+    .p.name         = "ipmovie",
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Interplay MVE"),
     .priv_data_size = sizeof(IPMVEContext),
     .read_probe     = ipmovie_probe,
     .read_header    = ipmovie_read_header,
