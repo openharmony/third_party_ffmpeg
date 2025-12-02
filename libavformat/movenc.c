@@ -4246,6 +4246,231 @@ static int mov_write_moov_level_meta_data_tag(AVIOContext *pb, const char *data)
 }
 #endif
 
+#ifdef OHOS_MP4_GLTF_MUXER
+static int mov_write_gltf_hdlr_tag(AVIOContext *pb)
+{
+    int64_t pos = avio_tell(pb);
+    avio_wb32(pb, 0);               // size, placeholder
+    ffio_wfourcc(pb, "hdlr");       // 'hdlr'
+    avio_wb32(pb, 0);               // version & flags
+    avio_wb32(pb, 0);               // pre_defined
+    ffio_wfourcc(pb, "gltf");       // handler_type
+    avio_wb32(pb, 0);               // reserved[0]
+    avio_wb32(pb, 0);               // reserved[1]
+    avio_wb32(pb, 0);               // reserved[2]
+
+    const char *name = "gltf";
+    avio_write(pb, name, strlen(name) + 1);
+
+    return update_size(pb, pos);
+}
+
+static int mov_write_gltf_iloc_tag(AVIOContext *pb, uint32_t binaryDataLength)
+{
+    int64_t pos = avio_tell(pb);
+
+    // Box Header (8 bytes)
+    avio_wb32(pb, 0);                       // size, place holder
+    ffio_wfourcc(pb, "iloc");
+    // FullBox Header (4 bytes)
+    avio_w8(pb, 1);                         // version
+    avio_wb24(pb, 0);                       // flags
+    // Size fields
+    avio_w8(pb, (4 << 4) | 4);              // offset_size(4) and length_size(4)
+    avio_w8(pb, (4 << 4) | 0);              // base_offset_size(4) and index_size(4)
+    avio_wb16(pb, 1);                       // item_count, fixed value: 1
+
+    // item[0]
+    avio_wb16(pb, 1);                       // item_ID = 1
+    avio_wb16(pb, 1);                       // reserved=0(12bit) + construction_method=1(4bit)
+    avio_wb16(pb, 0);                       // data_reference_index = 0
+    avio_wb32(pb, 0);                       // base_offset = 0
+
+    avio_wb16(pb, 1);                       // extent_count, fixed value: 1
+    // extent[0]
+    avio_wb32(pb, 0);                       // extent_offset = 0
+    avio_wb32(pb, binaryDataLength);        // extent_length = size of glTF data
+
+    return update_size(pb, pos);
+}
+
+static int mov_write_gltf_pitm_tag(AVIOContext *pb)
+{
+    int64_t pos = avio_tell(pb);
+
+    // Box Header (8 bytes)
+    avio_wb32(pb, 0);           // size, place holder
+    ffio_wfourcc(pb, "pitm");
+    // FullBox Header (4 bytes)
+    avio_wb32(pb, 0);           // Version & flags
+
+    // item_ID
+    avio_wb16(pb, 1);           // item_ID = 1(glTF iloc)
+
+    return update_size(pb, pos);
+}
+
+static int mov_write_gltf_infe_tag(AVIOContext *pb, int version,
+                                   const char *itemName,
+                                   const char *contentType,
+                                   const char *contentEncoding,
+                                   const char *itemType)
+{
+    // infe header
+    int64_t pos = avio_tell(pb);
+    avio_wb32(pb, 0);                               // size placeholder
+    ffio_wfourcc(pb, "infe");
+
+    // FullBox header
+    avio_w8(pb, version);                           // version
+    avio_wb24(pb, 0);                               // flags = 0
+
+    if (version == 0 || version == 1) {
+        avio_wb16(pb, 1);                           // item_ID
+        avio_wb16(pb, 0);                           // item_protection_index = 0
+
+        avio_write(pb, itemName, strlen(itemName));
+        avio_w8(pb, 0);
+        avio_write(pb, contentType, strlen(contentType));
+        avio_w8(pb, 0);
+        avio_write(pb, contentEncoding, strlen(contentEncoding));
+        avio_w8(pb, 0);
+
+        if (version == 1) {
+            avio_wb32(pb, 0);                       // extension_type, set default 0
+        }
+    } else if (version >= 2) {
+        if (version == 2)
+            avio_wb16(pb, 1);
+        else
+            avio_wb32(pb, 1);
+
+        avio_wb16(pb, 0);                           // item_protection_index
+        ffio_wfourcc(pb, itemType);                 // item_type
+        avio_write(pb, itemName, strlen(itemName)); // item_name
+        avio_w8(pb, 0);
+
+        if (strncmp(itemType, "mime", 3)) {
+            avio_write(pb, contentType, strlen(contentType));
+            avio_w8(pb, 0);
+            avio_write(pb, contentEncoding, strlen(contentEncoding));
+            avio_w8(pb, 0);
+        } else {
+            const char *uri = "uri";
+            avio_write(pb, uri, strlen(uri));
+            avio_w8(pb, 0);
+        }
+    }
+    return update_size(pb, pos);
+}
+
+static int mov_write_gltf_iinf_tag(AVIOContext *pb, int version,
+                                   const char *itemName,
+                                   const char *contentType,
+                                   const char *contentEncoding,
+                                   const char *itemType)
+{
+    int64_t pos = avio_tell(pb);
+
+    // Box Header (8 bytes)
+    avio_wb32(pb, 0);           // size, place holder
+    ffio_wfourcc(pb, "iinf");
+    // FullBox Header (4 bytes)
+    avio_w8(pb, 0);             // version
+    avio_wb24(pb, 0);           // flags
+    // entry_count = 1
+    avio_wb16(pb, 1);
+
+    mov_write_gltf_infe_tag(pb, version, itemName, contentType, contentEncoding, itemType);
+
+    return update_size(pb, pos);
+}
+
+static int mov_write_gltf_idat_tag(AVIOContext *pb, const uint8_t *binaryData, int binaryDataLength)
+{
+    int64_t pos = avio_tell(pb);
+
+    // box header
+    avio_wb32(pb, binaryDataLength + 8);
+    ffio_wfourcc(pb, "idat");
+
+    avio_write(pb, binaryData, binaryDataLength);
+
+    return update_size(pb, pos);
+}
+
+static int mov_write_file_level_meta_data_tag(AVIOContext *pb, AVFormatContext *s)
+{
+    const char *required_meta[] = {
+        "gltf_version", "gltf_data", "gltf_item_name",
+        "gltf_content_type", "gltf_content_encoding", "gltf_item_type"
+    };
+
+    int version = 0;
+    char *itemName = NULL;
+    char *contentType = NULL;
+    char *contentEncoding = NULL;
+    char *itemType = NULL;
+    uint8_t *binaryData = NULL;
+    int binaryDataLength = 0;
+    int allDataValid = 1;
+
+    AVDictionaryEntry *entry = NULL;
+    for (int i = 0; i < sizeof(required_meta)/sizeof(required_meta[0]); ++i) {
+        entry = av_dict_get(s->metadata, required_meta[i], NULL, 0);
+        if (!entry || !entry->value) {
+            av_log(s, AV_LOG_ERROR, "Missing required metadata: %s", required_meta[i]);
+            allDataValid = 0;
+            continue;
+        }
+        if (!strcmp(required_meta[i], "gltf_version")) {
+            version = atoi(entry->value);
+        } else if (!strcmp(required_meta[i], "gltf_item_name")) {
+            itemName = entry->value;
+        } else if (!strcmp(required_meta[i], "gltf_content_type")) {
+            contentType = entry->value;
+        } else if (!strcmp(required_meta[i], "gltf_content_encoding")) {
+            contentEncoding = entry->value;
+        } else if (!strcmp(required_meta[i], "gltf_item_type")) {
+            itemType = entry->value;
+        } else if (!strcmp(required_meta[i], "gltf_data")) {
+            const char* hexData = entry->value;
+            int hexLength = strlen(hexData);
+            binaryDataLength = hexLength / 2;
+            binaryData = av_malloc(binaryDataLength);
+            if (binaryData) {
+                ff_hex_to_data(binaryData, hexData);
+            }
+        }
+    }
+    if (!allDataValid || !itemName || !contentType || !contentEncoding || !itemType ||
+        !binaryData || binaryDataLength <= 0) {
+        av_freep(&binaryData);
+        return AVERROR(EINVAL);
+    }
+
+    int64_t pos = avio_tell(pb);
+
+    // meta box place holder
+    avio_wb32(pb, 0);
+    ffio_wfourcc(pb, "meta");
+    avio_wb32(pb, 0);
+
+    mov_write_gltf_hdlr_tag(pb);
+    mov_write_gltf_iloc_tag(pb, binaryDataLength);
+    mov_write_gltf_pitm_tag(pb);
+    mov_write_gltf_iinf_tag(pb, version, 
+                                itemName, 
+                                contentType, 
+                                contentEncoding, 
+                                itemType);
+    mov_write_gltf_idat_tag(pb, binaryData, binaryDataLength);
+    av_freep(&binaryData);
+
+    return update_size(pb, pos);
+}
+#endif
+
 static int mov_write_string_tag(AVIOContext *pb, const char *name,
                                 const char *value, int lang, int long_style)
 {
@@ -6139,6 +6364,9 @@ static int mov_write_ftyp_tag(AVIOContext *pb, AVFormatContext *s)
 
     if (mov->mode == MODE_MP4)
         ffio_wfourcc(pb, "mp41");
+#ifdef OHOS_MP4_GLTF_MUXER
+        ffio_wfourcc(pb, "glti");
+#endif
 
     if (mov->flags & FF_MOV_FLAG_DASH && mov->flags & FF_MOV_FLAG_GLOBAL_SIDX)
         ffio_wfourcc(pb, "dash");
@@ -8550,6 +8778,12 @@ static int mov_write_trailer(AVFormatContext *s)
                 return res;
         }
     }
+#if OHOS_MP4_GLTF_MUXER
+    res = mov_write_file_level_meta_data_tag(pb, s);
+    if (res < 0)
+        return res;
+#endif
+
 #ifdef OHOS_OPT_COMPAT
     if (res == 0) {
         av_log(s, AV_LOG_INFO, "Trailer written successfully.\n");
