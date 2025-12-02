@@ -180,6 +180,7 @@ config("ffmpeg_config") {
     "-DOHOS_ID3_ENCODING_FIX",
     "-DOHOS_VC1_DECODE",
     "-DOHOS_MP4_GLTF_MUXER",
+    "-DOHOS_LIVE_FLV",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]

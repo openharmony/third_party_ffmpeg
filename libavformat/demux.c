@@ -2758,8 +2758,45 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
                     break;
                 }
             }
+#ifdef OHOS_LIVE_FLV
+        int checkStreamCount = 0;
+        int streamCount = 0;
+        if (!strcmp(ic->iformat->name, "flv")) {
+            checkStreamCount = 1;
+            AVDictionaryEntry *valPtr = av_dict_get(ic->metadata, "flv_has_video", valPtr, AV_DICT_IGNORE_SUFFIX);
+            if (valPtr != NULL && valPtr->value != NULL) {
+                streamCount += 1;
+            }
+            valPtr = av_dict_get(ic->metadata, "flv_has_audio", valPtr, AV_DICT_IGNORE_SUFFIX);
+            if (valPtr != NULL && valPtr->value != NULL) {
+                streamCount += 1;
+            }
+        }
+#endif
         /* We did not get all the codec info, but we read too much data. */
         if (read_size >= probesize) {
+#ifdef OHOS_LIVE_FLV
+            // default probe size 5000000
+            // fix Non-standard live FLV in wrong order, can not find total streams in probe size
+            if ((checkStreamCount == 0) ||
+                (checkStreamCount == 1 && (streamCount <= ic->nb_streams || probesize >= 5000000))) {
+                ret = count;
+                av_log(ic, AV_LOG_DEBUG,
+                    "Probe buffer size limit of %"PRId64" bytes reached\n", probesize);
+                for (unsigned i = 0; i < ic->nb_streams; i++) {
+                    AVStream *const st  = ic->streams[i];
+                    FFStream *const sti = ffstream(st);
+                    if (!st->r_frame_rate.num &&
+                        sti->info->duration_count <= 1 &&
+                        st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
+                        strcmp(ic->iformat->name, "image2"))
+                        av_log(ic, AV_LOG_WARNING,
+                            "Stream #%d: not enough frames to estimate rate; "
+                            "consider increasing probesize\n", i);
+                }
+                break;
+            }
+#else
             ret = count;
             av_log(ic, AV_LOG_DEBUG,
                    "Probe buffer size limit of %"PRId64" bytes reached\n", probesize);
@@ -2775,6 +2812,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
                            "consider increasing probesize\n", i);
             }
             break;
+#endif
         }
 
         /* NOTE: A new stream can be added there if no header in file
