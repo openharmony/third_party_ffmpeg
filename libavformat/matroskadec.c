@@ -3929,6 +3929,29 @@ static int matroska_read_seek(AVFormatContext *s, int stream_index,
     FFStream *const sti = ffstream(st);
     int i, index;
 
+#ifdef OHOS_OPT_COMPAT
+    AVDictionaryEntry* entry = av_dict_get(s->metadata, "seekToStart", NULL, 0);
+    if (entry && !strcmp(entry->value, "1")) {
+        matroska_clear_queue(matroska);
+        tracks = matroska->tracks.elem;
+        for (i = 0; i < matroska->tracks.nb_elem; i++) {
+            tracks[i].audio.pkt_cnt        = 0;
+            tracks[i].audio.sub_packet_cnt = 0;
+            tracks[i].audio.buf_timecode   = AV_NOPTS_VALUE;
+            tracks[i].end_timecode         = 0;
+        }
+
+        FFFormatContext *const si = ffformatcontext(s);
+        matroska_reset_status(matroska, 0, si->data_offset);
+        sti->skip_to_keyframe = 0;
+        matroska->skip_to_timecode = 0;
+        matroska->skip_to_keyframe = 0;
+        matroska->done             = 0;
+        avpriv_update_cur_dts(s, st, AV_NOPTS_VALUE);
+        return 0;
+    }
+#endif
+
     /* Parse the CUES now since we need the index data to seek. */
     if (matroska->cues_parsing_deferred > 0) {
         matroska->cues_parsing_deferred = 0;

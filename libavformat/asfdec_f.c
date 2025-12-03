@@ -1578,7 +1578,12 @@ static int asf_read_seek(AVFormatContext *s, int stream_index,
     }
 
     /* explicitly handle the case of seeking to 0 */
+#ifdef OHOS_OPT_COMPAT
+    AVDictionaryEntry* entry = av_dict_get(s->metadata, "seekToStart", NULL, 0);
+    if (!pts || (entry && !strcmp(entry->value, "1"))) {
+#else
     if (!pts) {
+#endif
         asf_reset_header(s);
         avio_seek(s->pb, ffformatcontext(s)->data_offset, SEEK_SET);
         return 0;
