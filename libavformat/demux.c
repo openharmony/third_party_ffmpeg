@@ -2776,10 +2776,10 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         /* We did not get all the codec info, but we read too much data. */
         if (read_size >= probesize) {
 #ifdef OHOS_LIVE_FLV
-            // default probe size 5000000
+            // default probe size 1000000
             // fix Non-standard live FLV in wrong order, can not find total streams in probe size
             if ((checkStreamCount == 0) ||
-                (checkStreamCount == 1 && (streamCount <= ic->nb_streams || probesize >= 5000000))) {
+                (checkStreamCount == 1 && (streamCount <= ic->nb_streams || probesize >= 1000000))) {
                 ret = count;
                 av_log(ic, AV_LOG_DEBUG,
                     "Probe buffer size limit of %"PRId64" bytes reached\n", probesize);
