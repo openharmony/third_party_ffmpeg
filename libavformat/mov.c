@@ -2095,6 +2095,19 @@ static int mov_read_glbl(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     ret = ff_get_extradata(c->fc, st->codecpar, pb, atom.size);
     if (ret < 0)
         return ret;
+#ifdef OHOS_OPT_COMPAT
+    if (atom.type == MKTAG('h','v','c','C') && st->codecpar->codec_tag == MKTAG('d','v','h','1')) {
+        /* HEVC-based Dolby Vision derived from hvc1.
+           Happens to match with an identifier
+           previously utilized for DV. Thus, if we have
+           the hvcC extradata box available as specified,
+           set codec to HEVC */
+        st->codecpar->codec_id = AV_CODEC_ID_HEVC;
+        av_dict_set(&st->metadata, "hdr_type", "dolbyVision", 0);
+    }
+    if (atom.type == MKTAG('h','v','c','C') && st->codecpar->codec_tag == MKTAG('c','u','v','v'))
+        av_dict_set(&st->metadata, "hdr_type", "hdrVivid", 0);
+#else
     if (atom.type == MKTAG('h','v','c','C') && st->codecpar->codec_tag == MKTAG('d','v','h','1'))
         /* HEVC-based Dolby Vision derived from hvc1.
            Happens to match with an identifier
@@ -2102,6 +2115,7 @@ static int mov_read_glbl(MOVContext *c, AVIOContext *pb, MOVAtom atom)
            the hvcC extradata box available as specified,
            set codec to HEVC */
         st->codecpar->codec_id = AV_CODEC_ID_HEVC;
+#endif
 #ifdef OHOS_OPT_COMPAT
     if (atom.type == MKTAG('v','v','c','C'))
         st->codecpar->codec_id = AV_CODEC_ID_VVC;
@@ -7823,6 +7837,9 @@ static int mov_read_dvcc_dvvc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         return 0;
     st = c->fc->streams[c->fc->nb_streams-1];
 
+    #ifdef OHOS_OPT_COMPAT
+        av_dict_set(&st->metadata, "hdr_type", "dolbyVision", 0);
+    #endif
     // At most 24 bytes
     read_size = FFMIN(read_size, ISOM_DVCC_DVVC_SIZE);
 
@@ -7831,6 +7848,21 @@ static int mov_read_dvcc_dvvc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     return ff_isom_parse_dvcc_dvvc(c->fc, st, buf, read_size);
 }
+
+#ifdef OHOS_OPT_COMPAT
+static int mov_read_cuvv(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+{
+    if (c == NULL || c->fc == NULL || c->fc->nb_streams < 1) {
+        return 0;
+    }
+    AVStream *st = c->fc->streams[c->fc->nb_streams-1];
+    if (st == NULL) {
+        return 0;
+    }
+    av_dict_set(&st->metadata, "hdr_type", "hdrVivid", 0);
+    return 0;
+}
+#endif
 
 static int mov_read_kind(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
@@ -8439,6 +8471,9 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
 { MKTAG('d','v','c','C'), mov_read_dvcc_dvvc },
 { MKTAG('d','v','v','C'), mov_read_dvcc_dvvc },
 { MKTAG('d','v','w','C'), mov_read_dvcc_dvvc },
+#ifdef OHOS_OPT_COMPAT
+{ MKTAG('c','u','v','v'), mov_read_cuvv },
+#endif
 { MKTAG('k','i','n','d'), mov_read_kind },
 { MKTAG('S','A','3','D'), mov_read_SA3D }, /* ambisonic audio box */
 { MKTAG('S','A','N','D'), mov_read_SAND }, /* non diegetic audio box */
