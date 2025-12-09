@@ -1,6 +1,6 @@
-# FFmpeg build configure
-
 #!/bin/bash
+
+# FFmpeg build configure
 
 set -ex
 FFMPEG_PATH=$1
