@@ -3,7 +3,7 @@
 import("//build/config/sysroot.gni")
 import("//build/ohos.gni")
 declare_args() {
-  ffmpeg_enable_codec_rm = false
+  ffmpeg_enable_codec_rm = true
   ffmpeg_enable_codec_rv = true
   ffmpeg_enable_codec_eac3 = false
   ffmpeg_enable_codec_vc1 = false
