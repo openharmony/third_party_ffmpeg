@@ -156,7 +156,6 @@ config("ffmpeg_config") {
     "-DCONFIG_AV3A_PARSER",
     "-DCONFIG_AMRNB_DECODER",
     "-DCONFIG_AMRWB_DECODER",
-    "-DCONFIG_CINEPAK_DECODER",
     "-DOHOS_DRM",
     "-DOHOS_OPT_COMPAT",
     "-DOHOS_HDR_VIVID",
