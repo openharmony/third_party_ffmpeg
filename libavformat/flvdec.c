@@ -819,7 +819,14 @@ static int flv_read_header(AVFormatContext *s)
     flags = avio_r8(s->pb);
 
     flv->missing_streams = flags & (FLV_HEADER_FLAG_HASVIDEO | FLV_HEADER_FLAG_HASAUDIO);
-
+#ifdef OHOS_LIVE_FLV
+    if (flags & FLV_HEADER_FLAG_HASVIDEO) {
+        av_dict_set_int(&s->metadata, "flv_has_video", 1, 0);
+    }
+    if (flags & FLV_HEADER_FLAG_HASAUDIO) {
+        av_dict_set_int(&s->metadata, "flv_has_audio", 1, 0);
+    }
+#endif
     s->ctx_flags |= AVFMTCTX_NOHEADER;
 
     offset = avio_rb32(s->pb);

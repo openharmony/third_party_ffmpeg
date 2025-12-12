@@ -3,14 +3,15 @@
 import("//build/config/sysroot.gni")
 import("//build/ohos.gni")
 declare_args() {
-  ffmpeg_enable_codec_rm = false
-  ffmpeg_enable_codec_rv = false
-  ffmpeg_enable_codec_cook = false
+  ffmpeg_enable_codec_rm = true
+  ffmpeg_enable_codec_rv = true
   ffmpeg_enable_codec_eac3 = false
+  ffmpeg_enable_codec_vc1 = false
   ffmpeg_enable_demuxer_lrc = false
   ffmpeg_enable_demuxer_sami = false
   ffmpeg_enable_demuxer_ass = false
   ffmpeg_enable_demuxer_sup = false
+  ffmpeg_enable_codec_cavs = false
 }
 
 print("current_cpu = ${current_cpu}")
@@ -93,6 +94,8 @@ libffmpeg_media_aarch64_sources = [
   "//third_party/ffmpeg/libswscale/aarch64/yuv2rgb_neon.S",
   "//third_party/ffmpeg/libavcodec/aarch64/fmtconvert_init.c",
   "//third_party/ffmpeg/libavcodec/aarch64/fmtconvert_neon.S",
+  "//third_party/ffmpeg/libavcodec/aarch64/synth_filter_init.c",
+  "//third_party/ffmpeg/libavcodec/aarch64/synth_filter_neon.S",
 ]
 if (ffmpeg_enable_codec_rv) {
   libffmpeg_media_aarch64_sources +=
@@ -178,6 +181,8 @@ config("ffmpeg_config") {
     "-DOHOS_MP4_GLTF_DEMUXER",
     "-DOHOS_ID3_ENCODING_FIX",
     "-DOHOS_VC1_DECODE",
+    "-DOHOS_MP4_GLTF_MUXER",
+    "-DOHOS_LIVE_FLV",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
@@ -289,7 +294,7 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/atsc_a53.c",
     "//third_party/ffmpeg/libavcodec/audio_frame_queue.c",
 
-    # "//third_party/ffmpeg/libavcodec/audiodsp.c",
+    "//third_party/ffmpeg/libavcodec/audiodsp.c",
 
     # "//third_party/ffmpeg/libavcodec/aura.c",
     # "//third_party/ffmpeg/libavcodec/av1_frame_split_bsf.c",
@@ -360,8 +365,8 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/cfhddsp.c",
     # "//third_party/ffmpeg/libavcodec/cga_data.c",
     # "//third_party/ffmpeg/libavcodec/chomp_bsf.c",
-    # "//third_party/ffmpeg/libavcodec/cinepak.c",
-    # "//third_party/ffmpeg/libavcodec/cinepakenc.c",
+    "//third_party/ffmpeg/libavcodec/cinepak.c",
+    "//third_party/ffmpeg/libavcodec/cinepakenc.c",
     # "//third_party/ffmpeg/libavcodec/clearvideo.c",
     # "//third_party/ffmpeg/libavcodec/cljrdec.c",
     # "//third_party/ffmpeg/libavcodec/cljrenc.c",
@@ -372,28 +377,28 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/codec_desc.c",
     "//third_party/ffmpeg/libavcodec/codec_par.c",
 
-    # "//third_party/ffmpeg/libavcodec/cook.c",
-    # "//third_party/ffmpeg/libavcodec/cook_parser.c",
+    "//third_party/ffmpeg/libavcodec/cook.c",
+    "//third_party/ffmpeg/libavcodec/cook_parser.c",
 
     # "//third_party/ffmpeg/libavcodec/cpia.c",
     # "//third_party/ffmpeg/libavcodec/cscd.c",
     # "//third_party/ffmpeg/libavcodec/cyuv.c",
     "//third_party/ffmpeg/libavcodec/d3d11va.c",
 
-    # "//third_party/ffmpeg/libavcodec/dca.c",
-    # "//third_party/ffmpeg/libavcodec/dca_core.c",
+    "//third_party/ffmpeg/libavcodec/dca.c",
+    "//third_party/ffmpeg/libavcodec/dca_core.c",
     # "//third_party/ffmpeg/libavcodec/dca_core_bsf.c",
-    # "//third_party/ffmpeg/libavcodec/dca_exss.c",
-    # "//third_party/ffmpeg/libavcodec/dca_lbr.c",
-    # "//third_party/ffmpeg/libavcodec/dca_parser.c",
-    # "//third_party/ffmpeg/libavcodec/dca_xll.c",
+    "//third_party/ffmpeg/libavcodec/dca_exss.c",
+    "//third_party/ffmpeg/libavcodec/dca_lbr.c",
+    "//third_party/ffmpeg/libavcodec/dca_parser.c",
+    "//third_party/ffmpeg/libavcodec/dca_xll.c",
     # "//third_party/ffmpeg/libavcodec/dcaadpcm.c",
-    # "//third_party/ffmpeg/libavcodec/dcadata.c",
-    # "//third_party/ffmpeg/libavcodec/dcadct.c",
-    # "//third_party/ffmpeg/libavcodec/dcadec.c",
-    # "//third_party/ffmpeg/libavcodec/dcadsp.c",
+    "//third_party/ffmpeg/libavcodec/dcadata.c",
+    "//third_party/ffmpeg/libavcodec/dcadct.c",
+    "//third_party/ffmpeg/libavcodec/dcadec.c",
+    "//third_party/ffmpeg/libavcodec/dcadsp.c",
     # "//third_party/ffmpeg/libavcodec/dcaenc.c",
-    # "//third_party/ffmpeg/libavcodec/dcahuff.c",
+    "//third_party/ffmpeg/libavcodec/dcahuff.c",
     "//third_party/ffmpeg/libavcodec/dct.c",
     "//third_party/ffmpeg/libavcodec/dct32_fixed.c",
     "//third_party/ffmpeg/libavcodec/dct32_float.c",
@@ -436,8 +441,8 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/dv.c",
     "//third_party/ffmpeg/libavcodec/dv_profile.c",
 
-    # "//third_party/ffmpeg/libavcodec/dvaudio_parser.c",
-    # "//third_party/ffmpeg/libavcodec/dvaudiodec.c",
+    "//third_party/ffmpeg/libavcodec/dvaudio_parser.c",
+    "//third_party/ffmpeg/libavcodec/dvaudiodec.c",
     # "//third_party/ffmpeg/libavcodec/dvbsub_parser.c",
     # "//third_party/ffmpeg/libavcodec/dvbsubdec.c",
     # "//third_party/ffmpeg/libavcodec/dvd_nav_parser.c",
@@ -461,7 +466,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/eatgq.c",
     # "//third_party/ffmpeg/libavcodec/eatgv.c",
     # "//third_party/ffmpeg/libavcodec/eatqi.c",
-    # "//third_party/ffmpeg/libavcodec/elbg.c",
+    "//third_party/ffmpeg/libavcodec/elbg.c",
     "//third_party/ffmpeg/libavcodec/encode.c",
     "//third_party/ffmpeg/libavcodec/error_resilience.c",
 
@@ -608,7 +613,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/iff.c",
     "//third_party/ffmpeg/libavcodec/iirfilter.c",
 
-    # "//third_party/ffmpeg/libavcodec/ilbcdec.c",
+    "//third_party/ffmpeg/libavcodec/ilbcdec.c",
     # "//third_party/ffmpeg/libavcodec/imc.c",
     "//third_party/ffmpeg/libavcodec/imgconvert.c",
 
@@ -693,11 +698,11 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/mjpegenc_common.c",
     "//third_party/ffmpeg/libavcodec/mjpegenc_huffman.c",
 
-    # "//third_party/ffmpeg/libavcodec/mlp.c",
-    # "//third_party/ffmpeg/libavcodec/mlp_parse.c",
-    # "//third_party/ffmpeg/libavcodec/mlp_parser.c",
-    # "//third_party/ffmpeg/libavcodec/mlpdec.c",
-    # "//third_party/ffmpeg/libavcodec/mlpdsp.c",
+    "//third_party/ffmpeg/libavcodec/mlp.c",
+    "//third_party/ffmpeg/libavcodec/mlp_parse.c",
+    "//third_party/ffmpeg/libavcodec/mlp_parser.c",
+    "//third_party/ffmpeg/libavcodec/mlpdec.c",
+    "//third_party/ffmpeg/libavcodec/mlpdsp.c",
     # "//third_party/ffmpeg/libavcodec/mlpenc.c",
     # "//third_party/ffmpeg/libavcodec/mlz.c",
     # "//third_party/ffmpeg/libavcodec/mmvideo.c",
@@ -932,7 +937,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/svq1dec.c",
     # "//third_party/ffmpeg/libavcodec/svq1enc.c",
     # "//third_party/ffmpeg/libavcodec/svq3.c",
-    # "//third_party/ffmpeg/libavcodec/synth_filter.c",
+    "//third_party/ffmpeg/libavcodec/synth_filter.c",
     # "//third_party/ffmpeg/libavcodec/tak.c",
     # "//third_party/ffmpeg/libavcodec/tak_parser.c",
     # "//third_party/ffmpeg/libavcodec/takdec.c",
@@ -950,7 +955,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/tmv.c",
     # "//third_party/ffmpeg/libavcodec/tpeldsp.c",
     # "//third_party/ffmpeg/libavcodec/trace_headers_bsf.c",
-    # "//third_party/ffmpeg/libavcodec/truehd_core_bsf.c",
+    "//third_party/ffmpeg/libavcodec/truehd_core_bsf.c",
     # "//third_party/ffmpeg/libavcodec/truemotion1.c",
     # "//third_party/ffmpeg/libavcodec/truemotion2.c",
     # "//third_party/ffmpeg/libavcodec/truemotion2rt.c",
@@ -961,7 +966,9 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavcodec/ttadsp.c",
     # "//third_party/ffmpeg/libavcodec/ttaenc.c",
     # "//third_party/ffmpeg/libavcodec/ttaencdsp.c",
-    # "//third_party/ffmpeg/libavcodec/twinvq.c",
+    "//third_party/ffmpeg/libavcodec/twinvq.c",
+    "//third_party/ffmpeg/libavcodec/twinvqdec.c",
+    "//third_party/ffmpeg/libavcodec/metasound_data.c",
     # "//third_party/ffmpeg/libavcodec/txd.c",
     # "//third_party/ffmpeg/libavcodec/ulti.c",
     "//third_party/ffmpeg/libavcodec/utils.c",
@@ -1197,7 +1204,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/dsfdec.c",
     # "//third_party/ffmpeg/libavformat/dsicin.c",
     # "//third_party/ffmpeg/libavformat/dss.c",
-    # "//third_party/ffmpeg/libavformat/dtsdec.c",
+    "//third_party/ffmpeg/libavformat/dtsdec.c",
     # "//third_party/ffmpeg/libavformat/dtshddec.c",
     "//third_party/ffmpeg/libavformat/ac3_channel_layout_tab.c",
     "//third_party/ffmpeg/libavformat/dump.c",
@@ -1274,7 +1281,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/idroqenc.c",
     # "//third_party/ffmpeg/libavformat/iff.c",
     # "//third_party/ffmpeg/libavformat/ifv.c",
-    # "//third_party/ffmpeg/libavformat/ilbc.c",
+    "//third_party/ffmpeg/libavformat/ilbc.c",
     "//third_party/ffmpeg/libavformat/img2.c",
 
     # "//third_party/ffmpeg/libavformat/img2_alias_pix.c",
@@ -1319,7 +1326,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/microdvddec.c",
     # "//third_party/ffmpeg/libavformat/microdvdenc.c",
     # "//third_party/ffmpeg/libavformat/mkvtimestamp_v2.c",
-    # "//third_party/ffmpeg/libavformat/mlpdec.c",
+    "//third_party/ffmpeg/libavformat/mlpdec.c",
     # "//third_party/ffmpeg/libavformat/mlvdec.c",
     # "//third_party/ffmpeg/libavformat/mm.c",
     # "//third_party/ffmpeg/libavformat/mmf.c",
@@ -1574,7 +1581,7 @@ ohos_source_set("ffmpeg_dynamic") {
 
     # "//third_party/ffmpeg/libavformat/vpk.c",
     # "//third_party/ffmpeg/libavformat/vplayerdec.c",
-    # "//third_party/ffmpeg/libavformat/vqf.c",
+    "//third_party/ffmpeg/libavformat/vqf.c",
     "//third_party/ffmpeg/libavformat/asf_tags.c",
     "//third_party/ffmpeg/libavformat/avformat.c",
     "//third_party/ffmpeg/libavformat/dca_sample_rate_tab.c",
@@ -1718,11 +1725,13 @@ ohos_source_set("ffmpeg_dynamic") {
       "//third_party/ffmpeg/libavformat/rmdec.c",
     ]
   }
-  if (ffmpeg_enable_codec_cook) {
+  if (ffmpeg_enable_codec_cavs) {
     sources += [
-      "//third_party/ffmpeg/libavcodec/audiodsp.c",
-      "//third_party/ffmpeg/libavcodec/cook.c",
-      "//third_party/ffmpeg/libavcodec/cook_parser.c",
+      "//third_party/ffmpeg/libavcodec/cavs.c",
+      "//third_party/ffmpeg/libavcodec/cavs_parser.c",
+      "//third_party/ffmpeg/libavcodec/cavsdata.c",
+      "//third_party/ffmpeg/libavcodec/cavsdec.c",
+      "//third_party/ffmpeg/libavcodec/cavsdsp.c",
     ]
   }
   if (ffmpeg_enable_codec_rv) {
@@ -1805,9 +1814,13 @@ action("gen_config_header") {
     ohos_ffmpeg_enable_parsers += "rv30,rv40,"
     ohos_ffmpeg_enable_decoders += "rv30,rv40,"
   }
-  if (ffmpeg_enable_codec_cook) {
-    ohos_ffmpeg_enable_parsers += "cook,"
-    ohos_ffmpeg_enable_decoders += "cook,"
+  if (ffmpeg_enable_codec_vc1) {
+    ohos_ffmpeg_enable_parsers += "vc1,"
+    ohos_ffmpeg_enable_decoders += "vc1,"
+  }
+  if (ffmpeg_enable_codec_cavs) {
+    ohos_ffmpeg_enable_parsers += "cavs,"
+    ohos_ffmpeg_enable_decoders += "cavs,"
   }
   if (ffmpeg_enable_codec_eac3) {
     ohos_ffmpeg_enable_demuxers += "eac3,"
