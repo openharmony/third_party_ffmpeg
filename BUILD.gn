@@ -860,7 +860,7 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavcodec/ratecontrol.c",
     "//third_party/ffmpeg/libavcodec/raw.c",
 
-    # "//third_party/ffmpeg/libavcodec/rawdec.c",
+    "//third_party/ffmpeg/libavcodec/rawdec.c",
     # "//third_party/ffmpeg/libavcodec/rawenc.c",
     "//third_party/ffmpeg/libavcodec/rdft.c",
 
@@ -1420,7 +1420,7 @@ ohos_source_set("ffmpeg_dynamic") {
     "//third_party/ffmpeg/libavformat/rawenc.c",
     "//third_party/ffmpeg/libavformat/rawutils.c",
 
-    # "//third_party/ffmpeg/libavformat/rawvideodec.c",
+    "//third_party/ffmpeg/libavformat/rawvideodec.c",
     # "//third_party/ffmpeg/libavformat/rdt.c",
     # "//third_party/ffmpeg/libavformat/realtextdec.c",
     # "//third_party/ffmpeg/libavformat/redspark.c",
