@@ -4419,7 +4419,7 @@ static int mov_write_file_level_meta_data_tag(AVIOContext *pb, AVFormatContext *
     for (int i = 0; i < sizeof(required_meta)/sizeof(required_meta[0]); ++i) {
         entry = av_dict_get(s->metadata, required_meta[i], NULL, 0);
         if (!entry || !entry->value) {
-            av_log(s, AV_LOG_ERROR, "Missing required metadata: %s", required_meta[i]);
+            av_log(s, AV_LOG_WARNING, "Missing required metadata: %s", required_meta[i]);
             allDataValid = 0;
             continue;
         }
@@ -6365,7 +6365,11 @@ static int mov_write_ftyp_tag(AVIOContext *pb, AVFormatContext *s)
     if (mov->mode == MODE_MP4)
         ffio_wfourcc(pb, "mp41");
 #ifdef OHOS_MP4_GLTF_MUXER
+    AVDictionaryEntry *entry = av_dict_get(s->metadata, "has_gltf", NULL, 0);
+    if (entry && entry->value) {
+        av_log(s, AV_LOG_INFO, "gltf data included, write gltf brand, has_gltf: %s\n", entry->value);
         ffio_wfourcc(pb, "glti");
+    }
 #endif
 
     if (mov->flags & FF_MOV_FLAG_DASH && mov->flags & FF_MOV_FLAG_GLOBAL_SIDX)
@@ -8712,6 +8716,15 @@ static int mov_write_trailer(AVFormatContext *s)
         }
     }
 
+#ifdef OHOS_MP4_GLTF_MUXER
+    AVDictionaryEntry *entry = av_dict_get(s->metadata, "has_gltf", NULL, 0);
+    if (entry && entry->value) {
+        av_log(s, AV_LOG_INFO, "gltf included, write gltf data\n");
+        res = mov_write_file_level_meta_data_tag(pb, s);
+        if (res < 0)
+            return res;
+    }
+#endif
     if (!(mov->flags & FF_MOV_FLAG_FRAGMENT)) {
         moov_pos = avio_tell(pb);
 
@@ -8778,11 +8791,6 @@ static int mov_write_trailer(AVFormatContext *s)
                 return res;
         }
     }
-#if OHOS_MP4_GLTF_MUXER
-    res = mov_write_file_level_meta_data_tag(pb, s);
-    if (res < 0)
-        return res;
-#endif
 
 #ifdef OHOS_OPT_COMPAT
     if (res == 0) {
