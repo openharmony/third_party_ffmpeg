@@ -54,7 +54,7 @@ FF_CONFIG_OPTIONS="
     --disable-lzma
     --disable-vulkan
     --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo,ac3,gsm,gsm_ms,amv,smjpeg,thp,xa,adx,dtk,afc,psxstr,dts,caf,aiff
-    --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a,adts
+    --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a,adts,ogg
     --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo,mjpeg
     --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus,ac3,gsm,gsm_ms,ilbc,cook,dca
     --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9,wmv3,msvideo1,mjpeg,cinepak,mpeg1video,dvvideo,rawvideo
@@ -164,7 +164,7 @@ FF_CONFIG_OPTIONS="
     --disable-bzlib
     --disable-lzma
     --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo,ac3,gsm,gsm_ms,amv,smjpeg,thp,xa,adx,dtk,afc,psxstr,dts,caf,aiff
-    --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a,adts
+    --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a,adts,ogg
     --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo,mjpeg
     --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus,ac3,gsm,gsm_ms,ilbc,cook,dca
     --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9,wmv3,msvideo1,mjpeg,cinepak,mpeg1video,dvvideo,rawvideo
