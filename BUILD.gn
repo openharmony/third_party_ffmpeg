@@ -1382,7 +1382,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/nuv.c",
     "//third_party/ffmpeg/libavformat/oggdec.c",
 
-    # "//third_party/ffmpeg/libavformat/oggenc.c",
+    "//third_party/ffmpeg/libavformat/oggenc.c",
     "//third_party/ffmpeg/libavformat/oggparsecelt.c",
     "//third_party/ffmpeg/libavformat/oggparsedirac.c",
     "//third_party/ffmpeg/libavformat/oggparseflac.c",

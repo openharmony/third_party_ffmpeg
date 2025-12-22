@@ -1456,6 +1456,13 @@ static int flv_read_seek(AVFormatContext *s, int stream_index,
 {
     FLVContext *flv = s->priv_data;
     flv->validate_count = 0;
+#ifdef OHOS_OPT_COMPAT
+    AVDictionaryEntry* entry = av_dict_get(s->metadata, "seekToStart", NULL, 0);
+    if (entry && !strcmp(entry->value, "1")) {
+        FFFormatContext *const si = ffformatcontext(s);
+        return avio_seek(s->pb, si->data_offset, SEEK_SET);
+    }
+#endif
     return avio_seek_time(s->pb, stream_index, ts, flags);
 }
 
