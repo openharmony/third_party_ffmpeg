@@ -319,6 +319,7 @@ int ff_seek_frame_binary(AVFormatContext *s, int stream_index,
             }
             ff_read_frame_flush(s);
             avpriv_update_cur_dts(s, st, AV_NOPTS_VALUE);
+            return 0;
         }
     }
 #endif
