@@ -308,6 +308,20 @@ int ff_seek_frame_binary(AVFormatContext *s, int stream_index,
 
     st  = s->streams[stream_index];
     sti = ffstream(st);
+#ifdef OHOS_OPT_COMPAT
+    AVDictionaryEntry* entry = av_dict_get(s->metadata, "seekToStart", NULL, 0);
+    if (entry && !strcmp(entry->value, "1")) {
+        if (avif->name && !strcmp(avif->name, "mpegts")) {
+            FFFormatContext *const si = ffformatcontext(s);
+            if ((ret = avio_seek(s->pb, si->data_offset, SEEK_SET)) < 0) {
+                av_log(s, AV_LOG_TRACE, "seek to start failed.");
+                return ret;
+            }
+            ff_read_frame_flush(s);
+            avpriv_update_cur_dts(s, st, AV_NOPTS_VALUE);
+        }
+    }
+#endif
     if (sti->index_entries) {
         const AVIndexEntry *e;
 
