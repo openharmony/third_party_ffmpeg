@@ -477,6 +477,11 @@ static int ogg_init(AVFormatContext *s)
     if (ogg->pref_size)
         av_log(s, AV_LOG_WARNING, "The pagesize option is deprecated\n");
 
+#ifdef OHOS_OPT_COMPAT
+    // support creation time set "now"
+    ff_standardize_creation_time(s);
+#endif
+
     for (i = 0; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
         unsigned serial_num = i + ogg->serial_offset;
