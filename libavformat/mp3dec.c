@@ -557,12 +557,17 @@ static int mp3_seek(AVFormatContext *s, int stream_index, int64_t timestamp,
     int64_t best_pos;
     int fast_seek = s->flags & AVFMT_FLAG_FAST_SEEK;
     int64_t filesize = mp3->header_filesize;
-
+#ifdef OHOS_OPT_COMPAT
+    int64_t size = avio_size(s->pb);
+    if (size > 0 && size > si->data_offset)
+        filesize = size - si->data_offset;
+#else
     if (filesize <= 0) {
         int64_t size = avio_size(s->pb);
         if (size > 0 && size > si->data_offset)
             filesize = size - si->data_offset;
     }
+#endif
 
     if (mp3->xing_toc && (mp3->usetoc || (fast_seek && !mp3->is_cbr))) {
         int64_t ret = av_index_search_timestamp(st, timestamp, flags);
@@ -593,7 +598,15 @@ static int mp3_seek(AVFormatContext *s, int stream_index, int64_t timestamp,
 
     if (mp3->is_cbr && ie == &ie1 && mp3->frames) {
         int frame_duration = av_rescale(st->duration, 1, mp3->frames);
+#ifdef OHOS_OPT_COMPAT
+        if (filesize > 0) {
+            ie1.timestamp = frame_duration * av_rescale(best_pos - si->data_offset, mp3->frames, filesize);
+        } else {
+            ie1.timestamp = frame_duration * av_rescale(best_pos - si->data_offset, mp3->frames, mp3->header_filesize);
+        }
+#else
         ie1.timestamp = frame_duration * av_rescale(best_pos - si->data_offset, mp3->frames, mp3->header_filesize);
+#endif
     }
 
     avpriv_update_cur_dts(s, st, ie->timestamp);
