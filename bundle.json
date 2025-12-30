@@ -23,7 +23,9 @@
             "ffmpeg_enable_demuxer_ass",
             "ffmpeg_enable_demuxer_sup",
             "ffmpeg_enable_codec_vc1",
-            "ffmpeg_enable_codec_cavs"
+            "ffmpeg_enable_codec_cavs",
+            "ffmpeg_enable_demuxer_dtshd",
+            "ffmpeg_enable_demuxer_truehd"
         ],
         "adapted_system_type": [ "standard" ],
         "rom": "",
