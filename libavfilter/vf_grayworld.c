@@ -26,12 +26,10 @@
   */
 
 #include "libavutil/imgutils.h"
-#include "libavutil/opt.h"
-#include "libavutil/pixdesc.h"
+#include "libavutil/mem.h"
 
 #include "avfilter.h"
-#include "formats.h"
-#include "internal.h"
+#include "filters.h"
 #include "video.h"
 
 typedef struct ThreadData {
@@ -42,19 +40,10 @@ typedef struct ThreadData {
 } ThreadData;
 
 typedef struct GrayWorldContext {
-    const AVClass *class;
     float *tmpplab;
     int *line_count_pels;
     float *line_sum;
 } GrayWorldContext;
-
-#define OFFSET(x) offsetof(GrayWorldContext, x)
-#define FLAGS AV_OPT_FLAG_FILTERING_PARAM | AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_RUNTIME_PARAM
-static const AVOption grayworld_options[] = {
-    { NULL }
-};
-
-AVFILTER_DEFINE_CLASS(grayworld);
 
 static void apply_matrix(const float matrix[3][3], const float input[3], float output[3])
 {
@@ -277,10 +266,10 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
     }
     /* input and output transfer will be linear */
     if (in->color_trc == AVCOL_TRC_UNSPECIFIED) {
-        av_log(s, AV_LOG_WARNING, "Untagged transfer, assuming linear light.\n");
+        av_log(ctx, AV_LOG_WARNING, "Untagged transfer, assuming linear light.\n");
         out->color_trc = AVCOL_TRC_LINEAR;
     } else if (in->color_trc != AVCOL_TRC_LINEAR) {
-        av_log(s, AV_LOG_WARNING, "Gray world color correction works on linear light only.\n");
+        av_log(ctx, AV_LOG_WARNING, "Gray world color correction works on linear light only.\n");
     }
 
     td.in = in;
@@ -308,20 +297,12 @@ static const AVFilterPad grayworld_inputs[] = {
     }
 };
 
-static const AVFilterPad grayworld_outputs[] = {
-    {
-        .name = "default",
-        .type = AVMEDIA_TYPE_VIDEO,
-    }
-};
-
 const AVFilter ff_vf_grayworld = {
     .name          = "grayworld",
     .description   = NULL_IF_CONFIG_SMALL("Adjust white balance using LAB gray world algorithm"),
     .priv_size     = sizeof(GrayWorldContext),
-    .priv_class    = &grayworld_class,
     FILTER_INPUTS(grayworld_inputs),
-    FILTER_OUTPUTS(grayworld_outputs),
+    FILTER_OUTPUTS(ff_video_default_filterpad),
     FILTER_PIXFMTS(AV_PIX_FMT_GBRPF32, AV_PIX_FMT_GBRAPF32),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
     .uninit        = uninit,

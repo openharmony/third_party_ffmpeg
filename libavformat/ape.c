@@ -23,7 +23,9 @@
 #include <stdio.h>
 
 #include "libavutil/intreadwrite.h"
+#include "libavutil/mem.h"
 #include "avformat.h"
+#include "demux.h"
 #include "internal.h"
 #include "apetag.h"
 
@@ -146,7 +148,7 @@ static int ape_read_header(AVFormatContext * s)
     AVStream *st;
     uint32_t tag;
     int i, ret;
-    int total_blocks;
+    int64_t total_blocks;
     int64_t final_size = 0;
     int64_t pts, file_size;
 
@@ -292,7 +294,6 @@ static int ape_read_header(AVFormatContext * s)
     if (file_size <= 0 || final_size <= 0)
         final_size = ape->finalframeblocks * 8LL;
     ape->frames[ape->totalframes - 1].size = final_size;
-
 #ifdef OHOS_CUSTOM_INFO
     int64_t max_frame_size = 0;
     int64_t extra_size = 8;
@@ -347,7 +348,7 @@ static int ape_read_header(AVFormatContext * s)
     if (!st)
         return AVERROR(ENOMEM);
 
-    total_blocks = (ape->totalframes == 0) ? 0 : ((ape->totalframes - 1) * ape->blocksperframe) + ape->finalframeblocks;
+    total_blocks = (ape->totalframes == 0) ? 0 : ((int64_t)(ape->totalframes - 1) * ape->blocksperframe) + ape->finalframeblocks;
 
     st->codecpar->codec_type      = AVMEDIA_TYPE_AUDIO;
     st->codecpar->codec_id        = AV_CODEC_ID_APE;
@@ -431,6 +432,7 @@ static int ape_read_packet(AVFormatContext * s, AVPacket * pkt)
     /* note: we need to modify the packet size here to handle the last
        packet */
     pkt->size = ret + extra_size;
+    pkt->duration = nblocks;
 
     ape->currentframe++;
 
@@ -461,15 +463,15 @@ static int ape_read_seek(AVFormatContext *s, int stream_index, int64_t timestamp
     return 0;
 }
 
-const AVInputFormat ff_ape_demuxer = {
-    .name           = "ape",
-    .long_name      = NULL_IF_CONFIG_SMALL("Monkey's Audio"),
+const FFInputFormat ff_ape_demuxer = {
+    .p.name         = "ape",
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Monkey's Audio"),
+    .p.extensions   = "ape,apl,mac",
     .priv_data_size = sizeof(APEContext),
-    .flags_internal = FF_FMT_INIT_CLEANUP,
+    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
     .read_probe     = ape_probe,
     .read_header    = ape_read_header,
     .read_packet    = ape_read_packet,
     .read_close     = ape_read_close,
     .read_seek      = ape_read_seek,
-    .extensions     = "ape,apl,mac",
 };
