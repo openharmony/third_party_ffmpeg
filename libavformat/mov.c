@@ -3084,12 +3084,11 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         track_ids[i] = track_id - 1;
     }
     if (subAtom.type == MKTAG('c','d','s','c')) {
-        // fixme update ffmpeg
         char *metaKeyStr = av_malloc(16);
-        if (metaKeyStr)
-            snprintf(metaKeyStr, 16, "%f", track_ids[0]);
         if (!metaKeyStr)
             return AVERROR(ENOMEM);
+        snprintf(metaKeyStr, 16, "%f", track_ids[0]);
+
         av_dict_set(&st->metadata, "src_track_id", metaKeyStr, 0);
         av_freep(&metaKeyStr);
     }
@@ -5558,7 +5557,11 @@ static int mov_read_trak(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         sc->pb_is_copied = 1;
     }
 
+#ifdef OHOS_AUXILIARY_TRACK
+    if (need_parse_video_info(st) == 1) {
+#else
     if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+#endif
         if (sc->h_spacing && sc->v_spacing)
             av_reduce(&st->sample_aspect_ratio.num, &st->sample_aspect_ratio.den,
                       sc->h_spacing, sc->v_spacing, INT_MAX);
@@ -11740,7 +11743,7 @@ static int mov_seek_stream(AVFormatContext *s, AVStream *st, int64_t timestamp, 
             return AVERROR_INVALIDDATA;
 #ifdef OHOS_OPT_COMPAT
         break;
-#endif    // fixme update ffmpeg
+#endif
         if (!sample || can_seek_to_key_sample(st, sample, timestamp))
             break;
 

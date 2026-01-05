@@ -75,10 +75,15 @@ static const AVOption demux_options[] = {
 #if CONFIG_WAV_DEMUXER
     { "ignore_length", "Ignore length", OFFSET(ignore_length), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, DEC },
 #endif
+#ifdef OHOS_OPT_COMPAT
+    { "max_size",      "max size of single packet", OFFSET(max_size), AV_OPT_TYPE_INT, { .i64 = 4096 }, 1024, 1 << 22, DEC },
+#else
     { "max_size",      "max size of single packet", OFFSET(max_size), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1 << 22, DEC },
+#endif
     { NULL },
 };
 
+#ifndef OHOS_OPT_COMPAT
 static void set_max_size(AVStream *st, WAVDemuxContext *wav)
 {
     if (wav->max_size <= 0) {
@@ -86,6 +91,7 @@ static void set_max_size(AVStream *st, WAVDemuxContext *wav)
         wav->max_size = max_size < 0 ? 4096 : max_size;
     }
 }
+#endif
 
 static void set_spdif(AVFormatContext *s, WAVDemuxContext *wav)
 {
@@ -679,7 +685,9 @@ break_loop:
     ff_metadata_conv_ctx(s, NULL, ff_riff_info_conv);
 
     set_spdif(s, wav);
+#ifndef OHOS_OPT_COMPAT
     set_max_size(st, wav);
+#endif
 
 #ifdef OHOS_OPT_COMPAT
     if (ffformatcontext(s)->id3v2_meta && s->metadata) {
@@ -1001,7 +1009,9 @@ static int w64_read_header(AVFormatContext *s)
     avio_seek(pb, data_ofs, SEEK_SET);
 
     set_spdif(s, wav);
+#ifndef OHOS_OPT_COMPAT
     set_max_size(st, wav);
+#endif
 
     return 0;
 }
