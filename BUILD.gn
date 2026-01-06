@@ -1222,7 +1222,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/astdec.c",
     # "//third_party/ffmpeg/libavformat/astenc.c",
     # "//third_party/ffmpeg/libavformat/async.c",
-    # "//third_party/ffmpeg/libavformat/au.c",
+    "//third_party/ffmpeg/libavformat/au.c",
     "//third_party/ffmpeg/libavformat/av1.c",
     "//third_party/ffmpeg/libavformat/av3adec.c",
     "//third_party/ffmpeg/libavformat/avc.c",
