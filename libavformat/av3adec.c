@@ -376,7 +376,7 @@ static int av3a_read_header(AVFormatContext *s)
     stream->start_time             = 0;
     ffstream(stream)->need_parsing = AVSTREAM_PARSE_FULL_RAW;
     stream->codecpar->codec_type   = AVMEDIA_TYPE_AUDIO;
-    // stream->codecpar->codec_id     = s->iformat->raw_codec_id;    // fixme update ffmpeg
+    stream->codecpar->codec_id     = ffifmt(s->iformat)->raw_codec_id;
     stream->codecpar->codec_tag    = MKTAG('a', 'v', '3', 'a');
 
     if ((ret = avio_read(s->pb, header, AV3A_MAX_NBYTES_HEADER)) != AV3A_MAX_NBYTES_HEADER) {

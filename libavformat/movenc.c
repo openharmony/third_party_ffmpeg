@@ -42,7 +42,6 @@
 #include "libavcodec/flac.h"
 #include "libavcodec/get_bits.h"
 
-// fixme update ffmpeg
 #ifdef OHOS_AV3A_DEMUXER
 #include "libavcodec/av3a.h"
 #endif

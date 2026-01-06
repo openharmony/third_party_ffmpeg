@@ -1,7 +1,7 @@
 {
     "name": "@ohos/ffmpeg",
     "description": "FFmpeg is the leading multimedia framework, able to decode, encode, transcode, mux, demux, stream, filter and play pretty much anything that humans and machines have created.",
-    "version": "5.1.4",
+    "version": "7.1.1",
     "license": "LGPL V2.1/LGPL V3.0/GPL V2.0/GPL V3.0",
     "publishAs": "code-segment",
     "segment": {

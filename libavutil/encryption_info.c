@@ -21,8 +21,9 @@
 #include "encryption_info.h"
 #include "mem.h"
 #include "intreadwrite.h"
-// fixme update ffmpeg
+#ifdef OHOS_DRM
 #include "libavutil/macros.h"
+#endif
 
 #define FF_ENCRYPTION_INFO_EXTRA 24
 
