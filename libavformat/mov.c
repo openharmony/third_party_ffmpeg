@@ -3087,7 +3087,7 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         char *metaKeyStr = av_malloc(16);
         if (!metaKeyStr)
             return AVERROR(ENOMEM);
-        snprintf(metaKeyStr, 16, "%f", track_ids[0]);
+        snprintf(metaKeyStr, 16, "%d", track_ids[0]);
 
         av_dict_set(&st->metadata, "src_track_id", metaKeyStr, 0);
         av_freep(&metaKeyStr);
