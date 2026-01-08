@@ -25,12 +25,11 @@
  */
 
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "subtitles.h"
 #include "libavutil/avstring.h"
 #include "libavutil/bprint.h"
-#include "libavutil/mem.h"
+#include "libavutil/intreadwrite.h"
 
 typedef struct {
     FFDemuxSubtitlesQueue q;
@@ -81,10 +80,6 @@ static int realtext_read_header(AVFormatContext *s)
         const int64_t pos = ff_text_pos(&tr) - (c != 0);
         int n = ff_smil_extract_next_text_chunk(&tr, &buf, &c);
 
-        if (n < 0) {
-            res = n;
-            goto end;
-        }
         if (n == 0)
             break;
 
@@ -108,7 +103,7 @@ static int realtext_read_header(AVFormatContext *s)
             /* if we just read a <time> tag, introduce a new event, otherwise merge
              * with the previous one */
             int merge = !av_strncasecmp(buf.str, "<time", 5) ? 0 : 1;
-            sub = ff_subtitles_queue_insert_bprint(&rt->q, &buf, merge);
+            sub = ff_subtitles_queue_insert(&rt->q, buf.str, buf.len, merge);
             if (!sub) {
                 res = AVERROR(ENOMEM);
                 goto end;
@@ -132,14 +127,14 @@ end:
     return res;
 }
 
-const FFInputFormat ff_realtext_demuxer = {
-    .p.name         = "realtext",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("RealText subtitle format"),
-    .p.extensions   = "rt",
+const AVInputFormat ff_realtext_demuxer = {
+    .name           = "realtext",
+    .long_name      = NULL_IF_CONFIG_SMALL("RealText subtitle format"),
     .priv_data_size = sizeof(RealTextContext),
-    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
+    .flags_internal = FF_FMT_INIT_CLEANUP,
     .read_probe     = realtext_probe,
     .read_header    = realtext_read_header,
+    .extensions     = "rt",
     .read_packet    = ff_subtitles_read_packet,
     .read_seek2     = ff_subtitles_read_seek,
     .read_close     = ff_subtitles_read_close,

@@ -20,13 +20,13 @@
  */
 
 #include "libavutil/avstring.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "avio_internal.h"
+
+
 
 typedef struct MPJPEGDemuxContext {
     const AVClass *class;
@@ -35,6 +35,7 @@ typedef struct MPJPEGDemuxContext {
     int         searchstr_len;
     int         strict_mime_boundary;
 } MPJPEGDemuxContext;
+
 
 static void trim_right(char *p)
 {
@@ -62,6 +63,8 @@ static int get_line(AVIOContext *pb, char *line, int line_size)
     return 0;
 }
 
+
+
 static int split_tag_value(char **tag, char **value, char *line)
 {
     char *p = line;
@@ -69,6 +72,7 @@ static int split_tag_value(char **tag, char **value, char *line)
 
     *tag = NULL;
     *value = NULL;
+
 
     while (*p != '\0' && *p != ':') {
         if (!av_isspace(*p)) {
@@ -116,7 +120,7 @@ static int mpjpeg_read_probe(const AVProbeData *p)
     if (p->buf_size < 2 || p->buf[0] != '-' || p->buf[1] != '-')
         return 0;
 
-    ffio_init_read_context(&pb, p->buf, p->buf_size);
+    ffio_init_context(&pb, p->buf, p->buf_size, 0, NULL, NULL, NULL, NULL);
 
     ret = (parse_multipart_header(&pb.pub, &size, "--", NULL) >= 0) ? AVPROBE_SCORE_MAX : 0;
 
@@ -241,6 +245,7 @@ static int parse_multipart_header(AVIOContext *pb,
     return found_content_type ? 0 : AVERROR_INVALIDDATA;
 }
 
+
 static char* mpjpeg_get_boundary(AVIOContext* pb)
 {
     uint8_t *mime_type = NULL;
@@ -284,6 +289,7 @@ static char* mpjpeg_get_boundary(AVIOContext* pb)
     return res;
 }
 
+
 static int mpjpeg_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     int size;
@@ -312,6 +318,8 @@ static int mpjpeg_read_packet(AVFormatContext *s, AVPacket *pkt)
     }
 
     ret = parse_multipart_header(s->pb, &size, mpjpeg->boundary, s);
+
+
     if (ret < 0)
         return ret;
 
@@ -357,11 +365,13 @@ static int mpjpeg_read_packet(AVFormatContext *s, AVPacket *pkt)
 }
 
 #define OFFSET(x) offsetof(MPJPEGDemuxContext, x)
+
 #define DEC AV_OPT_FLAG_DECODING_PARAM
 static const AVOption mpjpeg_options[] = {
     { "strict_mime_boundary",  "require MIME boundaries match", OFFSET(strict_mime_boundary), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, DEC },
     { NULL }
 };
+
 
 static const AVClass mpjpeg_demuxer_class = {
     .class_name     = "MPJPEG demuxer",
@@ -370,16 +380,18 @@ static const AVClass mpjpeg_demuxer_class = {
     .version        = LIBAVUTIL_VERSION_INT,
 };
 
-const FFInputFormat ff_mpjpeg_demuxer = {
-    .p.name            = "mpjpeg",
-    .p.long_name       = NULL_IF_CONFIG_SMALL("MIME multipart JPEG"),
-    .p.mime_type       = "multipart/x-mixed-replace",
-    .p.extensions      = "mjpg",
-    .p.priv_class      = &mpjpeg_demuxer_class,
-    .p.flags           = AVFMT_NOTIMESTAMPS,
+const AVInputFormat ff_mpjpeg_demuxer = {
+    .name              = "mpjpeg",
+    .long_name         = NULL_IF_CONFIG_SMALL("MIME multipart JPEG"),
+    .mime_type         = "multipart/x-mixed-replace",
+    .extensions        = "mjpg",
     .priv_data_size    = sizeof(MPJPEGDemuxContext),
     .read_probe        = mpjpeg_read_probe,
     .read_header       = mpjpeg_read_header,
     .read_packet       = mpjpeg_read_packet,
     .read_close        = mpjpeg_read_close,
+    .priv_class        = &mpjpeg_demuxer_class,
+    .flags             = AVFMT_NOTIMESTAMPS,
 };
+
+

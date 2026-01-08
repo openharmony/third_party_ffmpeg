@@ -23,7 +23,6 @@
 #include "libavcodec/ass.h"
 #include "codec_internal.h"
 #include "libavutil/log.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 
 #include <aribb24/aribb24.h>
@@ -41,22 +40,14 @@ typedef struct Libaribb24Context {
 
     char        *aribb24_base_path;
     unsigned int aribb24_skip_ruby;
-
-    int default_profile;
 } Libaribb24Context;
 
-static unsigned int get_profile_font_size(AVCodecContext *avctx)
+static unsigned int get_profile_font_size(int profile)
 {
-    Libaribb24Context *b24 = avctx->priv_data;
-    int profile = avctx->profile;
-
-    if (profile == AV_PROFILE_UNKNOWN)
-        profile = b24->default_profile;
-
     switch (profile) {
-    case AV_PROFILE_ARIB_PROFILE_A:
+    case FF_PROFILE_ARIB_PROFILE_A:
         return 36;
-    case AV_PROFILE_ARIB_PROFILE_C:
+    case FF_PROFILE_ARIB_PROFILE_C:
         return 18;
     default:
         return 0;
@@ -70,30 +61,25 @@ static void libaribb24_log(void *p, const char *msg)
 
 static int libaribb24_generate_ass_header(AVCodecContext *avctx)
 {
-    Libaribb24Context *b24 = avctx->priv_data;
     unsigned int plane_width = 0;
     unsigned int plane_height = 0;
     unsigned int font_size = 0;
-    int profile = avctx->profile;
 
-    if (profile == AV_PROFILE_UNKNOWN)
-        profile = b24->default_profile;
-
-    switch (profile) {
-    case AV_PROFILE_ARIB_PROFILE_A:
+    switch (avctx->profile) {
+    case FF_PROFILE_ARIB_PROFILE_A:
         plane_width = 960;
         plane_height = 540;
+        font_size = get_profile_font_size(avctx->profile);
         break;
-    case AV_PROFILE_ARIB_PROFILE_C:
+    case FF_PROFILE_ARIB_PROFILE_C:
         plane_width = 320;
         plane_height = 180;
+        font_size = get_profile_font_size(avctx->profile);
         break;
     default:
         av_log(avctx, AV_LOG_ERROR, "Unknown or unsupported profile set!\n");
         return AVERROR(EINVAL);
     }
-
-    font_size = get_profile_font_size(avctx);
 
     avctx->subtitle_header = av_asprintf(
              "[Script Info]\r\n"
@@ -148,12 +134,11 @@ static int libaribb24_init(AVCodecContext *avctx)
 {
     Libaribb24Context *b24 = avctx->priv_data;
     void(* arib_dec_init)(arib_decoder_t* decoder) = NULL;
-    int ret;
-    int profile = avctx->profile;
+    int ret_code = AVERROR_EXTERNAL;
 
     if (!(b24->lib_instance = arib_instance_new(avctx))) {
         av_log(avctx, AV_LOG_ERROR, "Failed to initialize libaribb24!\n");
-        return AVERROR_EXTERNAL;
+        goto init_fail;
     }
 
     if (b24->aribb24_base_path) {
@@ -166,35 +151,43 @@ static int libaribb24_init(AVCodecContext *avctx)
 
     if (!(b24->parser = arib_get_parser(b24->lib_instance))) {
         av_log(avctx, AV_LOG_ERROR, "Failed to initialize libaribb24 PES parser!\n");
-        return AVERROR_EXTERNAL;
+        goto init_fail;
     }
     if (!(b24->decoder = arib_get_decoder(b24->lib_instance))) {
         av_log(avctx, AV_LOG_ERROR, "Failed to initialize libaribb24 decoder!\n");
-        return AVERROR_EXTERNAL;
+        goto init_fail;
     }
 
-    if (profile == AV_PROFILE_UNKNOWN)
-        profile = b24->default_profile;
-
-    switch (profile) {
-    case AV_PROFILE_ARIB_PROFILE_A:
+    switch (avctx->profile) {
+    case FF_PROFILE_ARIB_PROFILE_A:
         arib_dec_init = arib_initialize_decoder_a_profile;
         break;
-    case AV_PROFILE_ARIB_PROFILE_C:
+    case FF_PROFILE_ARIB_PROFILE_C:
         arib_dec_init = arib_initialize_decoder_c_profile;
         break;
     default:
         av_log(avctx, AV_LOG_ERROR, "Unknown or unsupported profile set!\n");
-        return AVERROR(EINVAL);
+        ret_code = AVERROR(EINVAL);
+        goto init_fail;
     }
 
     arib_dec_init(b24->decoder);
 
-    ret = libaribb24_generate_ass_header(avctx);
-    if (ret < 0)
-        return ret;
+    if (libaribb24_generate_ass_header(avctx) < 0) {
+        ret_code = AVERROR(ENOMEM);
+        goto init_fail;
+    }
 
     return 0;
+
+init_fail:
+    if (b24->decoder)
+        arib_finalize_decoder(b24->decoder);
+
+    if (b24->lib_instance)
+        arib_instance_destroy(b24->lib_instance);
+
+    return ret_code;
 }
 
 static int libaribb24_close(AVCodecContext *avctx)
@@ -216,8 +209,8 @@ static int libaribb24_handle_regions(AVCodecContext *avctx, AVSubtitle *sub)
 {
     Libaribb24Context *b24 = avctx->priv_data;
     const arib_buf_region_t *region = arib_decoder_get_regions(b24->decoder);
-    unsigned int profile_font_size = get_profile_font_size(avctx);
-    AVBPrint buf;
+    unsigned int profile_font_size = get_profile_font_size(avctx->profile);
+    AVBPrint buf = { 0 };
     int ret = 0;
 
     av_bprint_init(&buf, 0, AV_BPRINT_SIZE_UNLIMITED);
@@ -281,7 +274,6 @@ next_region:
         av_log(avctx, AV_LOG_DEBUG, "Styled ASS line: %s\n",
                buf.str);
 
-        sub->format = 1; /* text */
         ret = ff_ass_add_rect(sub, buf.str, b24->read_order++,
                               0, NULL, NULL);
     }
@@ -379,10 +371,6 @@ static const AVOption options[] = {
       OFFSET(aribb24_base_path), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, SD },
     { "aribb24-skip-ruby-text", "skip ruby text blocks during decoding",
       OFFSET(aribb24_skip_ruby), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, SD },
-    { "default_profile", "default profile to use if not specified in the stream parameters",
-      OFFSET(default_profile), AV_OPT_TYPE_INT, { .i64 = AV_PROFILE_UNKNOWN }, AV_PROFILE_UNKNOWN, AV_PROFILE_ARIB_PROFILE_C, SD, .unit = "profile" },
-        {"a", "Profile A", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PROFILE_ARIB_PROFILE_A}, INT_MIN, INT_MAX, SD, .unit = "profile"},
-        {"c", "Profile C", 0, AV_OPT_TYPE_CONST, {.i64 = AV_PROFILE_ARIB_PROFILE_C}, INT_MIN, INT_MAX, SD, .unit = "profile"},
     { NULL }
 };
 
@@ -395,12 +383,11 @@ static const AVClass aribb24_class = {
 
 const FFCodec ff_libaribb24_decoder = {
     .p.name         = "libaribb24",
-    CODEC_LONG_NAME("libaribb24 ARIB STD-B24 caption decoder"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("libaribb24 ARIB STD-B24 caption decoder"),
     .p.type         = AVMEDIA_TYPE_SUBTITLE,
     .p.id           = AV_CODEC_ID_ARIB_CAPTION,
     .p.priv_class   = &aribb24_class,
     .p.wrapper_name = "libaribb24",
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP | FF_CODEC_CAP_NOT_INIT_THREADSAFE,
     .priv_data_size = sizeof(Libaribb24Context),
     .init      = libaribb24_init,
     .close     = libaribb24_close,

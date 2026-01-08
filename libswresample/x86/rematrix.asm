@@ -68,7 +68,7 @@ mix_2_1_float_u_int %+ SUFFIX:
     mov%1  [outq + lenq + mmsize], m2
     add        lenq, mmsize*2
         jl .next
-    RET
+    REP_RET
 %endmacro
 
 %macro MIX1_FLT 1
@@ -100,7 +100,7 @@ mix_1_1_float_u_int %+ SUFFIX:
     mov%1  [outq + lenq + mmsize], m1
     add        lenq, mmsize*2
         jl .next
-    RET
+    REP_RET
 %endmacro
 
 %macro MIX1_INT16 1
@@ -152,7 +152,7 @@ mix_1_1_int16_u_int %+ SUFFIX:
     emms
     RET
 %else
-    RET
+    REP_RET
 %endif
 %endmacro
 
@@ -218,7 +218,7 @@ mix_2_1_int16_u_int %+ SUFFIX:
     emms
     RET
 %else
-    RET
+    REP_RET
 %endif
 %endmacro
 

@@ -36,7 +36,7 @@
 
 typedef struct VBNContext {
     AVClass *class;
-    TextureDSPEncContext dxtc;
+    TextureDSPContext dxtc;
     int format;
     TextureDSPThreadContext enc;
 } VBNContext;
@@ -114,11 +114,9 @@ static int vbn_encode(AVCodecContext *avctx, AVPacket *pkt,
         ctx->enc.frame_data.in = (frame->height - 1) * frame->linesize[0] + frame->data[0];
         ctx->enc.stride = -frame->linesize[0];
         ctx->enc.tex_data.out = pkt->data + VBN_HEADER_SIZE;
-        ctx->enc.width  = avctx->width;
-        ctx->enc.height = avctx->height;
-        ff_texturedsp_exec_compress_threads(avctx, &ctx->enc);
+        avctx->execute2(avctx, ff_texturedsp_compress_thread, &ctx->enc, NULL, ctx->enc.slice_count);
     } else {
-        const uint8_t *flipped = frame->data[0] + frame->linesize[0] * (frame->height - 1);
+        uint8_t *flipped = frame->data[0] + frame->linesize[0] * (frame->height - 1);
         av_image_copy_plane(pkt->data + VBN_HEADER_SIZE, linesize, flipped, -frame->linesize[0], linesize, frame->height);
     }
 
@@ -136,10 +134,10 @@ static av_cold int vbn_init(AVCodecContext *avctx)
 #define OFFSET(x) offsetof(VBNContext, x)
 #define FLAGS     AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption options[] = {
-    { "format",      "Texture format", OFFSET(format), AV_OPT_TYPE_INT,   { .i64 = VBN_FORMAT_DXT5 }, VBN_FORMAT_RAW, VBN_FORMAT_DXT5, FLAGS, .unit = "format" },
-        { "raw",     "RAW texture",                 0, AV_OPT_TYPE_CONST, { .i64 = VBN_FORMAT_RAW  },              0,               0, FLAGS, .unit = "format" },
-        { "dxt1",    "DXT1 texture",                0, AV_OPT_TYPE_CONST, { .i64 = VBN_FORMAT_DXT1 },              0,               0, FLAGS, .unit = "format" },
-        { "dxt5",    "DXT5 texture",                0, AV_OPT_TYPE_CONST, { .i64 = VBN_FORMAT_DXT5 },              0,               0, FLAGS, .unit = "format" },
+    { "format",      "Texture format", OFFSET(format), AV_OPT_TYPE_INT,   { .i64 = VBN_FORMAT_DXT5 }, VBN_FORMAT_RAW, VBN_FORMAT_DXT5, FLAGS, "format" },
+        { "raw",     "RAW texture",                 0, AV_OPT_TYPE_CONST, { .i64 = VBN_FORMAT_RAW  },              0,               0, FLAGS, "format" },
+        { "dxt1",    "DXT1 texture",                0, AV_OPT_TYPE_CONST, { .i64 = VBN_FORMAT_DXT1 },              0,               0, FLAGS, "format" },
+        { "dxt5",    "DXT5 texture",                0, AV_OPT_TYPE_CONST, { .i64 = VBN_FORMAT_DXT5 },              0,               0, FLAGS, "format" },
     { NULL },
 };
 
@@ -152,11 +150,10 @@ static const AVClass vbnenc_class = {
 
 const FFCodec ff_vbn_encoder = {
     .p.name         = "vbn",
-    CODEC_LONG_NAME("Vizrt Binary Image"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Vizrt Binary Image"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_VBN,
-    .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_SLICE_THREADS |
-                      AV_CODEC_CAP_ENCODER_REORDERED_OPAQUE,
+    .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_SLICE_THREADS,
     .p.priv_class   = &vbnenc_class,
     .init           = vbn_init,
     FF_CODEC_ENCODE_CB(vbn_encode),
@@ -164,5 +161,6 @@ const FFCodec ff_vbn_encoder = {
     .p.pix_fmts     = (const enum AVPixelFormat[]) {
         AV_PIX_FMT_RGBA, AV_PIX_FMT_RGB24, AV_PIX_FMT_NONE,
     },
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE |
+                      FF_CODEC_CAP_INIT_CLEANUP,
 };

@@ -64,7 +64,7 @@ cglobal gradfun_filter_line, 6, 6
     add       r0, 4
     jl .loop
 .end:
-    RET
+    REP_RET
 
 INIT_XMM ssse3
 cglobal gradfun_filter_line, 6, 6, 8
@@ -78,7 +78,7 @@ cglobal gradfun_filter_line, 6, 6, 8
     FILTER_LINE m4
     add        r0, 8
     jl .loop
-    RET
+    REP_RET
 
 %macro BLUR_LINE 1
 cglobal gradfun_blur_line_%1, 6, 6, 8
@@ -102,7 +102,7 @@ cglobal gradfun_blur_line_%1, 6, 6, 8
     mova   [r3+r0], m0
     add         r0, 16
     jl .loop
-    RET
+    REP_RET
 %endmacro
 
 INIT_XMM sse2

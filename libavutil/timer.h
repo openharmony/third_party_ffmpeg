@@ -44,12 +44,8 @@
 
 #if CONFIG_MACOS_KPERF
 #include "macos_kperf.h"
-#endif
-
-#if HAVE_MACH_ABSOLUTE_TIME
+#elif HAVE_MACH_ABSOLUTE_TIME
 #include <mach/mach_time.h>
-#elif HAVE_CLOCK_GETTIME
-#include <time.h>
 #endif
 
 #include "common.h"
@@ -63,8 +59,6 @@
 #   include "ppc/timer.h"
 #elif ARCH_X86
 #   include "x86/timer.h"
-#elif ARCH_LOONGARCH
-#   include "loongarch/timer.h"
 #endif
 
 #if !defined(AV_READ_TIME)
@@ -72,15 +66,6 @@
 #       define AV_READ_TIME gethrtime
 #   elif HAVE_MACH_ABSOLUTE_TIME
 #       define AV_READ_TIME mach_absolute_time
-#   elif HAVE_CLOCK_GETTIME && defined(CLOCK_MONOTONIC)
-        static inline int64_t ff_read_time(void)
-        {
-            struct timespec ts;
-            clock_gettime(CLOCK_MONOTONIC, &ts);
-            return ts.tv_sec * INT64_C(1000000000) + ts.tv_nsec;
-        }
-#       define AV_READ_TIME ff_read_time
-#       define FF_TIMER_UNITS "ns"
 #   endif
 #endif
 
@@ -116,9 +101,9 @@
 #if CONFIG_LINUX_PERF
 
 #define START_TIMER                                                         \
-    static int linux_perf_fd = -1;                                          \
+    static int linux_perf_fd;                                               \
     uint64_t tperf;                                                         \
-    if (linux_perf_fd == -1) {                                              \
+    if (!linux_perf_fd) {                                                   \
         struct perf_event_attr attr = {                                     \
             .type           = PERF_TYPE_HARDWARE,                           \
             .size           = sizeof(struct perf_event_attr),               \

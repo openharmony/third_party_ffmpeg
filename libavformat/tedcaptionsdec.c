@@ -23,7 +23,6 @@
 #include "libavutil/log.h"
 #include "libavutil/opt.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "subtitles.h"
 
@@ -245,7 +244,7 @@ static int parse_file(AVIOContext *pb, FFDemuxSubtitlesQueue *subs)
             ret = AVERROR_INVALIDDATA;
             goto fail;
         }
-        pkt = ff_subtitles_queue_insert_bprint(subs, &content, 0);
+        pkt = ff_subtitles_queue_insert(subs, content.str, content.len, 0);
         if (!pkt) {
             ret = AVERROR(ENOMEM);
             goto fail;
@@ -356,12 +355,12 @@ static int tedcaptions_read_seek(AVFormatContext *avf, int stream_index,
                                    min_ts, ts, max_ts, flags);
 }
 
-const FFInputFormat ff_tedcaptions_demuxer = {
-    .p.name         = "tedcaptions",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("TED Talks captions"),
-    .p.priv_class   = &tedcaptions_demuxer_class,
+const AVInputFormat ff_tedcaptions_demuxer = {
+    .name           = "tedcaptions",
+    .long_name      = NULL_IF_CONFIG_SMALL("TED Talks captions"),
     .priv_data_size = sizeof(TEDCaptionsDemuxer),
-    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
+    .flags_internal = FF_FMT_INIT_CLEANUP,
+    .priv_class     = &tedcaptions_demuxer_class,
     .read_header    = tedcaptions_read_header,
     .read_packet    = tedcaptions_read_packet,
     .read_close     = tedcaptions_read_close,

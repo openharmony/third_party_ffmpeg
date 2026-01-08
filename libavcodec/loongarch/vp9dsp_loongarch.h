@@ -22,9 +22,6 @@
 #ifndef AVCODEC_LOONGARCH_VP9DSP_LOONGARCH_H
 #define AVCODEC_LOONGARCH_VP9DSP_LOONGARCH_H
 
-#include <stddef.h>
-#include <stdint.h>
-
 #define VP9_8TAP_LOONGARCH_LSX_FUNC(SIZE, type, type_idx)                    \
 void ff_put_8tap_##type##_##SIZE##h_lsx(uint8_t *dst, ptrdiff_t dststride,   \
                                         const uint8_t *src,                  \

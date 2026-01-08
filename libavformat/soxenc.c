@@ -34,7 +34,6 @@
 #include "libavutil/dict.h"
 #include "avformat.h"
 #include "avio_internal.h"
-#include "mux.h"
 #include "rawenc.h"
 #include "sox.h"
 
@@ -105,17 +104,15 @@ static int sox_write_trailer(AVFormatContext *s)
     return 0;
 }
 
-const FFOutputFormat ff_sox_muxer = {
-    .p.name            = "sox",
-    .p.long_name       = NULL_IF_CONFIG_SMALL("SoX (Sound eXchange) native"),
-    .p.extensions      = "sox",
+const AVOutputFormat ff_sox_muxer = {
+    .name              = "sox",
+    .long_name         = NULL_IF_CONFIG_SMALL("SoX native"),
+    .extensions        = "sox",
     .priv_data_size    = sizeof(SoXContext),
-    .p.audio_codec     = AV_CODEC_ID_PCM_S32LE,
-    .p.video_codec     = AV_CODEC_ID_NONE,
-    .p.subtitle_codec  = AV_CODEC_ID_NONE,
+    .audio_codec       = AV_CODEC_ID_PCM_S32LE,
+    .video_codec       = AV_CODEC_ID_NONE,
     .write_header      = sox_write_header,
     .write_packet      = ff_raw_write_packet,
     .write_trailer     = sox_write_trailer,
-    .p.flags           = AVFMT_NOTIMESTAMPS,
-    .flags_internal    = FF_OFMT_FLAG_MAX_ONE_OF_EACH,
+    .flags             = AVFMT_NOTIMESTAMPS,
 };

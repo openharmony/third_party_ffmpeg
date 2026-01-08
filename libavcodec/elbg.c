@@ -28,7 +28,6 @@
 #include "libavutil/avassert.h"
 #include "libavutil/common.h"
 #include "libavutil/lfg.h"
-#include "libavutil/mem.h"
 #include "elbg.h"
 
 #define DELTA_ERR_MAX 0.1  ///< Precision of the ELBG algorithm (as percentage error)
@@ -45,13 +44,13 @@ typedef struct cell_s {
  * ELBG internal data
  */
 typedef struct ELBGContext {
-    int error;
+    int64_t error;
     int dim;
     int num_cb;
     int *codebook;
     cell **cells;
-    int *utility;
-    int *utility_inc;
+    int64_t *utility;
+    int64_t *utility_inc;
     int *nearest_cb;
     int *points;
     int *temp_points;
@@ -76,12 +75,9 @@ static inline int distance_limited(int *a, int *b, int dim, int limit)
 {
     int i, dist=0;
     for (i=0; i<dim; i++) {
-        int64_t distance = a[i] - b[i];
-
-        distance *= distance;
-        if (dist >= limit - distance)
-            return limit;
-        dist += distance;
+        dist += (a[i] - b[i])*(a[i] - b[i]);
+        if (dist > limit)
+            return INT_MAX;
     }
 
     return dist;
@@ -101,12 +97,8 @@ static inline void vect_division(int *res, int *vect, int div, int dim)
 static int eval_error_cell(ELBGContext *elbg, int *centroid, cell *cells)
 {
     int error=0;
-    for (; cells; cells=cells->next) {
-        int distance = distance_limited(centroid, elbg->points + cells->index*elbg->dim, elbg->dim, INT_MAX);
-        if (error >= INT_MAX - distance)
-            return INT_MAX;
-        error += distance;
-    }
+    for (; cells; cells=cells->next)
+        error += distance_limited(centroid, elbg->points + cells->index*elbg->dim, elbg->dim, INT_MAX);
 
     return error;
 }
@@ -186,13 +178,10 @@ static int simple_lbg(ELBGContext *elbg,
         int dist[2] = {distance_limited(centroid[0], points + tempcell->index*dim, dim, INT_MAX),
                        distance_limited(centroid[1], points + tempcell->index*dim, dim, INT_MAX)};
         int idx = dist[0] > dist[1];
-        if (newutility[idx] >= INT_MAX - dist[idx])
-            newutility[idx] = INT_MAX;
-        else
-            newutility[idx] += dist[idx];
+        newutility[idx] += dist[idx];
     }
 
-    return (newutility[0] >= INT_MAX - newutility[1]) ? INT_MAX : newutility[0] + newutility[1];
+    return newutility[0] + newutility[1];
 }
 
 static void get_new_centroids(ELBGContext *elbg, int huc, int *newcentroid_i,
@@ -264,9 +253,9 @@ static void evaluate_utility_inc(ELBGContext *elbg)
     int64_t inc=0;
 
     for (int i = 0; i < elbg->num_cb; i++) {
-        if (elbg->num_cb * (int64_t)elbg->utility[i] > elbg->error)
+        if (elbg->num_cb * elbg->utility[i] > elbg->error)
             inc += elbg->utility[i];
-        elbg->utility_inc[i] = FFMIN(inc, INT_MAX);
+        elbg->utility_inc[i] = inc;
     }
 }
 
@@ -289,7 +278,7 @@ static void update_utility_and_n_cb(ELBGContext *elbg, int idx, int newutility)
  */
 static void try_shift_candidate(ELBGContext *elbg, int idx[3])
 {
-    int j, k, cont=0, tmp;
+    int j, k, cont=0;
     int64_t olderror=0, newerror;
     int newutility[3];
     int *newcentroid[3] = {
@@ -316,17 +305,12 @@ static void try_shift_candidate(ELBGContext *elbg, int idx[3])
     get_new_centroids(elbg, idx[1], newcentroid[0], newcentroid[1]);
 
     newutility[2]  = eval_error_cell(elbg, newcentroid[2], elbg->cells[idx[0]]);
-    tmp            = eval_error_cell(elbg, newcentroid[2], elbg->cells[idx[2]]);
-    newutility[2]  = (tmp >= INT_MAX - newutility[2]) ? INT_MAX : newutility[2] + tmp;
+    newutility[2] += eval_error_cell(elbg, newcentroid[2], elbg->cells[idx[2]]);
 
     newerror = newutility[2];
 
-    tmp = simple_lbg(elbg, elbg->dim, newcentroid, newutility, elbg->points,
+    newerror += simple_lbg(elbg, elbg->dim, newcentroid, newutility, elbg->points,
                            elbg->cells[idx[1]]);
-    if (tmp >= INT_MAX - newerror)
-        newerror = INT_MAX;
-    else
-        newerror += tmp;
 
     if (olderror > newerror) {
         shift_codebook(elbg, idx, newcentroid);
@@ -350,7 +334,7 @@ static void do_shiftings(ELBGContext *elbg)
     evaluate_utility_inc(elbg);
 
     for (idx[0]=0; idx[0] < elbg->num_cb; idx[0]++)
-        if (elbg->num_cb * (int64_t)elbg->utility[idx[0]] < elbg->error) {
+        if (elbg->num_cb * elbg->utility[idx[0]] < elbg->error) {
             if (elbg->utility_inc[elbg->num_cb - 1] == 0)
                 return;
 
@@ -362,15 +346,15 @@ static void do_shiftings(ELBGContext *elbg)
         }
 }
 
-static void do_elbg(ELBGContext *restrict elbg, int *points, int numpoints,
+static void do_elbg(ELBGContext *av_restrict elbg, int *points, int numpoints,
                     int max_steps)
 {
     int *const size_part = elbg->size_part;
     int i, j, steps = 0;
     int best_idx = 0;
-    int last_error;
+    int64_t last_error;
 
-    elbg->error = INT_MAX;
+    elbg->error = INT64_MAX;
     elbg->points = points;
 
     do {
@@ -398,9 +382,8 @@ static void do_elbg(ELBGContext *restrict elbg, int *points, int numpoints,
                 }
             }
             elbg->nearest_cb[i] = best_idx;
-            elbg->error = (elbg->error >= INT_MAX - best_dist) ? INT_MAX : elbg->error + best_dist;
-            elbg->utility[elbg->nearest_cb[i]] = (elbg->utility[elbg->nearest_cb[i]] >= INT_MAX - best_dist) ?
-                                                  INT_MAX : elbg->utility[elbg->nearest_cb[i]] + best_dist;
+            elbg->error += best_dist;
+            elbg->utility[elbg->nearest_cb[i]] += best_dist;
             free_cells->index = i;
             free_cells->next = elbg->cells[elbg->nearest_cb[i]];
             elbg->cells[elbg->nearest_cb[i]] = free_cells;
@@ -436,7 +419,7 @@ static void do_elbg(ELBGContext *restrict elbg, int *points, int numpoints,
  * If not, it calls do_elbg for a (smaller) random sample of the points in
  * points.
  */
-static void init_elbg(ELBGContext *restrict elbg, int *points, int *temp_points,
+static void init_elbg(ELBGContext *av_restrict elbg, int *points, int *temp_points,
                       int numpoints, int max_steps)
 {
     int dim = elbg->dim;
@@ -464,7 +447,7 @@ int avpriv_elbg_do(ELBGContext **elbgp, int *points, int dim, int numpoints,
                    int *codebook, int num_cb, int max_steps,
                    int *closest_cb, AVLFG *rand_state, uintptr_t flags)
 {
-    ELBGContext *const restrict elbg = *elbgp ? *elbgp : av_mallocz(sizeof(*elbg));
+    ELBGContext *const av_restrict elbg = *elbgp ? *elbgp : av_mallocz(sizeof(*elbg));
 
     if (!elbg)
         return AVERROR(ENOMEM);

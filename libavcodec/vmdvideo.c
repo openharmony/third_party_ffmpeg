@@ -37,11 +37,10 @@
 
 #include "libavutil/common.h"
 #include "libavutil/intreadwrite.h"
-#include "libavutil/mem.h"
 
 #include "avcodec.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 #include "bytestream.h"
 
 #define VMD_HEADER_SIZE 0x330
@@ -455,7 +454,8 @@ static int vmdvideo_decode_frame(AVCodecContext *avctx, AVFrame *frame,
     memcpy(frame->data[1], s->palette, PALETTE_COUNT * 4);
 
     /* shuffle frames */
-    if ((ret = av_frame_replace(s->prev_frame, frame)) < 0)
+    av_frame_unref(s->prev_frame);
+    if ((ret = av_frame_ref(s->prev_frame, frame)) < 0)
         return ret;
 
     *got_frame      = 1;
@@ -466,7 +466,7 @@ static int vmdvideo_decode_frame(AVCodecContext *avctx, AVFrame *frame,
 
 const FFCodec ff_vmdvideo_decoder = {
     .p.name         = "vmdvideo",
-    CODEC_LONG_NAME("Sierra VMD video"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Sierra VMD video"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_VMDVIDEO,
     .priv_data_size = sizeof(VmdVideoContext),
@@ -474,5 +474,5 @@ const FFCodec ff_vmdvideo_decoder = {
     .close          = vmdvideo_decode_end,
     FF_CODEC_DECODE_CB(vmdvideo_decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
 };

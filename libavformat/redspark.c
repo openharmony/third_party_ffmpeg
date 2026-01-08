@@ -23,7 +23,6 @@
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
 #include "avio.h"
-#include "demux.h"
 #include "internal.h"
 
 #define HEADER_SIZE 4096
@@ -151,12 +150,12 @@ static int redspark_read_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-const FFInputFormat ff_redspark_demuxer = {
-    .p.name         =   "redspark",
-    .p.long_name    =   NULL_IF_CONFIG_SMALL("RedSpark"),
-    .p.extensions   =   "rsd",
+const AVInputFormat ff_redspark_demuxer = {
+    .name           =   "redspark",
+    .long_name      =   NULL_IF_CONFIG_SMALL("RedSpark"),
     .priv_data_size =   sizeof(RedSparkContext),
     .read_probe     =   redspark_probe,
     .read_header    =   redspark_read_header,
     .read_packet    =   redspark_read_packet,
+    .extensions     =   "rsd",
 };

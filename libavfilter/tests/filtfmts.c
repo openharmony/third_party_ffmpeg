@@ -25,10 +25,12 @@
 #include "libavutil/pixdesc.h"
 #include "libavutil/samplefmt.h"
 
-#include "libavfilter/avfilter.h"
-#include "libavfilter/avfilter_internal.h"
-#include "libavfilter/formats.h"
+#define FF_INTERNAL_FIELDS 1
 #include "libavfilter/framequeue.h"
+
+#include "libavfilter/avfilter.h"
+#include "libavfilter/formats.h"
+#include "libavfilter/internal.h"
 
 static void print_formats_internal(AVFilterLink **links, const AVFilterPad *pads,
                                    unsigned nb, size_t fmts_cfg_offset,
@@ -121,7 +123,7 @@ int main(int argc, char **argv)
 
     /* create a link for each of the input pads */
     for (i = 0; i < filter_ctx->nb_inputs; i++) {
-        AVFilterLink *link = av_mallocz(sizeof(FilterLinkInternal));
+        AVFilterLink *link = av_mallocz(sizeof(AVFilterLink));
         if (!link) {
             fprintf(stderr, "Unable to allocate memory for filter input link\n");
             ret = 1;
@@ -131,7 +133,7 @@ int main(int argc, char **argv)
         filter_ctx->inputs[i] = link;
     }
     for (i = 0; i < filter_ctx->nb_outputs; i++) {
-        AVFilterLink *link = av_mallocz(sizeof(FilterLinkInternal));
+        AVFilterLink *link = av_mallocz(sizeof(AVFilterLink));
         if (!link) {
             fprintf(stderr, "Unable to allocate memory for filter output link\n");
             ret = 1;
@@ -143,24 +145,7 @@ int main(int argc, char **argv)
 
     if (filter->formats_state == FF_FILTER_FORMATS_QUERY_FUNC)
         ret = filter->formats.query_func(filter_ctx);
-    else if (filter->formats_state == FF_FILTER_FORMATS_QUERY_FUNC2) {
-        AVFilterFormatsConfig **cfg_in = NULL, **cfg_out = NULL;
-
-        if (filter_ctx->nb_inputs) {
-            cfg_in = av_malloc_array(filter_ctx->nb_inputs, sizeof(*cfg_in));
-            for (unsigned i = 0; i < filter_ctx->nb_inputs; i++)
-                cfg_in[i] = &filter_ctx->inputs[i]->outcfg;
-        }
-        if (filter_ctx->nb_outputs) {
-            cfg_out = av_malloc_array(filter_ctx->nb_outputs, sizeof(*cfg_out));
-            for (unsigned i = 0; i < filter_ctx->nb_outputs; i++)
-                cfg_out[i] = &filter_ctx->outputs[i]->incfg;
-        }
-
-        ret = filter->formats.query_func2(filter_ctx, cfg_in, cfg_out);
-        av_freep(&cfg_in);
-        av_freep(&cfg_out);
-    } else
+    else
         ret = ff_default_query_formats(filter_ctx);
 
     print_formats(filter_ctx);

@@ -27,11 +27,10 @@
 #import <AppKit/AppKit.h>
 
 #include "avfilter.h"
-#include "filters.h"
 #include "formats.h"
+#include "internal.h"
 #include "video.h"
 #include "libavutil/internal.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
 
@@ -65,13 +64,12 @@ typedef struct CoreImageContext {
 
 static int config_output(AVFilterLink *link)
 {
-    FilterLink *l = ff_filter_link(link);
     CoreImageContext *ctx = link->src->priv;
 
     link->w                   = ctx->w;
     link->h                   = ctx->h;
     link->sample_aspect_ratio = ctx->sar;
-    l->frame_rate             = ctx->frame_rate;
+    link->frame_rate          = ctx->frame_rate;
     link->time_base           = ctx->time_base;
 
     const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(link->format);
@@ -302,15 +300,8 @@ static int request_frame(AVFilterLink *link)
     }
 
     frame->pts                 = ctx->pts;
-    frame->duration            = 1;
-#if FF_API_FRAME_KEY
     frame->key_frame           = 1;
-#endif
-    frame->flags              |= AV_FRAME_FLAG_KEY;
-#if FF_API_INTERLACED_FRAME
     frame->interlaced_frame    = 0;
-#endif
-    frame->flags              &= ~AV_FRAME_FLAG_INTERLACED;
     frame->pict_type           = AV_PICTURE_TYPE_I;
     frame->sample_aspect_ratio = ctx->sar;
 
@@ -424,8 +415,8 @@ static CIFilter* create_filter(CoreImageContext *ctx, const char *filter_name, A
 
     // set user options
     if (filter_options) {
-        const AVDictionaryEntry *o = NULL;
-        while ((o = av_dict_iterate(filter_options, o))) {
+        AVDictionaryEntry *o = NULL;
+        while ((o = av_dict_get(filter_options, "", o, AV_DICT_IGNORE_SUFFIX))) {
             set_option(ctx, filter, o->key, o->value);
         }
     }
@@ -435,10 +426,10 @@ static CIFilter* create_filter(CoreImageContext *ctx, const char *filter_name, A
 
 static av_cold int init(AVFilterContext *fctx)
 {
-    CoreImageContext *ctx       = fctx->priv;
-    AVDictionary *filter_dict   = NULL;
-    const AVDictionaryEntry *f  = NULL;
-    const AVDictionaryEntry *o  = NULL;
+    CoreImageContext *ctx     = fctx->priv;
+    AVDictionary *filter_dict = NULL;
+    AVDictionaryEntry *f      = NULL;
+    AVDictionaryEntry *o      = NULL;
     int ret;
     int i;
 
@@ -468,7 +459,7 @@ static av_cold int init(AVFilterContext *fctx)
 
         // parse filters for option key-value pairs (opt=val@opt2=val2) separated by @
         i = 0;
-        while ((f = av_dict_iterate(filter_dict, f))) {
+        while ((f = av_dict_get(filter_dict, "", f, AV_DICT_IGNORE_SUFFIX))) {
             AVDictionary *filter_options = NULL;
 
             if (strncmp(f->value, "default", 7)) { // not default
@@ -485,7 +476,7 @@ static av_cold int init(AVFilterContext *fctx)
                 if (!filter_options) {
                     av_log(ctx, AV_LOG_DEBUG, "\tusing default options\n");
                 } else {
-                    while ((o = av_dict_iterate(filter_options, o))) {
+                    while ((o = av_dict_get(filter_options, "", o, AV_DICT_IGNORE_SUFFIX))) {
                         av_log(ctx, AV_LOG_DEBUG, "\t%s: %s\n", o->key, o->value);
                     }
                 }

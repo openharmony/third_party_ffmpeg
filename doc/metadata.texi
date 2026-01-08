@@ -1,4 +1,3 @@
-@anchor{metadata}
 @chapter Metadata
 @c man begin METADATA
 

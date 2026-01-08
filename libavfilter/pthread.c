@@ -29,7 +29,8 @@
 #include "libavutil/slicethread.h"
 
 #include "avfilter.h"
-#include "avfilter_internal.h"
+#include "internal.h"
+#include "thread.h"
 
 typedef struct ThreadContext {
     AVFilterGraph *graph;
@@ -58,7 +59,7 @@ static void slice_thread_uninit(ThreadContext *c)
 static int thread_execute(AVFilterContext *ctx, avfilter_action_func *func,
                           void *arg, int *ret, int nb_jobs)
 {
-    ThreadContext *c = fffiltergraph(ctx->graph)->thread;
+    ThreadContext *c = ctx->graph->internal->thread;
 
     if (nb_jobs <= 0)
         return 0;
@@ -79,9 +80,8 @@ static int thread_init_internal(ThreadContext *c, int nb_threads)
     return FFMAX(nb_threads, 1);
 }
 
-int ff_graph_thread_init(FFFilterGraph *graphi)
+int ff_graph_thread_init(AVFilterGraph *graph)
 {
-    AVFilterGraph *graph = &graphi->p;
     int ret;
 
     if (graph->nb_threads == 1) {
@@ -89,27 +89,27 @@ int ff_graph_thread_init(FFFilterGraph *graphi)
         return 0;
     }
 
-    graphi->thread = av_mallocz(sizeof(ThreadContext));
-    if (!graphi->thread)
+    graph->internal->thread = av_mallocz(sizeof(ThreadContext));
+    if (!graph->internal->thread)
         return AVERROR(ENOMEM);
 
-    ret = thread_init_internal(graphi->thread, graph->nb_threads);
+    ret = thread_init_internal(graph->internal->thread, graph->nb_threads);
     if (ret <= 1) {
-        av_freep(&graphi->thread);
+        av_freep(&graph->internal->thread);
         graph->thread_type = 0;
         graph->nb_threads  = 1;
         return (ret < 0) ? ret : 0;
     }
     graph->nb_threads = ret;
 
-    graphi->thread_execute = thread_execute;
+    graph->internal->thread_execute = thread_execute;
 
     return 0;
 }
 
-void ff_graph_thread_free(FFFilterGraph *graph)
+void ff_graph_thread_free(AVFilterGraph *graph)
 {
-    if (graph->thread)
-        slice_thread_uninit(graph->thread);
-    av_freep(&graph->thread);
+    if (graph->internal->thread)
+        slice_thread_uninit(graph->internal->thread);
+    av_freep(&graph->internal->thread);
 }

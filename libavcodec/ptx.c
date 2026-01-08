@@ -21,9 +21,10 @@
 
 #include "libavutil/common.h"
 #include "libavutil/intreadwrite.h"
+#include "libavutil/imgutils.h"
 #include "avcodec.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 
 static int ptx_decode_frame(AVCodecContext *avctx, AVFrame *p,
                             int *got_frame, AVPacket *avpkt)
@@ -87,7 +88,7 @@ static int ptx_decode_frame(AVCodecContext *avctx, AVFrame *p,
 
 const FFCodec ff_ptx_decoder = {
     .p.name         = "ptx",
-    CODEC_LONG_NAME("V.Flash PTX image"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("V.Flash PTX image"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_PTX,
     .p.capabilities = AV_CODEC_CAP_DR1,

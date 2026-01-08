@@ -38,7 +38,6 @@
 #include "hwcontext_drm.h"
 #include "hwcontext_internal.h"
 #include "imgutils.h"
-#include "mem.h"
 
 
 static void drm_device_free(AVHWDeviceContext *hwdev)

@@ -20,7 +20,6 @@
  */
 
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "voc.h"
 #include "libavutil/intreadwrite.h"
@@ -186,9 +185,9 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-const FFInputFormat ff_c93_demuxer = {
-    .p.name         = "c93",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Interplay C93"),
+const AVInputFormat ff_c93_demuxer = {
+    .name           = "c93",
+    .long_name      = NULL_IF_CONFIG_SMALL("Interplay C93"),
     .priv_data_size = sizeof(C93DemuxContext),
     .read_probe     = probe,
     .read_header    = read_header,

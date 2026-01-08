@@ -23,7 +23,6 @@
 
 #include "avformat.h"
 #include "avio.h"
-#include "demux.h"
 #include "internal.h"
 
 typedef struct SMUSHContext {
@@ -242,9 +241,9 @@ static int smush_read_packet(AVFormatContext *ctx, AVPacket *pkt)
     return 0;
 }
 
-const FFInputFormat ff_smush_demuxer = {
-    .p.name         = "smush",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("LucasArts Smush"),
+const AVInputFormat ff_smush_demuxer = {
+    .name           = "smush",
+    .long_name      = NULL_IF_CONFIG_SMALL("LucasArts Smush"),
     .priv_data_size = sizeof(SMUSHContext),
     .read_probe     = smush_read_probe,
     .read_header    = smush_read_header,

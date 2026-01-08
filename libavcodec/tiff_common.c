@@ -26,7 +26,6 @@
  */
 
 #include "libavutil/bprint.h"
-#include "libavutil/mem.h"
 #include "tiff_common.h"
 
 

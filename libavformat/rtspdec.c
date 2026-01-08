@@ -24,11 +24,9 @@
 #include "libavutil/avstring.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/mathematics.h"
-#include "libavutil/mem.h"
 #include "libavutil/random_seed.h"
 #include "libavutil/time.h"
 #include "avformat.h"
-#include "demux.h"
 
 #include "internal.h"
 #include "network.h"
@@ -305,7 +303,7 @@ static int rtsp_read_setup(AVFormatContext *s, char* host, char *controlurl)
         rtsp_st->interleaved_min = request.transports[0].interleaved_min;
         rtsp_st->interleaved_max = request.transports[0].interleaved_max;
         snprintf(responseheaders, sizeof(responseheaders), "Transport: "
-                 "RTP/AVP/TCP;unicast;mode=record;interleaved=%d-%d"
+                 "RTP/AVP/TCP;unicast;mode=receive;interleaved=%d-%d"
                  "\r\n", request.transports[0].interleaved_min,
                  request.transports[0].interleaved_max);
     } else {
@@ -335,7 +333,7 @@ static int rtsp_read_setup(AVFormatContext *s, char* host, char *controlurl)
 
         localport = ff_rtp_get_local_rtp_port(rtsp_st->rtp_handle);
         snprintf(responseheaders, sizeof(responseheaders), "Transport: "
-                 "RTP/AVP/UDP;unicast;mode=record;source=%s;"
+                 "RTP/AVP/UDP;unicast;mode=receive;source=%s;"
                  "client_port=%d-%d;server_port=%d-%d\r\n",
                  host, request.transports[0].client_port_min,
                  request.transports[0].client_port_max, localport,
@@ -994,17 +992,17 @@ static const AVClass rtsp_demuxer_class = {
     .version        = LIBAVUTIL_VERSION_INT,
 };
 
-const FFInputFormat ff_rtsp_demuxer = {
-    .p.name         = "rtsp",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("RTSP input"),
-    .p.flags        = AVFMT_NOFILE,
-    .p.priv_class   = &rtsp_demuxer_class,
+const AVInputFormat ff_rtsp_demuxer = {
+    .name           = "rtsp",
+    .long_name      = NULL_IF_CONFIG_SMALL("RTSP input"),
     .priv_data_size = sizeof(RTSPState),
     .read_probe     = rtsp_probe,
     .read_header    = rtsp_read_header,
     .read_packet    = rtsp_read_packet,
     .read_close     = rtsp_read_close,
     .read_seek      = rtsp_read_seek,
+    .flags          = AVFMT_NOFILE,
     .read_play      = rtsp_read_play,
     .read_pause     = rtsp_read_pause,
+    .priv_class     = &rtsp_demuxer_class,
 };

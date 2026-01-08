@@ -33,20 +33,21 @@
 
 #include <math.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include "libavutil/channel_layout.h"
 #include "libavutil/mem_internal.h"
 #include "libavutil/thread.h"
-#include "libavutil/tx.h"
 
 #define BITSTREAM_READER_LE
 #include "avcodec.h"
 #include "get_bits.h"
 #include "bytestream.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 #include "mpegaudio.h"
 #include "mpegaudiodsp.h"
+#include "rdft.h"
 
 #include "qdm2_tablegen.h"
 
@@ -96,9 +97,14 @@ typedef struct QDM2SubPNode {
     struct QDM2SubPNode *next; ///< pointer to next packet in the list, NULL if leaf node
 } QDM2SubPNode;
 
+typedef struct QDM2Complex {
+    float re;
+    float im;
+} QDM2Complex;
+
 typedef struct FFTTone {
     float level;
-    AVComplexFloat *complex;
+    QDM2Complex *complex;
     const float *table;
     int   phase;
     int   phase_shift;
@@ -116,8 +122,7 @@ typedef struct FFTCoefficient {
 } FFTCoefficient;
 
 typedef struct QDM2FFT {
-    DECLARE_ALIGNED(32, AVComplexFloat, complex)[MPA_MAX_CHANNELS][256 + 1];
-    DECLARE_ALIGNED(32, AVComplexFloat, temp)[MPA_MAX_CHANNELS][256];
+    DECLARE_ALIGNED(32, QDM2Complex, complex)[MPA_MAX_CHANNELS][256];
 } QDM2FFT;
 
 /**
@@ -157,8 +162,7 @@ typedef struct QDM2Context {
     int fft_coefs_min_index[5];
     int fft_coefs_max_index[5];
     int fft_level_exp[6];
-    AVTXContext *rdft_ctx;
-    av_tx_fn rdft_fn;
+    RDFTContext rdft_ctx;
     QDM2FFT fft;
 
     /// I/O data
@@ -1425,7 +1429,7 @@ static void qdm2_fft_generate_tone(QDM2Context *q, FFTTone *tone)
 {
     float level, f[6];
     int i;
-    AVComplexFloat c;
+    QDM2Complex c;
     const double iscale = 2.0 * M_PI / 512.0;
 
     tone->phase += tone->phase_shift;
@@ -1473,7 +1477,7 @@ static void qdm2_fft_tone_synthesizer(QDM2Context *q, int sub_packet)
     const double iscale = 0.25 * M_PI;
 
     for (ch = 0; ch < q->channels; ch++) {
-        memset(q->fft.complex[ch], 0, q->fft_size * sizeof(AVComplexFloat));
+        memset(q->fft.complex[ch], 0, q->fft_size * sizeof(QDM2Complex));
     }
 
 
@@ -1481,7 +1485,7 @@ static void qdm2_fft_tone_synthesizer(QDM2Context *q, int sub_packet)
     if (q->fft_coefs_min_index[4] >= 0)
         for (i = q->fft_coefs_min_index[4]; i < q->fft_coefs_max_index[4]; i++) {
             float level;
-            AVComplexFloat c;
+            QDM2Complex c;
 
             if (q->fft_coefs[i].sub_packet != sub_packet)
                 break;
@@ -1542,19 +1546,14 @@ static void qdm2_calculate_fft(QDM2Context *q, int channel, int sub_packet)
 {
     const float gain = (q->channels == 1 && q->nb_channels == 2) ? 0.5f : 1.0f;
     float *out       = q->output_buffer + channel;
-
+    int i;
     q->fft.complex[channel][0].re *= 2.0f;
     q->fft.complex[channel][0].im  = 0.0f;
-    q->fft.complex[channel][q->fft_size].re = 0.0f;
-    q->fft.complex[channel][q->fft_size].im = 0.0f;
-
-    q->rdft_fn(q->rdft_ctx, q->fft.temp[channel], q->fft.complex[channel],
-               sizeof(AVComplexFloat));
-
+    q->rdft_ctx.rdft_calc(&q->rdft_ctx, (FFTSample *)q->fft.complex[channel]);
     /* add samples to output buffer */
-    for (int i = 0; i < FFALIGN(q->fft_size, 8); i++) {
-        out[0]           += q->fft.temp[channel][i].re * gain;
-        out[q->channels] += q->fft.temp[channel][i].im * gain;
+    for (i = 0; i < FFALIGN(q->fft_size, 8); i++) {
+        out[0]           += q->fft.complex[channel][i].re * gain;
+        out[q->channels] += q->fft.complex[channel][i].im * gain;
         out              += 2 * q->channels;
     }
 }
@@ -1615,8 +1614,7 @@ static av_cold int qdm2_decode_init(AVCodecContext *avctx)
 {
     static AVOnce init_static_once = AV_ONCE_INIT;
     QDM2Context *s = avctx->priv_data;
-    int ret, tmp_val, tmp, size;
-    float scale = 1.0f / 2.0f;
+    int tmp_val, tmp, size;
     GetByteContext gb;
 
     /* extradata parsing
@@ -1759,10 +1757,7 @@ static av_cold int qdm2_decode_init(AVCodecContext *avctx)
         return AVERROR_INVALIDDATA;
     }
 
-    ret = av_tx_init(&s->rdft_ctx, &s->rdft_fn, AV_TX_FLOAT_RDFT, 1, 2*s->fft_size, &scale, 0);
-    if (ret < 0)
-        return ret;
-
+    ff_rdft_init(&s->rdft_ctx, s->fft_order, IDFT_C2R);
     ff_mpadsp_init(&s->mpadsp);
 
     avctx->sample_fmt = AV_SAMPLE_FMT_S16;
@@ -1776,7 +1771,7 @@ static av_cold int qdm2_decode_close(AVCodecContext *avctx)
 {
     QDM2Context *s = avctx->priv_data;
 
-    av_tx_uninit(&s->rdft_ctx);
+    ff_rdft_end(&s->rdft_ctx);
 
     return 0;
 }
@@ -1876,7 +1871,7 @@ static int qdm2_decode_frame(AVCodecContext *avctx, AVFrame *frame,
 
 const FFCodec ff_qdm2_decoder = {
     .p.name           = "qdm2",
-    CODEC_LONG_NAME("QDesign Music Codec 2"),
+    .p.long_name      = NULL_IF_CONFIG_SMALL("QDesign Music Codec 2"),
     .p.type           = AVMEDIA_TYPE_AUDIO,
     .p.id             = AV_CODEC_ID_QDM2,
     .priv_data_size   = sizeof(QDM2Context),
@@ -1884,4 +1879,5 @@ const FFCodec ff_qdm2_decoder = {
     .close            = qdm2_decode_close,
     FF_CODEC_DECODE_CB(qdm2_decode_frame),
     .p.capabilities   = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_CHANNEL_CONF,
+    .caps_internal    = FF_CODEC_CAP_INIT_THREADSAFE,
 };

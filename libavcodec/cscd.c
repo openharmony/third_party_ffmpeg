@@ -18,11 +18,13 @@
  * License along with FFmpeg; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "avcodec.h"
 #include "codec_internal.h"
-#include "decode.h"
-#include "libavutil/mem.h"
+#include "internal.h"
+#include "libavutil/common.h"
 
 #if CONFIG_ZLIB
 #include <zlib.h>
@@ -113,12 +115,12 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *rframe,
     // flip upside down, add difference frame
     if (buf[0] & 1) { // keyframe
         c->pic->pict_type = AV_PICTURE_TYPE_I;
-        c->pic->flags |= AV_FRAME_FLAG_KEY;
+        c->pic->key_frame = 1;
               copy_frame_default(c->pic, c->decomp_buf,
                                  c->linelen, c->height);
     } else {
         c->pic->pict_type = AV_PICTURE_TYPE_P;
-        c->pic->flags &= ~AV_FRAME_FLAG_KEY;
+        c->pic->key_frame = 0;
               add_frame_default(c->pic, c->decomp_buf,
                                 c->linelen, c->height);
     }
@@ -170,7 +172,7 @@ static av_cold int decode_end(AVCodecContext *avctx)
 
 const FFCodec ff_cscd_decoder = {
     .p.name         = "camstudio",
-    CODEC_LONG_NAME("CamStudio"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("CamStudio"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_CSCD,
     .priv_data_size = sizeof(CamStudioContext),
@@ -178,5 +180,5 @@ const FFCodec ff_cscd_decoder = {
     .close          = decode_end,
     FF_CODEC_DECODE_CB(decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
 };

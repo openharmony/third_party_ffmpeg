@@ -22,10 +22,15 @@
 
 %include "libavutil/x86/x86util.asm"
 
+SECTION_RODATA
+
+pb_128: times 16 db 128
+pb_128_0 : times 8 db 0, 128
+
 SECTION .text
 
-;%1 depth (8 or 16) ; %2 b or w
-%macro THRESHOLD 2
+;%1 depth (8 or 16) ; %2 b or w ; %3 constant
+%macro THRESHOLD 3
 %if ARCH_X86_64
 cglobal threshold%1, 10, 13, 5, in, threshold, min, max, out, ilinesize, tlinesize, flinesize, slinesize, olinesize, w, h, x
     mov             wd, dword wm
@@ -40,6 +45,7 @@ cglobal threshold%1, 5, 7, 5, in, threshold, min, max, out, w, x
 %define     olinesizeq  r9mp
 %define             hd  r11mp
 %endif
+    VBROADCASTI128  m4, [%3]
 %if %1 == 16
     add             wq, wq ; w *= 2 (16 bits instead of 8)
 %endif
@@ -57,8 +63,9 @@ cglobal threshold%1, 5, 7, 5, in, threshold, min, max, out, w, x
         movu            m0, [thresholdq + xq]
         movu            m2, [minq + xq]
         movu            m3, [maxq + xq]
-        pminu%2         m0, m1
-        pcmpeq%2        m0, m1
+        pxor            m0, m4
+        pxor            m1, m4
+        pcmpgt%2        m0, m1
         PBLENDVB        m3, m2, m0
         movu   [outq + xq], m3
         add             xq, mmsize
@@ -75,11 +82,11 @@ RET
 %endmacro
 
 INIT_XMM sse4
-THRESHOLD 8, b
-THRESHOLD 16, w
+THRESHOLD 8, b, pb_128
+THRESHOLD 16, w, pb_128_0
 
 %if HAVE_AVX2_EXTERNAL
 INIT_YMM avx2
-THRESHOLD 8, b
-THRESHOLD 16, w
+THRESHOLD 8, b, pb_128
+THRESHOLD 16, w, pb_128_0
 %endif

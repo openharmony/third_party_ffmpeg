@@ -29,12 +29,13 @@
 #include "codec_internal.h"
 #include "decode.h"
 #include "get_bits.h"
+#include "internal.h"
 #include "raw.h"
 #include "libavutil/avassert.h"
 #include "libavutil/buffer.h"
+#include "libavutil/common.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/imgutils.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 
 typedef struct RawVideoContext {
@@ -225,14 +226,19 @@ static int raw_decode(AVCodecContext *avctx, AVFrame *frame,
 
     need_copy = !avpkt->buf || context->is_1_2_4_8_bpp || context->is_yuv2 || context->is_lt_16bpp;
 
+    frame->pict_type        = AV_PICTURE_TYPE_I;
+    frame->key_frame        = 1;
+
     res = ff_decode_frame_props(avctx, frame);
     if (res < 0)
         return res;
 
+    frame->pkt_pos      = avctx->internal->last_pkt_props->pos;
+    frame->pkt_duration = avctx->internal->last_pkt_props->duration;
+
     if (context->tff >= 0) {
-        frame->flags |= AV_FRAME_FLAG_INTERLACED;
-        if (context->tff == 1)
-            frame->flags |= AV_FRAME_FLAG_TOP_FIELD_FIRST;
+        frame->interlaced_frame = 1;
+        frame->top_field_first  = context->tff;
     }
 
     if ((res = av_image_check_size(avctx->width, avctx->height, 0, avctx)) < 0)
@@ -369,11 +375,7 @@ static int raw_decode(AVCodecContext *avctx, AVFrame *frame,
         }
 
         if (ff_copy_palette(context->palette->data, avpkt, avctx)) {
-#if FF_API_PALETTE_HAS_CHANGED
-FF_DISABLE_DEPRECATION_WARNINGS
             frame->palette_has_changed = 1;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
         } else if (context->is_nut_pal8) {
             int vid_size = avctx->width * avctx->height;
             int pal_size = avpkt->size - vid_size;
@@ -381,11 +383,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             if (avpkt->size > vid_size && pal_size <= AVPALETTE_SIZE) {
                 const uint8_t *pal = avpkt->data + vid_size;
                 memcpy(context->palette->data, pal, pal_size);
-#if FF_API_PALETTE_HAS_CHANGED
-FF_DISABLE_DEPRECATION_WARNINGS
                 frame->palette_has_changed = 1;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
             }
         }
     }
@@ -464,9 +462,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
     }
 
     if (avctx->field_order > AV_FIELD_PROGRESSIVE) { /* we have interlaced material flagged in container */
-        frame->flags |= AV_FRAME_FLAG_INTERLACED;
+        frame->interlaced_frame = 1;
         if (avctx->field_order == AV_FIELD_TT || avctx->field_order == AV_FIELD_TB)
-            frame->flags |= AV_FRAME_FLAG_TOP_FIELD_FIRST;
+            frame->top_field_first = 1;
     }
 
     *got_frame = 1;
@@ -484,7 +482,7 @@ static av_cold int raw_close_decoder(AVCodecContext *avctx)
 
 const FFCodec ff_rawvideo_decoder = {
     .p.name         = "rawvideo",
-    CODEC_LONG_NAME("raw video"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("raw video"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_RAWVIDEO,
     .priv_data_size = sizeof(RawVideoContext),
@@ -493,4 +491,5 @@ const FFCodec ff_rawvideo_decoder = {
     FF_CODEC_DECODE_CB(raw_decode),
     .p.priv_class   = &rawdec_class,
     .p.capabilities = AV_CODEC_CAP_PARAM_CHANGE,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

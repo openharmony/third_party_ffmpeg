@@ -28,8 +28,8 @@
 #include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
 #include "avfilter.h"
-#include "filters.h"
 #include "formats.h"
+#include "internal.h"
 #include "video.h"
 
 typedef struct FieldOrderContext {
@@ -76,11 +76,11 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
     uint8_t *dst, *src;
     AVFrame *out;
 
-    if (!(frame->flags & AV_FRAME_FLAG_INTERLACED) ||
-        !!(frame->flags & AV_FRAME_FLAG_TOP_FIELD_FIRST) == s->dst_tff) {
+    if (!frame->interlaced_frame ||
+        frame->top_field_first == s->dst_tff) {
         av_log(ctx, AV_LOG_VERBOSE,
                "Skipping %s.\n",
-               (frame->flags & AV_FRAME_FLAG_INTERLACED) ?
+               frame->interlaced_frame ?
                "frame with same field order" : "progressive frame");
         return ff_filter_frame(outlink, frame);
     }
@@ -140,15 +140,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
             }
         }
     }
-#if FF_API_INTERLACED_FRAME
-FF_DISABLE_DEPRECATION_WARNINGS
     out->top_field_first = s->dst_tff;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
-    if (s->dst_tff)
-        out->flags |= AV_FRAME_FLAG_TOP_FIELD_FIRST;
-    else
-        out->flags &= ~AV_FRAME_FLAG_TOP_FIELD_FIRST;
 
     if (frame != out)
         av_frame_free(&frame);
@@ -159,7 +151,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 #define FLAGS AV_OPT_FLAG_FILTERING_PARAM|AV_OPT_FLAG_VIDEO_PARAM
 
 static const AVOption fieldorder_options[] = {
-    { "order", "output field order", OFFSET(dst_tff), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS, .unit = "order" },
+    { "order", "output field order", OFFSET(dst_tff), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS, "order" },
         { "bff", "bottom field first", 0, AV_OPT_TYPE_CONST, { .i64 = 0 }, .flags=FLAGS, .unit = "order" },
         { "tff", "top field first",    0, AV_OPT_TYPE_CONST, { .i64 = 1 }, .flags=FLAGS, .unit = "order" },
     { NULL }
@@ -176,13 +168,20 @@ static const AVFilterPad avfilter_vf_fieldorder_inputs[] = {
     },
 };
 
+static const AVFilterPad avfilter_vf_fieldorder_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 const AVFilter ff_vf_fieldorder = {
     .name          = "fieldorder",
     .description   = NULL_IF_CONFIG_SMALL("Set the field order."),
     .priv_size     = sizeof(FieldOrderContext),
     .priv_class    = &fieldorder_class,
     FILTER_INPUTS(avfilter_vf_fieldorder_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(avfilter_vf_fieldorder_outputs),
     FILTER_QUERY_FUNC(query_formats),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 };

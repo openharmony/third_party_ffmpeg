@@ -20,7 +20,6 @@
  */
 
 #include "libavutil/intreadwrite.h"
-#include "demux.h"
 #include "voc.h"
 #include "internal.h"
 
@@ -101,13 +100,13 @@ static int voc_read_seek(AVFormatContext *s, int stream_index,
     return -1;
 }
 
-const FFInputFormat ff_voc_demuxer = {
-    .p.name         = "voc",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Creative Voice"),
-    .p.codec_tag    = ff_voc_codec_tags_list,
+const AVInputFormat ff_voc_demuxer = {
+    .name           = "voc",
+    .long_name      = NULL_IF_CONFIG_SMALL("Creative Voice"),
     .priv_data_size = sizeof(VocDecContext),
     .read_probe     = voc_probe,
     .read_header    = voc_read_header,
     .read_packet    = voc_read_packet,
     .read_seek      = voc_read_seek,
+    .codec_tag      = ff_voc_codec_tags_list,
 };

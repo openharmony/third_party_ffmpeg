@@ -21,7 +21,6 @@
 
 #include "libavcodec/internal.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "pcm.h"
 
@@ -66,13 +65,13 @@ static int pvf_read_header(AVFormatContext *s)
     return 0;
 }
 
-const FFInputFormat ff_pvf_demuxer = {
-    .p.name         = "pvf",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("PVF (Portable Voice Format)"),
-    .p.extensions   = "pvf",
-    .p.flags        = AVFMT_GENERIC_INDEX,
+const AVInputFormat ff_pvf_demuxer = {
+    .name           = "pvf",
+    .long_name      = NULL_IF_CONFIG_SMALL("PVF (Portable Voice Format)"),
     .read_probe     = pvf_probe,
     .read_header    = pvf_read_header,
     .read_packet    = ff_pcm_read_packet,
     .read_seek      = ff_pcm_read_seek,
+    .extensions     = "pvf",
+    .flags          = AVFMT_GENERIC_INDEX,
 };

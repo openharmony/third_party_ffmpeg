@@ -20,7 +20,6 @@
  */
 #include "libavutil/opt.h"
 #include "avformat.h"
-#include "mux.h"
 
 /* Multipart JPEG */
 
@@ -62,18 +61,16 @@ static const AVClass mpjpeg_muxer_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const FFOutputFormat ff_mpjpeg_muxer = {
-    .p.name            = "mpjpeg",
-    .p.long_name       = NULL_IF_CONFIG_SMALL("MIME multipart JPEG"),
-    .p.mime_type       = "multipart/x-mixed-replace;boundary=" BOUNDARY_TAG,
-    .p.extensions      = "mjpg",
+const AVOutputFormat ff_mpjpeg_muxer = {
+    .name              = "mpjpeg",
+    .long_name         = NULL_IF_CONFIG_SMALL("MIME multipart JPEG"),
+    .mime_type         = "multipart/x-mixed-replace;boundary=" BOUNDARY_TAG,
+    .extensions        = "mjpg",
     .priv_data_size    = sizeof(MPJPEGContext),
-    .p.audio_codec     = AV_CODEC_ID_NONE,
-    .p.video_codec     = AV_CODEC_ID_MJPEG,
-    .p.subtitle_codec  = AV_CODEC_ID_NONE,
-    .flags_internal    = FF_OFMT_FLAG_ONLY_DEFAULT_CODECS,
+    .audio_codec       = AV_CODEC_ID_NONE,
+    .video_codec       = AV_CODEC_ID_MJPEG,
     .write_header      = mpjpeg_write_header,
     .write_packet      = mpjpeg_write_packet,
-    .p.flags           = AVFMT_NOTIMESTAMPS,
-    .p.priv_class      = &mpjpeg_muxer_class,
+    .flags             = AVFMT_NOTIMESTAMPS,
+    .priv_class        = &mpjpeg_muxer_class,
 };

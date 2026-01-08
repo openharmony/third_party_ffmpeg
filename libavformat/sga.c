@@ -25,7 +25,6 @@
 #include "libavutil/channel_layout.h"
 #include "libavutil/internal.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "avio_internal.h"
 
@@ -467,14 +466,14 @@ static int sga_seek(AVFormatContext *s, int stream_index,
     return -1;
 }
 
-const FFInputFormat ff_sga_demuxer = {
-    .p.name         = "sga",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Digital Pictures SGA"),
-    .p.extensions   = "sga",
-    .p.flags        = AVFMT_GENERIC_INDEX,
+const AVInputFormat ff_sga_demuxer = {
+    .name           = "sga",
+    .long_name      = NULL_IF_CONFIG_SMALL("Digital Pictures SGA"),
     .priv_data_size = sizeof(SGADemuxContext),
     .read_probe     = sga_probe,
     .read_header    = sga_read_header,
     .read_packet    = sga_read_packet,
     .read_seek      = sga_seek,
+    .extensions     = "sga",
+    .flags          = AVFMT_GENERIC_INDEX,
 };

@@ -97,7 +97,7 @@ ALIGN 16
     inc    xq
     jl .loop
     je .loop2
-    RET
+    REP_RET
 %endmacro ; HQDN3D_ROW
 
 HQDN3D_ROW 8

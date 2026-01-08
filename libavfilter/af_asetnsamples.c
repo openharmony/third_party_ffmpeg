@@ -29,6 +29,8 @@
 #include "avfilter.h"
 #include "audio.h"
 #include "filters.h"
+#include "internal.h"
+#include "formats.h"
 
 typedef struct ASNSContext {
     const AVClass *class;
@@ -37,7 +39,7 @@ typedef struct ASNSContext {
 } ASNSContext;
 
 #define OFFSET(x) offsetof(ASNSContext, x)
-#define FLAGS AV_OPT_FLAG_AUDIO_PARAM|AV_OPT_FLAG_FILTERING_PARAM|AV_OPT_FLAG_RUNTIME_PARAM
+#define FLAGS AV_OPT_FLAG_AUDIO_PARAM|AV_OPT_FLAG_FILTERING_PARAM
 
 static const AVOption asetnsamples_options[] = {
     { "nb_out_samples", "set the number of per-frame output samples", OFFSET(nb_out_samples), AV_OPT_TYPE_INT, {.i64=1024}, 1, INT_MAX, FLAGS },
@@ -59,15 +61,12 @@ static int activate(AVFilterContext *ctx)
 
     FF_FILTER_FORWARD_STATUS_BACK(outlink, inlink);
 
-    if (ctx->is_disabled)
-        ret = ff_inlink_consume_frame(inlink, &frame);
-    else
-        ret = ff_inlink_consume_samples(inlink, s->nb_out_samples, s->nb_out_samples, &frame);
+    ret = ff_inlink_consume_samples(inlink, s->nb_out_samples, s->nb_out_samples, &frame);
     if (ret < 0)
         return ret;
 
     if (ret > 0) {
-        if (!s->pad || ctx->is_disabled || frame->nb_samples == s->nb_out_samples)
+        if (!s->pad || frame->nb_samples == s->nb_out_samples)
             return ff_filter_frame(outlink, frame);
 
         pad_frame = ff_get_audio_buffer(outlink, s->nb_out_samples);
@@ -102,14 +101,26 @@ static int activate(AVFilterContext *ctx)
     return FFERROR_NOT_READY;
 }
 
+static const AVFilterPad asetnsamples_inputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_AUDIO,
+    },
+};
+
+static const AVFilterPad asetnsamples_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_AUDIO,
+    },
+};
+
 const AVFilter ff_af_asetnsamples = {
     .name        = "asetnsamples",
     .description = NULL_IF_CONFIG_SMALL("Set the number of samples for each output audio frames."),
     .priv_size   = sizeof(ASNSContext),
     .priv_class  = &asetnsamples_class,
-    FILTER_INPUTS(ff_audio_default_filterpad),
-    FILTER_OUTPUTS(ff_audio_default_filterpad),
+    FILTER_INPUTS(asetnsamples_inputs),
+    FILTER_OUTPUTS(asetnsamples_outputs),
     .activate    = activate,
-    .flags       = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
-    .process_command = ff_filter_process_command,
 };

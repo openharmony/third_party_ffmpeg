@@ -31,11 +31,9 @@
  */
 
 #include <stdint.h>
-#include <string.h>
 
 #include "bswap.h"
 #include "intreadwrite.h"
-#include "macros.h"
 #include "mem.h"
 #include "md5.h"
 

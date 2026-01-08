@@ -60,6 +60,7 @@
 #include "sbr.h"
 #include "aacsbr.h"
 #include "aacsbrdata.h"
+#include "fft.h"
 #include "aacps.h"
 #include "sbrdsp.h"
 #include "libavutil/internal.h"
@@ -70,6 +71,7 @@
 #include <float.h>
 #include <math.h>
 
+static VLC vlc_sbr[10];
 static void aacsbr_func_ptr_init(AACSBRContext *c);
 static const int CONST_LN2       = Q31(0.6931471806/256);  // ln(2)/256
 static const int CONST_RECIP_LN2 = Q31(0.7213475204);      // 0.5/ln(2)
@@ -394,7 +396,7 @@ static void sbr_chirp(SpectralBandReplication *sbr, SBRData *ch_data)
  * Calculation of levels of additional HF signal components (14496-3 sp04 p219)
  * and Calculation of gain (14496-3 sp04 p219)
  */
-static void sbr_gain_calc(SpectralBandReplication *sbr,
+static void sbr_gain_calc(AACContext *ac, SpectralBandReplication *sbr,
                           SBRData *ch_data, const int e_a[2])
 {
     int e, k, m;

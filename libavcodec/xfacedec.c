@@ -24,9 +24,11 @@
  * X-Face decoder, based on libcompface, by James Ashton.
  */
 
+#include "libavutil/pixdesc.h"
 #include "avcodec.h"
+#include "bytestream.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 #include "xface.h"
 
 static int pop_integer(BigInt *b, const ProbRange *pranges)
@@ -175,11 +177,13 @@ static int xface_decode_frame(AVCodecContext *avctx, AVFrame *frame,
 
 const FFCodec ff_xface_decoder = {
     .p.name         = "xface",
-    CODEC_LONG_NAME("X-face image"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("X-face image"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_XFACE,
     .p.capabilities = AV_CODEC_CAP_DR1,
     .priv_data_size = sizeof(XFaceContext),
     .init           = xface_decode_init,
     FF_CODEC_DECODE_CB(xface_decode_frame),
+    .p.pix_fmts     = (const enum AVPixelFormat[]) { AV_PIX_FMT_MONOWHITE, AV_PIX_FMT_NONE },
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

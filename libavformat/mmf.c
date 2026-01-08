@@ -24,9 +24,7 @@
 #include "libavutil/channel_layout.h"
 #include "avformat.h"
 #include "avio_internal.h"
-#include "demux.h"
 #include "internal.h"
-#include "mux.h"
 #include "pcm.h"
 #include "rawenc.h"
 #include "riff.h"
@@ -299,29 +297,26 @@ static int mmf_read_packet(AVFormatContext *s, AVPacket *pkt)
 }
 
 #if CONFIG_MMF_DEMUXER
-const FFInputFormat ff_mmf_demuxer = {
-    .p.name         = "mmf",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Yamaha SMAF"),
-    .p.flags        = AVFMT_GENERIC_INDEX,
+const AVInputFormat ff_mmf_demuxer = {
+    .name           = "mmf",
+    .long_name      = NULL_IF_CONFIG_SMALL("Yamaha SMAF"),
     .priv_data_size = sizeof(MMFContext),
     .read_probe     = mmf_probe,
     .read_header    = mmf_read_header,
     .read_packet    = mmf_read_packet,
+    .flags          = AVFMT_GENERIC_INDEX,
 };
 #endif
 
 #if CONFIG_MMF_MUXER
-const FFOutputFormat ff_mmf_muxer = {
-    .p.name         = "mmf",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Yamaha SMAF"),
-    .p.mime_type    = "application/vnd.smaf",
-    .p.extensions   = "mmf",
+const AVOutputFormat ff_mmf_muxer = {
+    .name           = "mmf",
+    .long_name      = NULL_IF_CONFIG_SMALL("Yamaha SMAF"),
+    .mime_type      = "application/vnd.smaf",
+    .extensions     = "mmf",
     .priv_data_size = sizeof(MMFContext),
-    .p.audio_codec  = AV_CODEC_ID_ADPCM_YAMAHA,
-    .p.video_codec  = AV_CODEC_ID_NONE,
-    .p.subtitle_codec = AV_CODEC_ID_NONE,
-    .flags_internal   = FF_OFMT_FLAG_MAX_ONE_OF_EACH |
-                        FF_OFMT_FLAG_ONLY_DEFAULT_CODECS,
+    .audio_codec    = AV_CODEC_ID_ADPCM_YAMAHA,
+    .video_codec    = AV_CODEC_ID_NONE,
     .write_header   = mmf_write_header,
     .write_packet   = ff_raw_write_packet,
     .write_trailer  = mmf_write_trailer,

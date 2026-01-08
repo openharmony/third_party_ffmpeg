@@ -26,6 +26,8 @@
  * @see http://wiki.multimedia.cx/index.php?title=RL2
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "libavutil/internal.h"
@@ -33,7 +35,7 @@
 #include "libavutil/mem.h"
 #include "avcodec.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 
 
 #define EXTRADATA1_SIZE (6 + 256 * 3) ///< video base, clr count, palette
@@ -57,27 +59,25 @@ typedef struct Rl2Context {
  * @param video_base offset of the rle data inside the frame
  */
 static void rl2_rle_decode(Rl2Context *s, const uint8_t *in, int size,
-                           uint8_t *out, ptrdiff_t stride, int video_base)
+                               uint8_t *out, int stride, int video_base)
 {
     int base_x = video_base % s->avctx->width;
     int base_y = video_base / s->avctx->width;
-    ptrdiff_t stride_adj = stride - s->avctx->width;
+    int stride_adj = stride - s->avctx->width;
+    int i;
     const uint8_t *back_frame = s->back_frame;
     const uint8_t *in_end     = in + size;
-    const uint8_t *out_end    = out + stride * s->avctx->height - stride_adj;
+    const uint8_t *out_end    = out + stride * s->avctx->height;
     uint8_t *line_end;
 
     /** copy start of the background frame */
-    if (s->back_frame) {
-        for (int i = 0; i <= base_y; i++) {
+    for (i = 0; i <= base_y; i++) {
+        if (s->back_frame)
             memcpy(out, back_frame, s->avctx->width);
-            out        += stride;
-            back_frame += s->avctx->width;
-        }
-        back_frame += base_x - s->avctx->width;
-    } else {
-        out += stride * (base_y + 1);
+        out        += stride;
+        back_frame += s->avctx->width;
     }
+    back_frame += base_x - s->avctx->width;
     line_end    = out - stride_adj;
     out        += base_x - stride;
 
@@ -91,47 +91,32 @@ static void rl2_rle_decode(Rl2Context *s, const uint8_t *in, int size,
             len = *in++;
             if (!len)
                 break;
-            val &= 0x7F;
         }
 
-        if (back_frame) {
-            if (!val) {
-                do {
-                    size_t copy = FFMIN(line_end - out, len);
-                    memcpy(out, back_frame, copy);
-                    out        += copy;
-                    back_frame += copy;
-                    len        -= copy;
-                    if (out == line_end) {
-                        if (out == out_end)
-                            return;
-                        out      += stride_adj;
-                        line_end += stride;
-                    }
-                } while (len > 0);
-                continue;
-            }
-            back_frame += len;
+        if (len >= out_end - out)
+            break;
+
+        if (s->back_frame)
             val |= 0x80;
-        }
+        else
+            val &= ~0x80;
 
         while (len--) {
-            *out++ = val;
+            *out++ = (val == 0x80) ? *back_frame : val;
+            back_frame++;
             if (out == line_end) {
-                if (out == out_end)
-                    return;
-                out      += stride_adj;
-                line_end += stride;
+                 out      += stride_adj;
+                 line_end += stride;
+                 if (len >= out_end - out)
+                     break;
             }
         }
     }
 
     /** copy the rest from the background frame */
     if (s->back_frame) {
-        while (1) {
+        while (out < out_end) {
             memcpy(out, back_frame, line_end - out);
-            if (line_end == out_end)
-                break;
             back_frame += line_end - out;
             out         = line_end + stride_adj;
             line_end   += stride;
@@ -182,9 +167,7 @@ static av_cold int rl2_decode_init(AVCodecContext *avctx)
     back_size = avctx->extradata_size - EXTRADATA1_SIZE;
 
     if (back_size > 0) {
-        /* The 254 are padding to ensure that pointer arithmetic stays within
-         * the buffer. */
-        uint8_t *back_frame = av_mallocz(avctx->width * avctx->height + 254);
+        uint8_t *back_frame = av_mallocz(avctx->width*avctx->height);
         if (!back_frame)
             return AVERROR(ENOMEM);
         rl2_rle_decode(s, avctx->extradata + EXTRADATA1_SIZE, back_size,
@@ -236,7 +219,7 @@ static av_cold int rl2_decode_end(AVCodecContext *avctx)
 
 const FFCodec ff_rl2_decoder = {
     .p.name         = "rl2",
-    CODEC_LONG_NAME("RL2 video"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("RL2 video"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_RL2,
     .priv_data_size = sizeof(Rl2Context),
@@ -244,4 +227,5 @@ const FFCodec ff_rl2_decoder = {
     .close          = rl2_decode_end,
     FF_CODEC_DECODE_CB(rl2_decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

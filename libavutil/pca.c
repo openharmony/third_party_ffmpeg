@@ -25,7 +25,6 @@
  */
 
 #include "common.h"
-#include "mem.h"
 #include "pca.h"
 
 typedef struct PCA{

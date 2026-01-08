@@ -33,7 +33,8 @@
 #include "libavutil/internal.h"
 #include "libavutil/opt.h"
 #include "avfilter.h"
-#include "filters.h"
+#include "formats.h"
+#include "internal.h"
 #include "video.h"
 
 typedef struct BlackFrameContext {
@@ -71,7 +72,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
         p += frame->linesize[0];
     }
 
-    if (frame->flags & AV_FRAME_FLAG_KEY)
+    if (frame->key_frame)
         s->last_keyframe = s->frame;
 
     pblack = s->nblack * 100 / (inlink->w * inlink->h);
@@ -114,6 +115,13 @@ static const AVFilterPad avfilter_vf_blackframe_inputs[] = {
     },
 };
 
+static const AVFilterPad avfilter_vf_blackframe_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO
+    },
+};
+
 const AVFilter ff_vf_blackframe = {
     .name          = "blackframe",
     .description   = NULL_IF_CONFIG_SMALL("Detect frames that are (almost) black."),
@@ -121,6 +129,6 @@ const AVFilter ff_vf_blackframe = {
     .priv_class    = &blackframe_class,
     .flags         = AVFILTER_FLAG_METADATA_ONLY,
     FILTER_INPUTS(avfilter_vf_blackframe_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(avfilter_vf_blackframe_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
 };

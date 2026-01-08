@@ -25,7 +25,6 @@
 
 #include "avformat.h"
 #include "avio_internal.h"
-#include "demux.h"
 #include "internal.h"
 #include "rawdec.h"
 #include "libavutil/intreadwrite.h"
@@ -96,17 +95,17 @@ static int mlp_probe(const AVProbeData *p)
     return mlp_thd_probe(p, 0xf8726fbb);
 }
 
-const FFInputFormat ff_mlp_demuxer = {
-    .p.name         = "mlp",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("raw MLP"),
-    .p.flags        = AVFMT_GENERIC_INDEX | AVFMT_NOTIMESTAMPS,
-    .p.extensions   = "mlp",
-    .p.priv_class   = &ff_raw_demuxer_class,
+const AVInputFormat ff_mlp_demuxer = {
+    .name           = "mlp",
+    .long_name      = NULL_IF_CONFIG_SMALL("raw MLP"),
     .read_probe     = mlp_probe,
     .read_header    = mlp_read_header,
     .read_packet    = ff_raw_read_partial_packet,
+    .flags          = AVFMT_GENERIC_INDEX | AVFMT_NOTIMESTAMPS,
+    .extensions     = "mlp",
     .raw_codec_id   = AV_CODEC_ID_MLP,
     .priv_data_size = sizeof(FFRawDemuxerContext),
+    .priv_class     = &ff_raw_demuxer_class,
 };
 #endif
 
@@ -116,16 +115,16 @@ static int thd_probe(const AVProbeData *p)
     return mlp_thd_probe(p, 0xf8726fba);
 }
 
-const FFInputFormat ff_truehd_demuxer = {
-    .p.name         = "truehd",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("raw TrueHD"),
-    .p.flags        = AVFMT_GENERIC_INDEX | AVFMT_NOTIMESTAMPS,
-    .p.extensions   = "thd",
-    .p.priv_class   = &ff_raw_demuxer_class,
+const AVInputFormat ff_truehd_demuxer = {
+    .name           = "truehd",
+    .long_name      = NULL_IF_CONFIG_SMALL("raw TrueHD"),
     .read_probe     = thd_probe,
     .read_header    = mlp_read_header,
     .read_packet    = ff_raw_read_partial_packet,
+    .flags          = AVFMT_GENERIC_INDEX | AVFMT_NOTIMESTAMPS,
+    .extensions     = "thd",
     .raw_codec_id   = AV_CODEC_ID_TRUEHD,
     .priv_data_size = sizeof(FFRawDemuxerContext),
+    .priv_class     = &ff_raw_demuxer_class,
 };
 #endif

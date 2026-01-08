@@ -10,4 +10,4 @@ OBJS = postprocess.o           \
        version.o               \
 
 # Windows resource file
-SHLIBOBJS-$(HAVE_GNU_WINDRES) += postprocres.o
+SLIBOBJS-$(HAVE_GNU_WINDRES) += postprocres.o

@@ -20,7 +20,6 @@
 
 #include "libavutil/imgutils.h"
 #include "libavutil/intreadwrite.h"
-#include "libavutil/mem.h"
 #include "libavcodec/dirac.h"
 #include "avformat.h"
 #include "internal.h"

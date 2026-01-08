@@ -20,12 +20,12 @@
 
 #include "libavutil/avassert.h"
 #include "libavutil/avstring.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/samplefmt.h"
 #include "avfilter.h"
 #include "audio.h"
 #include "filters.h"
+#include "internal.h"
 
 typedef struct AudioEchoContext {
     const AVClass *class;
@@ -328,6 +328,13 @@ static int activate(AVFilterContext *ctx)
     return request_frame(outlink);
 }
 
+static const AVFilterPad aecho_inputs[] = {
+    {
+        .name         = "default",
+        .type         = AVMEDIA_TYPE_AUDIO,
+    },
+};
+
 static const AVFilterPad aecho_outputs[] = {
     {
         .name          = "default",
@@ -344,7 +351,7 @@ const AVFilter ff_af_aecho = {
     .init          = init,
     .activate      = activate,
     .uninit        = uninit,
-    FILTER_INPUTS(ff_audio_default_filterpad),
+    FILTER_INPUTS(aecho_inputs),
     FILTER_OUTPUTS(aecho_outputs),
     FILTER_SAMPLEFMTS(AV_SAMPLE_FMT_S16P, AV_SAMPLE_FMT_S32P,
                       AV_SAMPLE_FMT_FLTP, AV_SAMPLE_FMT_DBLP),

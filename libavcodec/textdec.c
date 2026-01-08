@@ -82,7 +82,7 @@ static const AVClass textsub_decoder_class = {
 #if CONFIG_TEXT_DECODER
 const FFCodec ff_text_decoder = {
     .p.name         = "text",
-    CODEC_LONG_NAME("Raw text subtitle"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Raw text subtitle"),
     .priv_data_size = sizeof(TextContext),
     .p.type         = AVMEDIA_TYPE_SUBTITLE,
     .p.id           = AV_CODEC_ID_TEXT,
@@ -90,6 +90,7 @@ const FFCodec ff_text_decoder = {
     .init           = ff_ass_subtitle_header_default,
     .p.priv_class   = &textsub_decoder_class,
     .flush          = text_flush,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };
 #endif
 
@@ -105,7 +106,7 @@ static int linebreak_init(AVCodecContext *avctx)
 #if CONFIG_VPLAYER_DECODER
 const FFCodec ff_vplayer_decoder = {
     .p.name         = "vplayer",
-    CODEC_LONG_NAME("VPlayer subtitle"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("VPlayer subtitle"),
     .priv_data_size = sizeof(TextContext),
     .p.type         = AVMEDIA_TYPE_SUBTITLE,
     .p.id           = AV_CODEC_ID_VPLAYER,
@@ -113,13 +114,14 @@ const FFCodec ff_vplayer_decoder = {
     .init           = linebreak_init,
     .p.priv_class   = &textsub_decoder_class,
     .flush          = text_flush,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };
 #endif
 
 #if CONFIG_STL_DECODER
 const FFCodec ff_stl_decoder = {
     .p.name         = "stl",
-    CODEC_LONG_NAME("Spruce subtitle format"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Spruce subtitle format"),
     .priv_data_size = sizeof(TextContext),
     .p.type         = AVMEDIA_TYPE_SUBTITLE,
     .p.id           = AV_CODEC_ID_STL,
@@ -127,13 +129,14 @@ const FFCodec ff_stl_decoder = {
     .init           = linebreak_init,
     .p.priv_class   = &textsub_decoder_class,
     .flush          = text_flush,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };
 #endif
 
 #if CONFIG_PJS_DECODER
 const FFCodec ff_pjs_decoder = {
     .p.name         = "pjs",
-    CODEC_LONG_NAME("PJS subtitle"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("PJS subtitle"),
     .priv_data_size = sizeof(TextContext),
     .p.type         = AVMEDIA_TYPE_SUBTITLE,
     .p.id           = AV_CODEC_ID_PJS,
@@ -141,13 +144,14 @@ const FFCodec ff_pjs_decoder = {
     .init           = linebreak_init,
     .p.priv_class   = &textsub_decoder_class,
     .flush          = text_flush,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };
 #endif
 
 #if CONFIG_SUBVIEWER1_DECODER
 const FFCodec ff_subviewer1_decoder = {
     .p.name         = "subviewer1",
-    CODEC_LONG_NAME("SubViewer1 subtitle"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("SubViewer1 subtitle"),
     .priv_data_size = sizeof(TextContext),
     .p.type         = AVMEDIA_TYPE_SUBTITLE,
     .p.id           = AV_CODEC_ID_SUBVIEWER1,
@@ -155,6 +159,7 @@ const FFCodec ff_subviewer1_decoder = {
     .init           = linebreak_init,
     .p.priv_class   = &textsub_decoder_class,
     .flush          = text_flush,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };
 #endif
 

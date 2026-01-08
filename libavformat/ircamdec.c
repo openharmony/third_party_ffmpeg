@@ -22,7 +22,6 @@
 #include "libavutil/intreadwrite.h"
 #include "libavcodec/internal.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "pcm.h"
 #include "ircam.h"
@@ -108,13 +107,13 @@ static int ircam_read_header(AVFormatContext *s)
     return 0;
 }
 
-const FFInputFormat ff_ircam_demuxer = {
-    .p.name         = "ircam",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Berkeley/IRCAM/CARL Sound Format"),
-    .p.extensions   = "sf,ircam",
-    .p.flags        = AVFMT_GENERIC_INDEX,
+const AVInputFormat ff_ircam_demuxer = {
+    .name           = "ircam",
+    .long_name      = NULL_IF_CONFIG_SMALL("Berkeley/IRCAM/CARL Sound Format"),
     .read_probe     = ircam_probe,
     .read_header    = ircam_read_header,
     .read_packet    = ff_pcm_read_packet,
     .read_seek      = ff_pcm_read_seek,
+    .extensions     = "sf,ircam",
+    .flags          = AVFMT_GENERIC_INDEX,
 };

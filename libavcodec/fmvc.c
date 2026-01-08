@@ -21,13 +21,13 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "libavutil/mem.h"
 #include "avcodec.h"
 #include "bytestream.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 
 #define BLOCK_HEIGHT 112u
 #define BLOCK_WIDTH  84u
@@ -101,6 +101,7 @@ static int decode_type2(GetByteContext *gb, PutByteContext *pb)
                             continue;
                         }
                     }
+                    repeat = 0;
                 }
                 repeat = 1;
             }
@@ -433,7 +434,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
         if ((ret = ff_get_buffer(avctx, frame, 0)) < 0)
             return ret;
 
-        frame->flags |= AV_FRAME_FLAG_KEY;
+        frame->key_frame = 1;
         frame->pict_type = AV_PICTURE_TYPE_I;
 
         src = s->buffer;
@@ -519,7 +520,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
         if ((ret = ff_get_buffer(avctx, frame, 0)) < 0)
             return ret;
 
-        frame->flags &= ~AV_FRAME_FLAG_KEY;
+        frame->key_frame = 0;
         frame->pict_type = AV_PICTURE_TYPE_P;
 
         ssrc = s->buffer;
@@ -636,7 +637,7 @@ static av_cold int decode_close(AVCodecContext *avctx)
 
 const FFCodec ff_fmvc_decoder = {
     .p.name           = "fmvc",
-    CODEC_LONG_NAME("FM Screen Capture Codec"),
+    .p.long_name      = NULL_IF_CONFIG_SMALL("FM Screen Capture Codec"),
     .p.type           = AVMEDIA_TYPE_VIDEO,
     .p.id             = AV_CODEC_ID_FMVC,
     .priv_data_size   = sizeof(FMVCContext),
@@ -644,5 +645,6 @@ const FFCodec ff_fmvc_decoder = {
     .close            = decode_close,
     FF_CODEC_DECODE_CB(decode_frame),
     .p.capabilities   = AV_CODEC_CAP_DR1,
-    .caps_internal    = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal    = FF_CODEC_CAP_INIT_THREADSAFE |
+                        FF_CODEC_CAP_INIT_CLEANUP,
 };

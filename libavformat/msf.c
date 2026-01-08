@@ -21,7 +21,6 @@
 
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 
 static int msf_probe(const AVProbeData *p)
@@ -104,11 +103,11 @@ static int msf_read_packet(AVFormatContext *s, AVPacket *pkt)
     return av_get_packet(s->pb, pkt, par->block_align ? par->block_align : 1024 * par->ch_layout.nb_channels);
 }
 
-const FFInputFormat ff_msf_demuxer = {
-    .p.name         = "msf",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Sony PS3 MSF"),
-    .p.extensions   = "msf",
+const AVInputFormat ff_msf_demuxer = {
+    .name           = "msf",
+    .long_name      = NULL_IF_CONFIG_SMALL("Sony PS3 MSF"),
     .read_probe     = msf_probe,
     .read_header    = msf_read_header,
     .read_packet    = msf_read_packet,
+    .extensions     = "msf",
 };

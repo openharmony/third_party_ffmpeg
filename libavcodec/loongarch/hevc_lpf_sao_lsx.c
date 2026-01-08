@@ -24,8 +24,8 @@
 #include "hevcdsp_lsx.h"
 
 void ff_hevc_loop_filter_luma_h_8_lsx(uint8_t *src, ptrdiff_t stride,
-                                      int32_t beta, const int32_t *tc,
-                                      const uint8_t *p_is_pcm, const uint8_t *q_is_pcm)
+                                      int32_t beta, int32_t *tc,
+                                      uint8_t *p_is_pcm, uint8_t *q_is_pcm)
 {
     ptrdiff_t stride_2x = (stride << 1);
     ptrdiff_t stride_4x = (stride << 2);
@@ -436,8 +436,8 @@ void ff_hevc_loop_filter_luma_h_8_lsx(uint8_t *src, ptrdiff_t stride,
 }
 
 void ff_hevc_loop_filter_luma_v_8_lsx(uint8_t *src, ptrdiff_t stride,
-                                      int32_t beta, const int32_t *tc,
-                                      const uint8_t *p_is_pcm, const uint8_t *q_is_pcm)
+                                      int32_t beta, int32_t *tc,
+                                      uint8_t *p_is_pcm, uint8_t *q_is_pcm)
 {
     ptrdiff_t stride_2x = (stride << 1);
     ptrdiff_t stride_4x = (stride << 2);
@@ -861,8 +861,8 @@ void ff_hevc_loop_filter_luma_v_8_lsx(uint8_t *src, ptrdiff_t stride,
 }
 
 void ff_hevc_loop_filter_chroma_h_8_lsx(uint8_t *src, ptrdiff_t stride,
-                                        const int32_t *tc, const uint8_t *p_is_pcm,
-                                        const uint8_t *q_is_pcm)
+                                        int32_t *tc, uint8_t *p_is_pcm,
+                                        uint8_t *q_is_pcm)
 {
     uint8_t *p1_ptr = src - (stride << 1);
     uint8_t *p0_ptr = src - stride;
@@ -915,8 +915,8 @@ void ff_hevc_loop_filter_chroma_h_8_lsx(uint8_t *src, ptrdiff_t stride,
 }
 
 void ff_hevc_loop_filter_chroma_v_8_lsx(uint8_t *src, ptrdiff_t stride,
-                                        const int32_t *tc, const uint8_t *p_is_pcm,
-                                        const uint8_t *q_is_pcm)
+                                        int32_t *tc, uint8_t *p_is_pcm,
+                                        uint8_t *q_is_pcm)
 {
     ptrdiff_t stride_2x = (stride << 1);
     ptrdiff_t stride_4x = (stride << 2);
@@ -987,9 +987,9 @@ void ff_hevc_loop_filter_chroma_v_8_lsx(uint8_t *src, ptrdiff_t stride,
 
 static void hevc_sao_edge_filter_0degree_4width_lsx(uint8_t *dst,
                                                     int32_t dst_stride,
-                                                    const uint8_t *src,
+                                                    uint8_t *src,
                                                     int32_t src_stride,
-                                                    const int16_t *sao_offset_val,
+                                                    int16_t *sao_offset_val,
                                                     int32_t height)
 {
     const int32_t src_stride_2x = (src_stride << 1);
@@ -1072,9 +1072,9 @@ static void hevc_sao_edge_filter_0degree_4width_lsx(uint8_t *dst,
 
 static void hevc_sao_edge_filter_0degree_8width_lsx(uint8_t *dst,
                                                     int32_t dst_stride,
-                                                    const uint8_t *src,
+                                                    uint8_t *src,
                                                     int32_t src_stride,
-                                                    const int16_t *sao_offset_val,
+                                                    int16_t *sao_offset_val,
                                                     int32_t height)
 {
     const int32_t src_stride_2x = (src_stride << 1);
@@ -1165,14 +1165,13 @@ static void hevc_sao_edge_filter_0degree_8width_lsx(uint8_t *dst,
 
 static void hevc_sao_edge_filter_0degree_16multiple_lsx(uint8_t *dst,
                                                         int32_t dst_stride,
-                                                        const uint8_t *src,
+                                                        uint8_t *src,
                                                         int32_t src_stride,
-                                                        const int16_t *sao_offset_val,
+                                                        int16_t *sao_offset_val,
                                                         int32_t width,
                                                         int32_t height)
 {
-    uint8_t *dst_ptr;
-    const uint8_t *src_minus1;
+    uint8_t *dst_ptr, *src_minus1;
     int32_t v_cnt;
     const int32_t src_stride_2x = (src_stride << 1);
     const int32_t dst_stride_2x = (dst_stride << 1);
@@ -1304,9 +1303,9 @@ static void hevc_sao_edge_filter_0degree_16multiple_lsx(uint8_t *dst,
 
 static void hevc_sao_edge_filter_90degree_4width_lsx(uint8_t *dst,
                                                      int32_t dst_stride,
-                                                     const uint8_t *src,
+                                                     uint8_t *src,
                                                      int32_t src_stride,
-                                                     const int16_t *sao_offset_val,
+                                                     int16_t *sao_offset_val,
                                                      int32_t height)
 {
     const int32_t src_stride_2x = (src_stride << 1);
@@ -1399,9 +1398,9 @@ static void hevc_sao_edge_filter_90degree_4width_lsx(uint8_t *dst,
 
 static void hevc_sao_edge_filter_90degree_8width_lsx(uint8_t *dst,
                                                      int32_t dst_stride,
-                                                     const uint8_t *src,
+                                                     uint8_t *src,
                                                      int32_t src_stride,
-                                                     const int16_t *sao_offset_val,
+                                                     int16_t *sao_offset_val,
                                                      int32_t height)
 {
     const int32_t src_stride_2x = (src_stride << 1);
@@ -1492,14 +1491,14 @@ static void hevc_sao_edge_filter_90degree_8width_lsx(uint8_t *dst,
 
 static void hevc_sao_edge_filter_90degree_16multiple_lsx(uint8_t *dst,
                                                          int32_t dst_stride,
-                                                         const uint8_t *src,
+                                                         uint8_t *src,
                                                          int32_t src_stride,
-                                                         const int16_t *
+                                                         int16_t *
                                                          sao_offset_val,
                                                          int32_t width,
                                                          int32_t height)
 {
-    const uint8_t *src_orig = src;
+    uint8_t *src_orig = src;
     uint8_t *dst_orig = dst;
     int32_t h_cnt, v_cnt;
     const int32_t src_stride_2x = (src_stride << 1);
@@ -1611,12 +1610,12 @@ static void hevc_sao_edge_filter_90degree_16multiple_lsx(uint8_t *dst,
 
 static void hevc_sao_edge_filter_45degree_4width_lsx(uint8_t *dst,
                                                      int32_t dst_stride,
-                                                     const uint8_t *src,
+                                                     uint8_t *src,
                                                      int32_t src_stride,
-                                                     const int16_t *sao_offset_val,
+                                                     int16_t *sao_offset_val,
                                                      int32_t height)
 {
-    const uint8_t *src_orig;
+    uint8_t *src_orig;
     const int32_t src_stride_2x = (src_stride << 1);
     const int32_t dst_stride_2x = (dst_stride << 1);
     __m128i shuf1 = {0x807060504030201, 0x100F0E0D0C0B0A09};
@@ -1724,12 +1723,12 @@ static void hevc_sao_edge_filter_45degree_4width_lsx(uint8_t *dst,
 
 static void hevc_sao_edge_filter_45degree_8width_lsx(uint8_t *dst,
                                                      int32_t dst_stride,
-                                                     const uint8_t *src,
+                                                     uint8_t *src,
                                                      int32_t src_stride,
-                                                     const int16_t *sao_offset_val,
+                                                     int16_t *sao_offset_val,
                                                      int32_t height)
 {
-    const uint8_t *src_orig;
+    uint8_t *src_orig;
     const int32_t src_stride_2x = (src_stride << 1);
     const int32_t dst_stride_2x = (dst_stride << 1);
     __m128i shuf1 = {0x807060504030201, 0x100F0E0D0C0B0A09};
@@ -1843,14 +1842,14 @@ static void hevc_sao_edge_filter_45degree_8width_lsx(uint8_t *dst,
 
 static void hevc_sao_edge_filter_45degree_16multiple_lsx(uint8_t *dst,
                                                          int32_t dst_stride,
-                                                         const uint8_t *src,
+                                                         uint8_t *src,
                                                          int32_t src_stride,
-                                                         const int16_t *
+                                                         int16_t *
                                                          sao_offset_val,
                                                          int32_t width,
                                                          int32_t height)
 {
-    const uint8_t *src_orig = src;
+    uint8_t *src_orig = src;
     uint8_t *dst_orig = dst;
     int32_t v_cnt;
     const int32_t src_stride_2x = (src_stride << 1);
@@ -1991,12 +1990,12 @@ static void hevc_sao_edge_filter_45degree_16multiple_lsx(uint8_t *dst,
 
 static void hevc_sao_edge_filter_135degree_4width_lsx(uint8_t *dst,
                                                       int32_t dst_stride,
-                                                      const uint8_t *src,
+                                                      uint8_t *src,
                                                       int32_t src_stride,
-                                                      const int16_t *sao_offset_val,
+                                                      int16_t *sao_offset_val,
                                                       int32_t height)
 {
-    const uint8_t *src_orig;
+    uint8_t *src_orig;
     const int32_t src_stride_2x = (src_stride << 1);
     const int32_t dst_stride_2x = (dst_stride << 1);
 
@@ -2106,12 +2105,12 @@ static void hevc_sao_edge_filter_135degree_4width_lsx(uint8_t *dst,
 
 static void hevc_sao_edge_filter_135degree_8width_lsx(uint8_t *dst,
                                                       int32_t dst_stride,
-                                                      const uint8_t *src,
+                                                      uint8_t *src,
                                                       int32_t src_stride,
-                                                      const int16_t *sao_offset_val,
+                                                      int16_t *sao_offset_val,
                                                       int32_t height)
 {
-    const uint8_t *src_orig;
+    uint8_t *src_orig;
     const int32_t src_stride_2x = (src_stride << 1);
     const int32_t dst_stride_2x = (dst_stride << 1);
 
@@ -2220,14 +2219,13 @@ static void hevc_sao_edge_filter_135degree_8width_lsx(uint8_t *dst,
 
 static void hevc_sao_edge_filter_135degree_16multiple_lsx(uint8_t *dst,
                                                           int32_t dst_stride,
-                                                          const uint8_t *src,
+                                                          uint8_t *src,
                                                           int32_t src_stride,
-                                                          const int16_t *sao_offset_val,
+                                                          int16_t *sao_offset_val,
                                                           int32_t width,
                                                           int32_t height)
 {
-    const uint8_t *src_orig;
-    uint8_t *dst_orig;
+    uint8_t *src_orig, *dst_orig;
     int32_t v_cnt;
     const int32_t src_stride_2x = (src_stride << 1);
     const int32_t dst_stride_2x = (dst_stride << 1);
@@ -2364,9 +2362,9 @@ static void hevc_sao_edge_filter_135degree_16multiple_lsx(uint8_t *dst,
     }
 }
 
-void ff_hevc_sao_edge_filter_8_lsx(uint8_t *dst, const uint8_t *src,
+void ff_hevc_sao_edge_filter_8_lsx(uint8_t *dst, uint8_t *src,
                                    ptrdiff_t stride_dst,
-                                   const int16_t *sao_offset_val,
+                                   int16_t *sao_offset_val,
                                    int eo, int width, int height)
 {
     ptrdiff_t stride_src = (2 * MAX_PB_SIZE + AV_INPUT_BUFFER_PADDING_SIZE);

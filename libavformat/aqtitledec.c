@@ -27,7 +27,6 @@
  */
 
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "subtitles.h"
 #include "libavutil/opt.h"
@@ -136,16 +135,16 @@ static const AVClass aqt_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const FFInputFormat ff_aqtitle_demuxer = {
-    .p.name         = "aqtitle",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("AQTitle subtitles"),
-    .p.extensions   = "aqt",
-    .p.priv_class   = &aqt_class,
+const AVInputFormat ff_aqtitle_demuxer = {
+    .name           = "aqtitle",
+    .long_name      = NULL_IF_CONFIG_SMALL("AQTitle subtitles"),
     .priv_data_size = sizeof(AQTitleContext),
-    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
+    .flags_internal = FF_FMT_INIT_CLEANUP,
     .read_probe     = aqt_probe,
     .read_header    = aqt_read_header,
     .read_packet    = aqt_read_packet,
     .read_seek2     = aqt_read_seek,
     .read_close     = aqt_read_close,
+    .extensions     = "aqt",
+    .priv_class     = &aqt_class,
 };

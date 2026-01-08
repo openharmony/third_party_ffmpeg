@@ -22,7 +22,7 @@
 #ifndef AVCODEC_ROQVIDEO_H
 #define AVCODEC_ROQVIDEO_H
 
-#include "libavutil/frame.h"
+#include "avcodec.h"
 
 typedef struct roq_cell {
     unsigned char y[4];
@@ -39,7 +39,7 @@ typedef struct motion_vect {
 
 typedef struct RoqContext {
     const AVClass *class;
-    void *logctx;
+    AVCodecContext *avctx;
     AVFrame *last_frame;
     AVFrame *current_frame;
     int width, height;

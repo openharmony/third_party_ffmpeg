@@ -18,41 +18,15 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
 #include "mastering_display_metadata.h"
 #include "mem.h"
 
-static void get_defaults(AVMasteringDisplayMetadata *mastering)
-{
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 2; j++)
-            mastering->display_primaries[i][j] = (AVRational) { 0, 1 };
-    mastering->white_point[0] =
-    mastering->white_point[1] =
-    mastering->min_luminance  =
-    mastering->max_luminance  = (AVRational) { 0, 1 };
-}
-
 AVMasteringDisplayMetadata *av_mastering_display_metadata_alloc(void)
 {
-    return av_mastering_display_metadata_alloc_size(NULL);
-}
-
-AVMasteringDisplayMetadata *av_mastering_display_metadata_alloc_size(size_t *size)
-{
-    AVMasteringDisplayMetadata *mastering = av_mallocz(sizeof(AVMasteringDisplayMetadata));
-    if (!mastering)
-        return NULL;
-
-    get_defaults(mastering);
-
-    if (size)
-        *size = sizeof(*mastering);
-
-    return mastering;
+    return av_mallocz(sizeof(AVMasteringDisplayMetadata));
 }
 
 AVMasteringDisplayMetadata *av_mastering_display_metadata_create_side_data(AVFrame *frame)
@@ -64,7 +38,6 @@ AVMasteringDisplayMetadata *av_mastering_display_metadata_create_side_data(AVFra
         return NULL;
 
     memset(side_data->data, 0, sizeof(AVMasteringDisplayMetadata));
-    get_defaults((AVMasteringDisplayMetadata *)side_data->data);
 
     return (AVMasteringDisplayMetadata *)side_data->data;
 }

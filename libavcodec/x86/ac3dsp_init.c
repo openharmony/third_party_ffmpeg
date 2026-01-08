@@ -26,15 +26,14 @@
 
 void ff_ac3_exponent_min_sse2  (uint8_t *exp, int num_reuse_blocks, int nb_coefs);
 
-void ff_float_to_fixed24_sse2 (int32_t *dst, const float *src, size_t len);
-void ff_float_to_fixed24_avx  (int32_t *dst, const float *src, size_t len);
+void ff_float_to_fixed24_sse2 (int32_t *dst, const float *src, unsigned int len);
 
 int ff_ac3_compute_mantissa_size_sse2(uint16_t mant_cnt[6][16]);
 
 void ff_ac3_extract_exponents_sse2 (uint8_t *exp, int32_t *coef, int nb_coefs);
 void ff_ac3_extract_exponents_ssse3(uint8_t *exp, int32_t *coef, int nb_coefs);
 
-av_cold void ff_ac3dsp_init_x86(AC3DSPContext *c)
+av_cold void ff_ac3dsp_init_x86(AC3DSPContext *c, int bit_exact)
 {
     int cpu_flags = av_get_cpu_flags();
 
@@ -48,9 +47,6 @@ av_cold void ff_ac3dsp_init_x86(AC3DSPContext *c)
     if (EXTERNAL_SSSE3(cpu_flags)) {
         if (!(cpu_flags & AV_CPU_FLAG_ATOM))
             c->extract_exponents = ff_ac3_extract_exponents_ssse3;
-    }
-    if (EXTERNAL_AVX_FAST(cpu_flags)) {
-        c->float_to_fixed24 = ff_float_to_fixed24_avx;
     }
 }
 

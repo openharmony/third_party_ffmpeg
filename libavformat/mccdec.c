@@ -20,7 +20,6 @@
  */
 
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "subtitles.h"
 #include "libavutil/avstring.h"
@@ -93,7 +92,7 @@ static int mcc_read_header(AVFormatContext *s)
 {
     MCCContext *mcc = s->priv_data;
     AVStream *st = avformat_new_stream(s, NULL);
-    AVRational rate = {0};
+    AVRational rate;
     int64_t ts, pos;
     uint8_t out[4096];
     char line[4096];
@@ -139,7 +138,7 @@ static int mcc_read_header(AVFormatContext *s)
             continue;
         }
 
-        if (av_sscanf(line, "%d:%d:%d:%d", &hh, &mm, &ss, &fs) != 4 || rate.den <= 0)
+        if (av_sscanf(line, "%d:%d:%d:%d", &hh, &mm, &ss, &fs) != 4)
             continue;
 
         ts = av_sat_add64(av_rescale(hh * 3600LL + mm * 60LL + ss, rate.num, rate.den), fs);
@@ -201,14 +200,14 @@ static int mcc_read_header(AVFormatContext *s)
     return ret;
 }
 
-const FFInputFormat ff_mcc_demuxer = {
-    .p.name         = "mcc",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("MacCaption"),
-    .p.extensions   = "mcc",
+const AVInputFormat ff_mcc_demuxer = {
+    .name           = "mcc",
+    .long_name      = NULL_IF_CONFIG_SMALL("MacCaption"),
     .priv_data_size = sizeof(MCCContext),
-    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
+    .flags_internal = FF_FMT_INIT_CLEANUP,
     .read_probe     = mcc_probe,
     .read_header    = mcc_read_header,
+    .extensions     = "mcc",
     .read_packet    = ff_subtitles_read_packet,
     .read_seek2     = ff_subtitles_read_seek,
     .read_close     = ff_subtitles_read_close,

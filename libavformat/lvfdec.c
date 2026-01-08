@@ -21,7 +21,6 @@
 
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
-#include "demux.h"
 #include "riff.h"
 
 static int lvf_probe(const AVProbeData *p)
@@ -146,12 +145,12 @@ static int lvf_read_packet(AVFormatContext *s, AVPacket *pkt)
     return AVERROR_EOF;
 }
 
-const FFInputFormat ff_lvf_demuxer = {
-    .p.name         = "lvf",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("LVF"),
-    .p.extensions   = "lvf",
-    .p.flags        = AVFMT_GENERIC_INDEX,
+const AVInputFormat ff_lvf_demuxer = {
+    .name        = "lvf",
+    .long_name   = NULL_IF_CONFIG_SMALL("LVF"),
     .read_probe  = lvf_probe,
     .read_header = lvf_read_header,
     .read_packet = lvf_read_packet,
+    .extensions  = "lvf",
+    .flags       = AVFMT_GENERIC_INDEX,
 };

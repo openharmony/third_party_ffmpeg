@@ -20,7 +20,6 @@
 
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "spdif.h"
 
@@ -188,11 +187,11 @@ static int s337m_read_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-const FFInputFormat ff_s337m_demuxer = {
-    .p.name         = "s337m",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("SMPTE 337M"),
-    .p.flags        = AVFMT_GENERIC_INDEX,
+const AVInputFormat ff_s337m_demuxer = {
+    .name           = "s337m",
+    .long_name      = NULL_IF_CONFIG_SMALL("SMPTE 337M"),
     .read_probe     = s337m_probe,
     .read_header    = s337m_read_header,
     .read_packet    = s337m_read_packet,
+    .flags          = AVFMT_GENERIC_INDEX,
 };

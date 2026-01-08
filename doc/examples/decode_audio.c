@@ -21,11 +21,10 @@
  */
 
 /**
- * @file libavcodec audio decoding API usage example
- * @example decode_audio.c
+ * @file
+ * audio decoding with libavcodec API example
  *
- * Decode data from an MP2 input file and generate a raw audio file to
- * be played with ffplay.
+ * @example decode_audio.c
  */
 
 #include <stdio.h>

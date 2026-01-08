@@ -30,13 +30,12 @@
 #include "libavutil/bswap.h"
 #include "libavutil/common.h"
 #include "libavutil/eval.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
 #include "avfilter.h"
 #include "drawutils.h"
-#include "filters.h"
 #include "formats.h"
+#include "internal.h"
 #include "video.h"
 
 static const char *const var_names[] = {
@@ -583,6 +582,11 @@ static const AVFilterPad inputs[] = {
       .config_props = config_props,
     },
 };
+static const AVFilterPad outputs[] = {
+    { .name = "default",
+      .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
 
 #define DEFINE_LUT_FILTER(name_, description_, priv_class_)             \
     const AVFilter ff_vf_##name_ = {                                    \
@@ -593,7 +597,7 @@ static const AVFilterPad inputs[] = {
         .init          = name_##_init,                                  \
         .uninit        = uninit,                                        \
         FILTER_INPUTS(inputs),                                          \
-        FILTER_OUTPUTS(ff_video_default_filterpad),                     \
+        FILTER_OUTPUTS(outputs),                                        \
         FILTER_QUERY_FUNC(query_formats),                               \
         .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |       \
                          AVFILTER_FLAG_SLICE_THREADS,                   \

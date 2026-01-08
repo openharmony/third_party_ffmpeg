@@ -34,8 +34,9 @@
 
 #include "libavutil/attributes.h"
 #include "libavutil/crc.h"
-#include "libavutil/mem.h"
-#include "flac_parse.h"
+#include "bytestream.h"
+#include "parser.h"
+#include "flac.h"
 
 /** maximum number of adjacent headers that compare CRCs against each other   */
 #define FLAC_MAX_SEQUENTIAL_HEADERS 4
@@ -454,7 +455,7 @@ static int check_header_mismatch(FLACParseContext  *fpc,
                                  int                log_level_offset)
 {
     FLACFrameInfo  *header_fi = &header->fi, *child_fi = &child->fi;
-    int check_crc, deduction, deduction_expected = 0, i;
+    int deduction, deduction_expected = 0, i;
     deduction = check_header_fi_mismatch(fpc, header_fi, child_fi,
                                          log_level_offset);
     /* Check sample and frame numbers. */
@@ -490,22 +491,8 @@ static int check_header_mismatch(FLACParseContext  *fpc,
                    "sample/frame number mismatch in adjacent frames\n");
     }
 
-    if (fpc->last_fi.is_var_size == header_fi->is_var_size) {
-        if (fpc->last_fi.is_var_size &&
-            fpc->last_fi.frame_or_sample_num + fpc->last_fi.blocksize == header_fi->frame_or_sample_num) {
-            check_crc = 0;
-        } else if (!fpc->last_fi.is_var_size &&
-                   fpc->last_fi.frame_or_sample_num + 1 == header_fi->frame_or_sample_num) {
-            check_crc = 0;
-        } else {
-            check_crc = !deduction && !deduction_expected;
-        }
-    } else {
-        check_crc = !deduction && !deduction_expected;
-    }
-
     /* If we have suspicious headers, check the CRC between them */
-    if (check_crc || (deduction && !deduction_expected)) {
+    if (deduction && !deduction_expected) {
         FLACHeaderMarker *curr;
         int read_len;
         uint8_t *buf;
@@ -517,8 +504,6 @@ static int check_header_mismatch(FLACParseContext  *fpc,
         curr = header->next;
         for (i = 0; i < FLAC_MAX_SEQUENTIAL_HEADERS && curr != child; i++)
             curr = curr->next;
-
-        av_assert0(i < FLAC_MAX_SEQUENTIAL_HEADERS);
 
         if (header->link_penalty[i] < FLAC_HEADER_CRC_FAIL_PENALTY ||
             header->link_penalty[i] == FLAC_HEADER_NOT_PENALIZED_YET) {
@@ -615,7 +600,7 @@ static int score_header(FLACParseContext *fpc, FLACHeaderMarker *header)
 static void score_sequences(FLACParseContext *fpc)
 {
     FLACHeaderMarker *curr;
-    int best_score = FLAC_HEADER_NOT_SCORED_YET;
+    int best_score = 0;//FLAC_HEADER_NOT_SCORED_YET;
     /* First pass to clear all old scores. */
     for (curr = fpc->headers; curr; curr = curr->next)
         curr->max_score = FLAC_HEADER_NOT_SCORED_YET;
@@ -664,11 +649,8 @@ static int get_best_header(FLACParseContext *fpc, const uint8_t **poutbuf,
 
     /* Return the negative overread index so the client can compute pos.
        This should be the amount overread to the beginning of the child */
-    if (child) {
-        int64_t offset = child->offset - flac_fifo_size(&fpc->fifo_buf);
-        if (offset > -(1 << 28))
-            return offset;
-    }
+    if (child)
+        return child->offset - flac_fifo_size(&fpc->fifo_buf);
     return 0;
 }
 
@@ -700,7 +682,7 @@ static int flac_parse(AVCodecParserContext *s, AVCodecContext *avctx,
     }
 
     fpc->avctx = avctx;
-    if (fpc->best_header_valid && fpc->nb_headers_buffered >= FLAC_MIN_HEADERS)
+    if (fpc->best_header_valid)
         return get_best_header(fpc, poutbuf, poutbuf_size);
 
     /* If a best_header was found last call remove it with the buffer data. */

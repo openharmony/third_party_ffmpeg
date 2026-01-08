@@ -45,17 +45,17 @@ int64_t ff_vorbiscomment_length(const AVDictionary *m, const char *vendor_string
     len += strlen(vendor_string);
     if (chapters && nb_chapters) {
         for (int i = 0; i < nb_chapters; i++) {
-            const AVDictionaryEntry *tag = NULL;
+            AVDictionaryEntry *tag = NULL;
             len += 4 + 12 + 1 + 10;
-            while ((tag = av_dict_iterate(chapters[i]->metadata, tag))) {
+            while ((tag = av_dict_get(chapters[i]->metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
                 int64_t len1 = !strcmp(tag->key, "title") ? 4 : strlen(tag->key);
                 len += 4 + 10 + len1 + 1 + strlen(tag->value);
             }
         }
     }
     if (m) {
-        const AVDictionaryEntry *tag = NULL;
-        while ((tag = av_dict_iterate(m, tag))) {
+        AVDictionaryEntry *tag = NULL;
+        while ((tag = av_dict_get(m, "", tag, AV_DICT_IGNORE_SUFFIX))) {
             len += 4 +strlen(tag->key) + 1 + strlen(tag->value);
         }
     }
@@ -77,9 +77,9 @@ int ff_vorbiscomment_write(AVIOContext *pb, const AVDictionary *m,
     }
     if (m) {
         int count = av_dict_count(m) + cm_count;
-        const AVDictionaryEntry *tag = NULL;
+        AVDictionaryEntry *tag = NULL;
         avio_wl32(pb, count);
-        while ((tag = av_dict_iterate(m, tag))) {
+        while ((tag = av_dict_get(m, "", tag, AV_DICT_IGNORE_SUFFIX))) {
             int64_t len1 = strlen(tag->key);
             int64_t len2 = strlen(tag->value);
             if (len1+1+len2 > UINT32_MAX)
@@ -109,7 +109,7 @@ int ff_vorbiscomment_write(AVIOContext *pb, const AVDictionary *m,
             avio_write(pb, chapter_time, 12);
 
             tag = NULL;
-            while ((tag = av_dict_iterate(chapters[i]->metadata, tag))) {
+            while ((tag = av_dict_get(chapters[i]->metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
                 int64_t len1 = !strcmp(tag->key, "title") ? 4 : strlen(tag->key);
                 int64_t len2 = strlen(tag->value);
                 if (len1+1+len2+10 > UINT32_MAX)

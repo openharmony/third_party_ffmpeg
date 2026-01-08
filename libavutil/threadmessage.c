@@ -19,9 +19,6 @@
  */
 
 #include <limits.h>
-#include <stddef.h>
-
-#include "error.h"
 #include "fifo.h"
 #include "mem.h"
 #include "threadmessage.h"

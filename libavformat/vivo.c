@@ -29,7 +29,6 @@
 #include "libavutil/avstring.h"
 #include "libavutil/parseutils.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 
 typedef struct VivoContext {
@@ -315,12 +314,12 @@ restart:
     return ret;
 }
 
-const FFInputFormat ff_vivo_demuxer = {
-    .p.name         = "vivo",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Vivo"),
-    .p.extensions   = "viv",
+const AVInputFormat ff_vivo_demuxer = {
+    .name           = "vivo",
+    .long_name      = NULL_IF_CONFIG_SMALL("Vivo"),
     .priv_data_size = sizeof(VivoContext),
     .read_probe     = vivo_probe,
     .read_header    = vivo_read_header,
     .read_packet    = vivo_read_packet,
+    .extensions     = "viv",
 };

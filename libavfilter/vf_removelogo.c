@@ -70,10 +70,10 @@
  */
 
 #include "libavutil/imgutils.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "avfilter.h"
-#include "filters.h"
+#include "formats.h"
+#include "internal.h"
 #include "video.h"
 #include "bbox.h"
 #include "lavfutils.h"
@@ -555,6 +555,13 @@ static const AVFilterPad removelogo_inputs[] = {
     },
 };
 
+static const AVFilterPad removelogo_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 const AVFilter ff_vf_removelogo = {
     .name          = "removelogo",
     .description   = NULL_IF_CONFIG_SMALL("Remove a TV logo based on a mask image."),
@@ -562,7 +569,7 @@ const AVFilter ff_vf_removelogo = {
     .init          = init,
     .uninit        = uninit,
     FILTER_INPUTS(removelogo_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(removelogo_outputs),
     FILTER_SINGLE_PIXFMT(AV_PIX_FMT_YUV420P),
     .priv_class    = &removelogo_class,
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,

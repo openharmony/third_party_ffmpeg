@@ -27,10 +27,10 @@
 
 #include <zmq.h>
 #include "libavutil/avstring.h"
-#include "libavutil/mem.h"
+#include "libavutil/bprint.h"
 #include "libavutil/opt.h"
 #include "avfilter.h"
-#include "filters.h"
+#include "internal.h"
 #include "audio.h"
 #include "video.h"
 
@@ -176,7 +176,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *ref)
         av_log(ctx, AV_LOG_VERBOSE,
                "Processing command #%d target:%s command:%s arg:%s\n",
                zmq->command_count, cmd.target, cmd.command, cmd.arg);
-        ret = avfilter_graph_send_command(ff_filter_link(inlink)->graph,
+        ret = avfilter_graph_send_command(inlink->graph,
                                           cmd.target, cmd.command, cmd.arg,
                                           cmd_buf, sizeof(cmd_buf),
                                           AVFILTER_CMD_FLAG_ONE);
@@ -217,6 +217,13 @@ static const AVFilterPad zmq_inputs[] = {
     },
 };
 
+static const AVFilterPad zmq_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 const AVFilter ff_vf_zmq = {
     .name        = "zmq",
     .description = NULL_IF_CONFIG_SMALL("Receive commands through ZMQ and broker them to filters."),
@@ -224,7 +231,7 @@ const AVFilter ff_vf_zmq = {
     .uninit      = uninit,
     .priv_size   = sizeof(ZMQContext),
     FILTER_INPUTS(zmq_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(zmq_outputs),
     .priv_class  = &zmq_class,
 };
 
@@ -240,6 +247,13 @@ static const AVFilterPad azmq_inputs[] = {
     },
 };
 
+static const AVFilterPad azmq_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_AUDIO,
+    },
+};
+
 const AVFilter ff_af_azmq = {
     .name        = "azmq",
     .description = NULL_IF_CONFIG_SMALL("Receive commands through ZMQ and broker them to filters."),
@@ -248,7 +262,7 @@ const AVFilter ff_af_azmq = {
     .uninit      = uninit,
     .priv_size   = sizeof(ZMQContext),
     FILTER_INPUTS(azmq_inputs),
-    FILTER_OUTPUTS(ff_audio_default_filterpad),
+    FILTER_OUTPUTS(azmq_outputs),
 };
 
 #endif

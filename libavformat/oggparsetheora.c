@@ -23,7 +23,7 @@
  **/
 
 #include <stdlib.h>
-#include "libavutil/mem.h"
+#include "libavutil/bswap.h"
 #include "libavcodec/get_bits.h"
 #include "avformat.h"
 #include "internal.h"

@@ -22,12 +22,10 @@
  */
 
 #include "avformat.h"
-#include "mux.h"
 #include "libavutil/avassert.h"
 #include "libavutil/crc.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/log.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavcodec/apng.h"
 #include "libavcodec/png.h"
@@ -84,6 +82,14 @@ static int apng_write_header(AVFormatContext *format_context)
 {
     APNGMuxContext *apng = format_context->priv_data;
     AVCodecParameters *par = format_context->streams[0]->codecpar;
+
+    if (format_context->nb_streams != 1 ||
+        format_context->streams[0]->codecpar->codec_type != AVMEDIA_TYPE_VIDEO ||
+        format_context->streams[0]->codecpar->codec_id   != AV_CODEC_ID_APNG) {
+        av_log(format_context, AV_LOG_ERROR,
+               "APNG muxer supports only a single video APNG stream.\n");
+        return AVERROR(EINVAL);
+    }
 
     if (apng->last_delay.num > UINT16_MAX || apng->last_delay.den > UINT16_MAX) {
         av_reduce(&apng->last_delay.num, &apng->last_delay.den,
@@ -300,21 +306,18 @@ static const AVClass apng_muxer_class = {
     .option     = options,
 };
 
-const FFOutputFormat ff_apng_muxer = {
-    .p.name         = "apng",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Animated Portable Network Graphics"),
-    .p.mime_type    = "image/png",
-    .p.extensions   = "apng",
+const AVOutputFormat ff_apng_muxer = {
+    .name           = "apng",
+    .long_name      = NULL_IF_CONFIG_SMALL("Animated Portable Network Graphics"),
+    .mime_type      = "image/png",
+    .extensions     = "apng",
     .priv_data_size = sizeof(APNGMuxContext),
-    .p.audio_codec  = AV_CODEC_ID_NONE,
-    .p.video_codec  = AV_CODEC_ID_APNG,
-    .p.subtitle_codec = AV_CODEC_ID_NONE,
-    .flags_internal   = FF_OFMT_FLAG_MAX_ONE_OF_EACH |
-                        FF_OFMT_FLAG_ONLY_DEFAULT_CODECS,
+    .audio_codec    = AV_CODEC_ID_NONE,
+    .video_codec    = AV_CODEC_ID_APNG,
     .write_header   = apng_write_header,
     .write_packet   = apng_write_packet,
     .write_trailer  = apng_write_trailer,
     .deinit         = apng_deinit,
-    .p.priv_class   = &apng_muxer_class,
-    .p.flags        = AVFMT_VARIABLE_FPS,
+    .priv_class     = &apng_muxer_class,
+    .flags          = AVFMT_VARIABLE_FPS,
 };

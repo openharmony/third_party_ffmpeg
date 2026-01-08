@@ -22,7 +22,6 @@
 #include "libavutil/opt.h"
 #include "avfilter.h"
 #include "audio.h"
-#include "filters.h"
 #include "formats.h"
 
 typedef struct ExtraStereoContext {
@@ -42,30 +41,19 @@ static const AVOption extrastereo_options[] = {
 
 AVFILTER_DEFINE_CLASS(extrastereo);
 
-static int query_formats(const AVFilterContext *ctx,
-                         AVFilterFormatsConfig **cfg_in,
-                         AVFilterFormatsConfig **cfg_out)
+static int query_formats(AVFilterContext *ctx)
 {
-    static const enum AVSampleFormat formats[] = {
-        AV_SAMPLE_FMT_FLT,
-        AV_SAMPLE_FMT_NONE,
-    };
-    static const AVChannelLayout layouts[] = {
-        AV_CHANNEL_LAYOUT_STEREO,
-        { .nb_channels = 0 },
-    };
-
+    AVFilterFormats *formats = NULL;
+    AVFilterChannelLayouts *layout = NULL;
     int ret;
 
-    ret = ff_set_common_formats_from_list2(ctx, cfg_in, cfg_out, formats);
-    if (ret < 0)
+    if ((ret = ff_add_format                 (&formats, AV_SAMPLE_FMT_FLT  )) < 0 ||
+        (ret = ff_set_common_formats         (ctx     , formats            )) < 0 ||
+        (ret = ff_add_channel_layout         (&layout , &(AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO)) < 0 ||
+        (ret = ff_set_common_channel_layouts (ctx     , layout             )) < 0)
         return ret;
 
-    ret = ff_set_common_channel_layouts_from_list2(ctx, cfg_in, cfg_out, layouts);
-    if (ret < 0)
-        return ret;
-
-    return 0;
+    return ff_set_common_all_samplerates(ctx);
 }
 
 static int filter_frame(AVFilterLink *inlink, AVFrame *in)
@@ -122,14 +110,21 @@ static const AVFilterPad inputs[] = {
     },
 };
 
+static const AVFilterPad outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_AUDIO,
+    },
+};
+
 const AVFilter ff_af_extrastereo = {
     .name           = "extrastereo",
     .description    = NULL_IF_CONFIG_SMALL("Increase difference between stereo audio channels."),
     .priv_size      = sizeof(ExtraStereoContext),
     .priv_class     = &extrastereo_class,
     FILTER_INPUTS(inputs),
-    FILTER_OUTPUTS(ff_audio_default_filterpad),
-    FILTER_QUERY_FUNC2(query_formats),
+    FILTER_OUTPUTS(outputs),
+    FILTER_QUERY_FUNC(query_formats),
     .flags          = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
     .process_command = ff_filter_process_command,
 };

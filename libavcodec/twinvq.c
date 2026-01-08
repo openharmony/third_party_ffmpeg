@@ -24,11 +24,10 @@
 
 #include "libavutil/channel_layout.h"
 #include "libavutil/float_dsp.h"
-#include "libavutil/mem.h"
 #include "avcodec.h"
-#include "decode.h"
+#include "fft.h"
+#include "internal.h"
 #include "lsp.h"
-#include "metasound_twinvq_data.h"
 #include "sinewin.h"
 #include "twinvq.h"
 
@@ -329,8 +328,7 @@ static const uint8_t wtype_to_wsize[] = { 0, 0, 2, 2, 2, 1, 0, 1, 1 };
 static void imdct_and_window(TwinVQContext *tctx, enum TwinVQFrameType ftype,
                              int wtype, float *in, float *prev, int ch)
 {
-    AVTXContext *tx = tctx->tx[ftype];
-    av_tx_fn tx_fn = tctx->tx_fn[ftype];
+    FFTContext *mdct = &tctx->mdct_ctx[ftype];
     const TwinVQModeTab *mtab = tctx->mtab;
     int bsize = mtab->size / mtab->fmode[ftype].sub;
     int size  = mtab->size;
@@ -359,7 +357,7 @@ static void imdct_and_window(TwinVQContext *tctx, enum TwinVQFrameType ftype,
 
         wsize = types_sizes[wtype_to_wsize[sub_wtype]];
 
-        tx_fn(tx, buf1 + bsize * j, in + bsize * j, sizeof(float));
+        mdct->imdct_half(mdct, buf1 + bsize * j, in + bsize * j);
 
         tctx->fdsp->vector_fmul_window(out2, prev_buf + (bsize - wsize) / 2,
                                       buf1 + bsize * j,
@@ -545,9 +543,8 @@ static av_cold int init_mdct_win(TwinVQContext *tctx)
 
     for (i = 0; i < 3; i++) {
         int bsize = tctx->mtab->size / tctx->mtab->fmode[i].sub;
-        const float scale = -sqrt(norm / bsize) / (1 << 15);
-        if ((ret = av_tx_init(&tctx->tx[i], &tctx->tx_fn[i], AV_TX_FLOAT_MDCT,
-                              1, bsize, &scale, 0)))
+        if ((ret = ff_mdct_init(&tctx->mdct_ctx[i], av_log2(bsize) + 1, 1,
+                                -sqrt(norm / bsize) / (1 << 15))))
             return ret;
     }
 
@@ -748,7 +745,7 @@ av_cold int ff_twinvq_decode_close(AVCodecContext *avctx)
     int i;
 
     for (i = 0; i < 3; i++) {
-        av_tx_uninit(&tctx->tx[i]);
+        ff_mdct_end(&tctx->mdct_ctx[i]);
         av_freep(&tctx->cos_tabs[i]);
     }
 

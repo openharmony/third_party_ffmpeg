@@ -16,13 +16,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <string.h>
-
 #include "encryption_info.h"
 #include "mem.h"
 #include "intreadwrite.h"
-// fixme update ffmpeg
-#include "libavutil/macros.h"
 
 #define FF_ENCRYPTION_INFO_EXTRA 24
 

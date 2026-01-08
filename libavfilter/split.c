@@ -28,11 +28,14 @@
 #include "libavutil/attributes.h"
 #include "libavutil/avstring.h"
 #include "libavutil/internal.h"
+#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 
 #include "avfilter.h"
 #include "audio.h"
 #include "filters.h"
+#include "formats.h"
+#include "internal.h"
 #include "video.h"
 
 typedef struct SplitContext {
@@ -64,15 +67,11 @@ static int activate(AVFilterContext *ctx)
 {
     AVFilterLink *inlink = ctx->inputs[0];
     AVFrame *in;
-    int status, ret, nb_eofs = 0;
+    int status, ret;
     int64_t pts;
 
-    for (int i = 0; i < ctx->nb_outputs; i++)
-        nb_eofs += ff_outlink_get_status(ctx->outputs[i]) == AVERROR_EOF;
-
-    if (nb_eofs == ctx->nb_outputs) {
-        ff_inlink_set_status(inlink, AVERROR_EOF);
-        return 0;
+    for (int i = 0; i < ctx->nb_outputs; i++) {
+        FF_FILTER_FORWARD_STATUS_BACK_ALL(ctx->outputs[i], ctx);
     }
 
     ret = ff_inlink_consume_frame(inlink, &in);
@@ -131,6 +130,13 @@ static const AVOption options[] = {
 
 AVFILTER_DEFINE_CLASS_EXT(split, "(a)split", options);
 
+static const AVFilterPad avfilter_vf_split_inputs[] = {
+    {
+        .name         = "default",
+        .type         = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 const AVFilter ff_vf_split = {
     .name        = "split",
     .description = NULL_IF_CONFIG_SMALL("Pass on the input to N video outputs."),
@@ -138,9 +144,16 @@ const AVFilter ff_vf_split = {
     .priv_class  = &split_class,
     .init        = split_init,
     .activate    = activate,
-    FILTER_INPUTS(ff_video_default_filterpad),
+    FILTER_INPUTS(avfilter_vf_split_inputs),
     .outputs     = NULL,
     .flags       = AVFILTER_FLAG_DYNAMIC_OUTPUTS | AVFILTER_FLAG_METADATA_ONLY,
+};
+
+static const AVFilterPad avfilter_af_asplit_inputs[] = {
+    {
+        .name         = "default",
+        .type         = AVMEDIA_TYPE_AUDIO,
+    },
 };
 
 const AVFilter ff_af_asplit = {
@@ -150,7 +163,7 @@ const AVFilter ff_af_asplit = {
     .priv_size   = sizeof(SplitContext),
     .init        = split_init,
     .activate    = activate,
-    FILTER_INPUTS(ff_audio_default_filterpad),
+    FILTER_INPUTS(avfilter_af_asplit_inputs),
     .outputs     = NULL,
     .flags       = AVFILTER_FLAG_DYNAMIC_OUTPUTS | AVFILTER_FLAG_METADATA_ONLY,
 };

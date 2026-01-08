@@ -30,7 +30,6 @@
 #include "libavutil/channel_layout.h"
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
-#include "demux.h"
 #include "riff.h"
 
 typedef struct QCPContext {
@@ -197,9 +196,9 @@ static int qcp_read_packet(AVFormatContext *s, AVPacket *pkt)
     return AVERROR_EOF;
 }
 
-const FFInputFormat ff_qcp_demuxer = {
-    .p.name         = "qcp",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("QCP"),
+const AVInputFormat ff_qcp_demuxer = {
+    .name           = "qcp",
+    .long_name      = NULL_IF_CONFIG_SMALL("QCP"),
     .priv_data_size = sizeof(QCPContext),
     .read_probe     = qcp_probe,
     .read_header    = qcp_read_header,

@@ -22,12 +22,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/mem.h"
+#include "libavutil/imgutils.h"
 #include "avcodec.h"
 #include "bytestream.h"
 #include "codec_internal.h"
-#include "decode.h"
 #include "get_bits.h"
+#include "internal.h"
 
 #define PCX_HEADER_SIZE 128
 
@@ -76,10 +76,9 @@ static int pcx_decode_frame(AVCodecContext *avctx, AVFrame *p,
     GetByteContext gb;
     int compressed, xmin, ymin, xmax, ymax;
     int ret;
-    unsigned int w, h, bits_per_pixel, bytes_per_line, nplanes, y, x,
+    unsigned int w, h, bits_per_pixel, bytes_per_line, nplanes, stride, y, x,
                  bytes_per_scanline;
     uint8_t *ptr, *scanline;
-    ptrdiff_t stride;
 
     if (avpkt->size < PCX_HEADER_SIZE) {
         av_log(avctx, AV_LOG_ERROR, "Packet too small\n");
@@ -252,7 +251,7 @@ end:
 
 const FFCodec ff_pcx_decoder = {
     .p.name       = "pcx",
-    CODEC_LONG_NAME("PC Paintbrush PCX image"),
+    .p.long_name  = NULL_IF_CONFIG_SMALL("PC Paintbrush PCX image"),
     .p.type       = AVMEDIA_TYPE_VIDEO,
     .p.id         = AV_CODEC_ID_PCX,
     FF_CODEC_DECODE_CB(pcx_decode_frame),

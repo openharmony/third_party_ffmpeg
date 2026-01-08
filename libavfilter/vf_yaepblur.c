@@ -27,12 +27,10 @@
  * Anal. Mach. Intell. PAMI-2, 1980."
  */
 
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/imgutils.h"
 #include "avfilter.h"
-#include "filters.h"
-#include "video.h"
+#include "internal.h"
 
 typedef struct YAEPContext {
     const AVClass *class;
@@ -311,6 +309,13 @@ static const AVFilterPad yaep_inputs[] = {
     },
 };
 
+static const AVFilterPad yaep_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 #define OFFSET(x) offsetof(YAEPContext, x)
 #define FLAGS AV_OPT_FLAG_FILTERING_PARAM|AV_OPT_FLAG_VIDEO_PARAM|AV_OPT_FLAG_RUNTIME_PARAM
 
@@ -333,7 +338,7 @@ const AVFilter ff_vf_yaepblur = {
     .priv_class      = &yaepblur_class,
     .uninit          = uninit,
     FILTER_INPUTS(yaep_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(yaep_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
     .process_command = ff_filter_process_command,

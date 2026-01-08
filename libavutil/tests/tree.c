@@ -23,7 +23,6 @@
 #include "libavutil/common.h"
 #include "libavutil/lfg.h"
 #include "libavutil/log.h"
-#include "libavutil/mem.h"
 
 static int check(AVTreeNode *t)
 {

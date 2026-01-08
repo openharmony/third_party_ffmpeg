@@ -22,7 +22,6 @@
 #include "libavutil/channel_layout.h"
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "pcm.h"
 
@@ -67,7 +66,7 @@ static int fwse_read_header(AVFormatContext *s)
     av_channel_layout_default(&par->ch_layout, channels);
     st->duration = avio_rl32(pb);
     par->sample_rate = avio_rl32(pb);
-    if (par->sample_rate <= 0)
+    if (par->sample_rate <= 0 || par->sample_rate > INT_MAX)
         return AVERROR_INVALIDDATA;
 
     par->block_align = 1;
@@ -78,11 +77,11 @@ static int fwse_read_header(AVFormatContext *s)
     return 0;
 }
 
-const FFInputFormat ff_fwse_demuxer = {
-    .p.name         = "fwse",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Capcom's MT Framework sound"),
-    .p.extensions   = "fwse",
+const AVInputFormat ff_fwse_demuxer = {
+    .name           = "fwse",
+    .long_name      = NULL_IF_CONFIG_SMALL("Capcom's MT Framework sound"),
     .read_probe     = fwse_probe,
     .read_header    = fwse_read_header,
     .read_packet    = ff_pcm_read_packet,
+    .extensions     = "fwse",
 };

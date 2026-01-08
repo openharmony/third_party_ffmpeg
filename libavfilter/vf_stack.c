@@ -22,15 +22,14 @@
 
 #include "libavutil/avstring.h"
 #include "libavutil/imgutils.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/parseutils.h"
 #include "libavutil/pixdesc.h"
 
 #include "avfilter.h"
 #include "drawutils.h"
-#include "filters.h"
 #include "formats.h"
+#include "internal.h"
 #include "framesync.h"
 #include "video.h"
 
@@ -196,9 +195,7 @@ static int config_output(AVFilterLink *outlink)
 {
     AVFilterContext *ctx = outlink->src;
     StackContext *s = ctx->priv;
-    FilterLink *il = ff_filter_link(ctx->inputs[0]);
-    FilterLink *ol = ff_filter_link(outlink);
-    AVRational frame_rate = il->frame_rate;
+    AVRational frame_rate = ctx->inputs[0]->frame_rate;
     AVRational sar = ctx->inputs[0]->sample_aspect_ratio;
     int height = ctx->inputs[0]->h;
     int width = ctx->inputs[0]->w;
@@ -307,8 +304,7 @@ static int config_output(AVFilterLink *outlink)
         int inw, inh, size;
 
         if (s->fillcolor_enable) {
-            const AVFilterLink *inlink = ctx->inputs[0];
-            ff_draw_init2(&s->draw, inlink->format, inlink->colorspace, inlink->color_range, 0);
+            ff_draw_init(&s->draw, ctx->inputs[0]->format, 0);
             ff_draw_color(&s->draw, &s->color, s->fillcolor);
         }
 
@@ -385,16 +381,16 @@ static int config_output(AVFilterLink *outlink)
 
     outlink->w          = width;
     outlink->h          = height;
-    ol->frame_rate      = frame_rate;
+    outlink->frame_rate = frame_rate;
     outlink->sample_aspect_ratio = sar;
 
     for (i = 1; i < s->nb_inputs; i++) {
-        il = ff_filter_link(ctx->inputs[i]);
-        if (ol->frame_rate.num != il->frame_rate.num ||
-            ol->frame_rate.den != il->frame_rate.den) {
+        AVFilterLink *inlink = ctx->inputs[i];
+        if (outlink->frame_rate.num != inlink->frame_rate.num ||
+            outlink->frame_rate.den != inlink->frame_rate.den) {
             av_log(ctx, AV_LOG_VERBOSE,
                     "Video inputs have different frame rates, output will be VFR\n");
-            ol->frame_rate = av_make_q(1, 0);
+            outlink->frame_rate = av_make_q(1, 0);
             break;
         }
     }

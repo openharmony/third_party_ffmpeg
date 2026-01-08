@@ -24,11 +24,10 @@
  * Microsoft Screen 3 (aka Microsoft ATC Screen) decoder
  */
 
-#include "libavutil/mem.h"
 #include "avcodec.h"
 #include "bytestream.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 #include "mathops.h"
 #include "mss34dsp.h"
 
@@ -741,10 +740,7 @@ static int mss3_decode_frame(AVCodecContext *avctx, AVFrame *rframe,
 
     if ((ret = ff_reget_buffer(avctx, c->pic, 0)) < 0)
         return ret;
-    if (keyframe)
-        c->pic->flags |= AV_FRAME_FLAG_KEY;
-    else
-        c->pic->flags &= ~AV_FRAME_FLAG_KEY;
+    c->pic->key_frame = keyframe;
     c->pic->pict_type = keyframe ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_P;
     if (!bytestream2_get_bytes_left(&gb)) {
         if ((ret = av_frame_ref(rframe, c->pic)) < 0)
@@ -866,7 +862,7 @@ static av_cold int mss3_decode_init(AVCodecContext *avctx)
 
 const FFCodec ff_msa1_decoder = {
     .p.name         = "msa1",
-    CODEC_LONG_NAME("MS ATC Screen"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("MS ATC Screen"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_MSA1,
     .priv_data_size = sizeof(MSS3Context),
@@ -874,5 +870,5 @@ const FFCodec ff_msa1_decoder = {
     .close          = mss3_decode_end,
     FF_CODEC_DECODE_CB(mss3_decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
 };

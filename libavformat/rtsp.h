@@ -28,7 +28,6 @@
 #include "network.h"
 #include "httpauth.h"
 #include "internal.h"
-#include "os_support.h"
 
 #include "libavutil/log.h"
 #include "libavutil/opt.h"

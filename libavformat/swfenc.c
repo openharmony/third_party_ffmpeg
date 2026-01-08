@@ -27,7 +27,6 @@
 #include "libavutil/fifo.h"
 #include "avformat.h"
 #include "flv.h"
-#include "mux.h"
 #include "swf.h"
 
 #define AUDIO_FIFO_SIZE 65536
@@ -208,6 +207,10 @@ static int swf_write_header(AVFormatContext *s)
     for(i=0;i<s->nb_streams;i++) {
         AVCodecParameters *par = s->streams[i]->codecpar;
         if (par->codec_type == AVMEDIA_TYPE_AUDIO) {
+            if (swf->audio_par) {
+                av_log(s, AV_LOG_ERROR, "SWF muxer only supports 1 audio stream\n");
+                return AVERROR_INVALIDDATA;
+            }
             if (par->codec_id == AV_CODEC_ID_MP3) {
                 swf->audio_par = par;
                 swf->audio_fifo = av_fifo_alloc2(AUDIO_FIFO_SIZE, 1, 0);
@@ -218,6 +221,10 @@ static int swf_write_header(AVFormatContext *s)
                 return -1;
             }
         } else {
+            if (swf->video_par) {
+                av_log(s, AV_LOG_ERROR, "SWF muxer only supports 1 video stream\n");
+                return AVERROR_INVALIDDATA;
+            }
             if (ff_codec_get_tag(ff_swf_codec_tags, par->codec_id) ||
                 par->codec_id == AV_CODEC_ID_PNG ||
                 par->codec_id == AV_CODEC_ID_MJPEG) {
@@ -540,37 +547,33 @@ static void swf_deinit(AVFormatContext *s)
 }
 
 #if CONFIG_SWF_MUXER
-const FFOutputFormat ff_swf_muxer = {
-    .p.name            = "swf",
-    .p.long_name       = NULL_IF_CONFIG_SMALL("SWF (ShockWave Flash)"),
-    .p.mime_type       = "application/x-shockwave-flash",
-    .p.extensions      = "swf",
+const AVOutputFormat ff_swf_muxer = {
+    .name              = "swf",
+    .long_name         = NULL_IF_CONFIG_SMALL("SWF (ShockWave Flash)"),
+    .mime_type         = "application/x-shockwave-flash",
+    .extensions        = "swf",
     .priv_data_size    = sizeof(SWFEncContext),
-    .p.audio_codec     = AV_CODEC_ID_MP3,
-    .p.video_codec     = AV_CODEC_ID_FLV1,
-    .p.subtitle_codec  = AV_CODEC_ID_NONE,
+    .audio_codec       = AV_CODEC_ID_MP3,
+    .video_codec       = AV_CODEC_ID_FLV1,
     .write_header      = swf_write_header,
     .write_packet      = swf_write_packet,
     .write_trailer     = swf_write_trailer,
     .deinit            = swf_deinit,
-    .p.flags           = AVFMT_TS_NONSTRICT,
-    .flags_internal    = FF_OFMT_FLAG_MAX_ONE_OF_EACH,
+    .flags             = AVFMT_TS_NONSTRICT,
 };
 #endif
 #if CONFIG_AVM2_MUXER
-const FFOutputFormat ff_avm2_muxer = {
-    .p.name            = "avm2",
-    .p.long_name       = NULL_IF_CONFIG_SMALL("SWF (ShockWave Flash) (AVM2)"),
-    .p.mime_type       = "application/x-shockwave-flash",
+const AVOutputFormat ff_avm2_muxer = {
+    .name              = "avm2",
+    .long_name         = NULL_IF_CONFIG_SMALL("SWF (ShockWave Flash) (AVM2)"),
+    .mime_type         = "application/x-shockwave-flash",
     .priv_data_size    = sizeof(SWFEncContext),
-    .p.audio_codec     = AV_CODEC_ID_MP3,
-    .p.video_codec     = AV_CODEC_ID_FLV1,
-    .p.subtitle_codec  = AV_CODEC_ID_NONE,
+    .audio_codec       = AV_CODEC_ID_MP3,
+    .video_codec       = AV_CODEC_ID_FLV1,
     .write_header      = swf_write_header,
     .write_packet      = swf_write_packet,
     .write_trailer     = swf_write_trailer,
     .deinit            = swf_deinit,
-    .p.flags           = AVFMT_TS_NONSTRICT,
-    .flags_internal    = FF_OFMT_FLAG_MAX_ONE_OF_EACH,
+    .flags             = AVFMT_TS_NONSTRICT,
 };
 #endif

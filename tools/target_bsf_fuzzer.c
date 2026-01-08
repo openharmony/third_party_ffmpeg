@@ -18,7 +18,6 @@
 
 #include "config.h"
 #include "libavutil/imgutils.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 
 #include "libavcodec/avcodec.h"
@@ -95,8 +94,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         if (flags & 0x20) {
             if (!strcmp(f->name, "av1_metadata"))
                 av_opt_set_int(bsf->priv_data, "td", bytestream2_get_byte(&gbc) % 3, 0);
-            else if (!strcmp(f->name, "h264_metadata") || !strcmp(f->name, "hevc_metadata") ||
-                     !strcmp(f->name, "vvc_metadata"))
+            else if (!strcmp(f->name, "h264_metadata") || !strcmp(f->name, "h265_metadata"))
                 av_opt_set_int(bsf->priv_data, "aud", bytestream2_get_byte(&gbc) % 3, 0);
             else if (!strcmp(f->name, "extract_extradata"))
                 av_opt_set_int(bsf->priv_data, "remove", bytestream2_get_byte(&gbc) & 1, 0);

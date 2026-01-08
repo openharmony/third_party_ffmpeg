@@ -65,5 +65,6 @@ function ff_hscale_8_to_15_neon, export=1
     subs                r2, #2                                         @ dstW -= 2
     bgt                 1b                                             @ loop until end of line
     vpop                {q4-q7}
-    pop                 {r4-r12, pc}
+    pop                 {r4-r12, lr}
+    mov pc, lr
 endfunc

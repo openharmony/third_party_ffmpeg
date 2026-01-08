@@ -18,7 +18,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/mem.h"
 #include "swscale_internal.h"
 
 /// Scaler instance data
@@ -106,18 +105,18 @@ static int lum_convert(SwsContext *c, SwsFilterDescriptor *desc, int sliceY, int
         uint8_t * dst = desc->dst->plane[0].line[i];
 
         if (c->lumToYV12) {
-            c->lumToYV12(dst, src[0], src[1], src[2], srcW, pal, c->input_opaque);
+            c->lumToYV12(dst, src[0], src[1], src[2], srcW, pal);
         } else if (c->readLumPlanar) {
-            c->readLumPlanar(dst, src, srcW, c->input_rgb2yuv_table, c->input_opaque);
+            c->readLumPlanar(dst, src, srcW, c->input_rgb2yuv_table);
         }
 
 
         if (desc->alpha) {
             dst = desc->dst->plane[3].line[i];
             if (c->alpToYV12) {
-                c->alpToYV12(dst, src[3], src[1], src[2], srcW, pal, c->input_opaque);
+                c->alpToYV12(dst, src[3], src[1], src[2], srcW, pal);
             } else if (c->readAlpPlanar) {
-                c->readAlpPlanar(dst, src, srcW, NULL, c->input_opaque);
+                c->readAlpPlanar(dst, src, srcW, NULL);
             }
         }
     }
@@ -225,9 +224,9 @@ static int chr_convert(SwsContext *c, SwsFilterDescriptor *desc, int sliceY, int
         uint8_t * dst1 = desc->dst->plane[1].line[i];
         uint8_t * dst2 = desc->dst->plane[2].line[i];
         if (c->chrToYV12) {
-            c->chrToYV12(dst1, dst2, src[0], src[1], src[2], srcW, pal, c->input_opaque);
+            c->chrToYV12(dst1, dst2, src[0], src[1], src[2], srcW, pal);
         } else if (c->readChrPlanar) {
-            c->readChrPlanar(dst1, dst2, src, srcW, c->input_rgb2yuv_table, c->input_opaque);
+            c->readChrPlanar(dst1, dst2, src, srcW, c->input_rgb2yuv_table);
         }
     }
     return sliceH;

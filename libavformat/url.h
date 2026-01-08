@@ -32,6 +32,8 @@
 #define URL_PROTOCOL_FLAG_NESTED_SCHEME 1 /*< The protocol name can be the first part of a nested protocol scheme */
 #define URL_PROTOCOL_FLAG_NETWORK       2 /*< The protocol uses network */
 
+extern const AVClass ffurl_context_class;
+
 typedef struct URLContext {
     const AVClass *av_class;    /**< information for av_log(). Set by url_open(). */
     const struct URLProtocol *prot;
@@ -76,8 +78,8 @@ typedef struct URLProtocol {
     int     (*url_write)(URLContext *h, const unsigned char *buf, int size);
     int64_t (*url_seek)( URLContext *h, int64_t pos, int whence);
     int     (*url_close)(URLContext *h);
-    int (*url_read_pause)(void *urlcontext, int pause);
-    int64_t (*url_read_seek)(void *urlcontext, int stream_index,
+    int (*url_read_pause)(URLContext *h, int pause);
+    int64_t (*url_read_seek)(URLContext *h, int stream_index,
                              int64_t timestamp, int flags);
     int (*url_get_file_handle)(URLContext *h);
     int (*url_get_multi_file_handle)(URLContext *h, int **handles,
@@ -168,7 +170,6 @@ int ffurl_accept(URLContext *s, URLContext **c);
  */
 int ffurl_handshake(URLContext *c);
 
-int ffurl_read2(void *urlcontext, uint8_t *buf, int size);
 /**
  * Read up to size bytes from the resource accessed by h, and store
  * the read bytes in buf.
@@ -178,10 +179,7 @@ int ffurl_read2(void *urlcontext, uint8_t *buf, int size);
  * indicates that it is not possible to read more from the accessed
  * resource (except if the value of the size argument is also zero).
  */
-static inline int ffurl_read(URLContext *h, uint8_t *buf, int size)
-{
-    return ffurl_read2(h, buf, size);
-}
+int ffurl_read(URLContext *h, unsigned char *buf, int size);
 
 /**
  * Read as many bytes as possible (up to size), calling the
@@ -192,19 +190,14 @@ static inline int ffurl_read(URLContext *h, uint8_t *buf, int size)
  */
 int ffurl_read_complete(URLContext *h, unsigned char *buf, int size);
 
-int ffurl_write2(void *urlcontext, const uint8_t *buf, int size);
 /**
  * Write size bytes from buf to the resource accessed by h.
  *
  * @return the number of bytes actually written, or a negative value
  * corresponding to an AVERROR code in case of failure
  */
-static inline int ffurl_write(URLContext *h, const uint8_t *buf, int size)
-{
-    return ffurl_write2(h, buf, size);
-}
+int ffurl_write(URLContext *h, const unsigned char *buf, int size);
 
-int64_t ffurl_seek2(void *urlcontext, int64_t pos, int whence);
 /**
  * Change the position that will be used by the next read/write
  * operation on the resource accessed by h.
@@ -219,10 +212,7 @@ int64_t ffurl_seek2(void *urlcontext, int64_t pos, int whence);
  * the beginning of the file. You can use this feature together with
  * SEEK_CUR to read the current file position.
  */
-static inline int64_t ffurl_seek(URLContext *h, int64_t pos, int whence)
-{
-    return ffurl_seek2(h, pos, whence);
-}
+int64_t ffurl_seek(URLContext *h, int64_t pos, int whence);
 
 /**
  * Close the resource accessed by the URLContext h, and free the
@@ -261,7 +251,7 @@ int ffurl_get_multi_file_handle(URLContext *h, int **handles, int *numhandles);
  *
  * @return threshold (>0) on success or <=0 on error.
  */
-int ffurl_get_short_seek(void *urlcontext);
+int ffurl_get_short_seek(URLContext *h);
 
 /**
  * Signal the URLContext that we are done reading or writing the stream.

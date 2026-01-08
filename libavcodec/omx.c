@@ -38,7 +38,6 @@
 #include "libavutil/common.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/log.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 
 #include "avcodec.h"
@@ -532,14 +531,14 @@ static av_cold int omx_component_init(AVCodecContext *avctx, const char *role)
         CHECK(err);
         avc.nBFrames = 0;
         avc.nPFrames = avctx->gop_size - 1;
-        switch (s->profile == AV_PROFILE_UNKNOWN ? avctx->profile : s->profile) {
-        case AV_PROFILE_H264_BASELINE:
+        switch (s->profile == FF_PROFILE_UNKNOWN ? avctx->profile : s->profile) {
+        case FF_PROFILE_H264_BASELINE:
             avc.eProfile = OMX_VIDEO_AVCProfileBaseline;
             break;
-        case AV_PROFILE_H264_MAIN:
+        case FF_PROFILE_H264_MAIN:
             avc.eProfile = OMX_VIDEO_AVCProfileMain;
             break;
-        case AV_PROFILE_H264_HIGH:
+        case FF_PROFILE_H264_HIGH:
             avc.eProfile = OMX_VIDEO_AVCProfileHigh;
             break;
         default:
@@ -794,8 +793,7 @@ static int omx_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             need_copy = 1;
         }
         if (need_copy)
-            av_image_copy2(dst, linesize, frame->data, frame->linesize,
-                           avctx->pix_fmt, avctx->width, avctx->height);
+            av_image_copy(dst, linesize, (const uint8_t**) frame->data, frame->linesize, avctx->pix_fmt, avctx->width, avctx->height);
         buffer->nFlags = OMX_BUFFERFLAG_ENDOFFRAME;
         buffer->nOffset = 0;
         // Convert the timestamps to microseconds; some encoders can ignore
@@ -921,10 +919,10 @@ static const AVOption options[] = {
     { "omx_libname", "OpenMAX library name", OFFSET(libname), AV_OPT_TYPE_STRING, { 0 }, 0, 0, VDE },
     { "omx_libprefix", "OpenMAX library prefix", OFFSET(libprefix), AV_OPT_TYPE_STRING, { 0 }, 0, 0, VDE },
     { "zerocopy", "Try to avoid copying input frames if possible", OFFSET(input_zerocopy), AV_OPT_TYPE_INT, { .i64 = CONFIG_OMX_RPI }, 0, 1, VE },
-    { "profile",  "Set the encoding profile", OFFSET(profile), AV_OPT_TYPE_INT,   { .i64 = AV_PROFILE_UNKNOWN },       AV_PROFILE_UNKNOWN, AV_PROFILE_H264_HIGH, VE, .unit = "profile" },
-    { "baseline", "",                         0,               AV_OPT_TYPE_CONST, { .i64 = AV_PROFILE_H264_BASELINE }, 0, 0, VE, .unit = "profile" },
-    { "main",     "",                         0,               AV_OPT_TYPE_CONST, { .i64 = AV_PROFILE_H264_MAIN },     0, 0, VE, .unit = "profile" },
-    { "high",     "",                         0,               AV_OPT_TYPE_CONST, { .i64 = AV_PROFILE_H264_HIGH },     0, 0, VE, .unit = "profile" },
+    { "profile",  "Set the encoding profile", OFFSET(profile), AV_OPT_TYPE_INT,   { .i64 = FF_PROFILE_UNKNOWN },       FF_PROFILE_UNKNOWN, FF_PROFILE_H264_HIGH, VE, "profile" },
+    { "baseline", "",                         0,               AV_OPT_TYPE_CONST, { .i64 = FF_PROFILE_H264_BASELINE }, 0, 0, VE, "profile" },
+    { "main",     "",                         0,               AV_OPT_TYPE_CONST, { .i64 = FF_PROFILE_H264_MAIN },     0, 0, VE, "profile" },
+    { "high",     "",                         0,               AV_OPT_TYPE_CONST, { .i64 = FF_PROFILE_H264_HIGH },     0, 0, VE, "profile" },
     { NULL }
 };
 
@@ -940,7 +938,7 @@ static const AVClass omx_mpeg4enc_class = {
 };
 const FFCodec ff_mpeg4_omx_encoder = {
     .p.name           = "mpeg4_omx",
-    CODEC_LONG_NAME("OpenMAX IL MPEG-4 video encoder"),
+    .p.long_name      = NULL_IF_CONFIG_SMALL("OpenMAX IL MPEG-4 video encoder"),
     .p.type           = AVMEDIA_TYPE_VIDEO,
     .p.id             = AV_CODEC_ID_MPEG4,
     .priv_data_size   = sizeof(OMXCodecContext),
@@ -948,9 +946,8 @@ const FFCodec ff_mpeg4_omx_encoder = {
     FF_CODEC_ENCODE_CB(omx_encode_frame),
     .close            = omx_encode_end,
     .p.pix_fmts       = omx_encoder_pix_fmts,
-    .color_ranges     = AVCOL_RANGE_MPEG,
     .p.capabilities   = AV_CODEC_CAP_DELAY,
-    .caps_internal    = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal    = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
     .p.priv_class     = &omx_mpeg4enc_class,
 };
 
@@ -962,7 +959,7 @@ static const AVClass omx_h264enc_class = {
 };
 const FFCodec ff_h264_omx_encoder = {
     .p.name           = "h264_omx",
-    CODEC_LONG_NAME("OpenMAX IL H.264 video encoder"),
+    .p.long_name      = NULL_IF_CONFIG_SMALL("OpenMAX IL H.264 video encoder"),
     .p.type           = AVMEDIA_TYPE_VIDEO,
     .p.id             = AV_CODEC_ID_H264,
     .priv_data_size   = sizeof(OMXCodecContext),
@@ -970,8 +967,7 @@ const FFCodec ff_h264_omx_encoder = {
     FF_CODEC_ENCODE_CB(omx_encode_frame),
     .close            = omx_encode_end,
     .p.pix_fmts       = omx_encoder_pix_fmts,
-    .color_ranges     = AVCOL_RANGE_MPEG, /* FIXME: implement tagging */
     .p.capabilities   = AV_CODEC_CAP_DELAY,
-    .caps_internal    = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal    = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
     .p.priv_class     = &omx_h264enc_class,
 };

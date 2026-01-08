@@ -27,12 +27,24 @@
 #include "simple_idct.h"
 #include "xvididct.h"
 
-av_cold void ff_permute_scantable(uint8_t dst[64], const uint8_t src[64],
-                                  const uint8_t permutation[64])
+av_cold void ff_init_scantable(const uint8_t *permutation, ScanTable *st,
+                               const uint8_t *src_scantable)
 {
-    for (int i = 0; i < 64; i++) {
-        int j = src[i];
-        dst[i] = permutation[j];
+    int i, end;
+
+    st->scantable = src_scantable;
+
+    for (i = 0; i < 64; i++) {
+        int j = src_scantable[i];
+        st->permutated[i] = permutation[j];
+    }
+
+    end = -1;
+    for (i = 0; i < 64; i++) {
+        int j = st->permutated[i];
+        if (j > end)
+            end = j;
+        st->raster_end[i] = end;
     }
 }
 
@@ -70,7 +82,7 @@ av_cold void ff_init_scantable_permutation(uint8_t *idct_permutation,
     }
 }
 
-void ff_put_pixels_clamped_c(const int16_t *block, uint8_t *restrict pixels,
+void ff_put_pixels_clamped_c(const int16_t *block, uint8_t *av_restrict pixels,
                              ptrdiff_t line_size)
 {
     int i;
@@ -91,7 +103,7 @@ void ff_put_pixels_clamped_c(const int16_t *block, uint8_t *restrict pixels,
     }
 }
 
-static void put_pixels_clamped4_c(const int16_t *block, uint8_t *restrict pixels,
+static void put_pixels_clamped4_c(const int16_t *block, uint8_t *av_restrict pixels,
                                  int line_size)
 {
     int i;
@@ -108,7 +120,7 @@ static void put_pixels_clamped4_c(const int16_t *block, uint8_t *restrict pixels
     }
 }
 
-static void put_pixels_clamped2_c(const int16_t *block, uint8_t *restrict pixels,
+static void put_pixels_clamped2_c(const int16_t *block, uint8_t *av_restrict pixels,
                                  int line_size)
 {
     int i;
@@ -124,7 +136,7 @@ static void put_pixels_clamped2_c(const int16_t *block, uint8_t *restrict pixels
 }
 
 static void put_signed_pixels_clamped_c(const int16_t *block,
-                                        uint8_t *restrict pixels,
+                                        uint8_t *av_restrict pixels,
                                         ptrdiff_t line_size)
 {
     int i, j;
@@ -144,7 +156,7 @@ static void put_signed_pixels_clamped_c(const int16_t *block,
     }
 }
 
-void ff_add_pixels_clamped_c(const int16_t *block, uint8_t *restrict pixels,
+void ff_add_pixels_clamped_c(const int16_t *block, uint8_t *av_restrict pixels,
                              ptrdiff_t line_size)
 {
     int i;
@@ -164,7 +176,7 @@ void ff_add_pixels_clamped_c(const int16_t *block, uint8_t *restrict pixels,
     }
 }
 
-static void add_pixels_clamped4_c(const int16_t *block, uint8_t *restrict pixels,
+static void add_pixels_clamped4_c(const int16_t *block, uint8_t *av_restrict pixels,
                           int line_size)
 {
     int i;
@@ -180,7 +192,7 @@ static void add_pixels_clamped4_c(const int16_t *block, uint8_t *restrict pixels
     }
 }
 
-static void add_pixels_clamped2_c(const int16_t *block, uint8_t *restrict pixels,
+static void add_pixels_clamped2_c(const int16_t *block, uint8_t *av_restrict pixels,
                           int line_size)
 {
     int i;
@@ -294,12 +306,12 @@ av_cold void ff_idctdsp_init(IDCTDSPContext *c, AVCodecContext *avctx)
 
 #if ARCH_AARCH64
     ff_idctdsp_init_aarch64(c, avctx, high_bit_depth);
+#elif ARCH_ALPHA
+    ff_idctdsp_init_alpha(c, avctx, high_bit_depth);
 #elif ARCH_ARM
     ff_idctdsp_init_arm(c, avctx, high_bit_depth);
 #elif ARCH_PPC
     ff_idctdsp_init_ppc(c, avctx, high_bit_depth);
-#elif ARCH_RISCV
-    ff_idctdsp_init_riscv(c, avctx, high_bit_depth);
 #elif ARCH_X86
     ff_idctdsp_init_x86(c, avctx, high_bit_depth);
 #elif ARCH_MIPS

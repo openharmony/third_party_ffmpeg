@@ -19,9 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "config_components.h"
+
 #include "avcodec.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 
 static av_cold int v408_decode_init(AVCodecContext *avctx)
 {
@@ -45,6 +47,9 @@ static int v408_decode_frame(AVCodecContext *avctx, AVFrame *pic,
     if ((ret = ff_get_buffer(avctx, pic, 0)) < 0)
         return ret;
 
+    pic->key_frame = 1;
+    pic->pict_type = AV_PICTURE_TYPE_I;
+
     y = pic->data[0];
     u = pic->data[1];
     v = pic->data[2];
@@ -52,10 +57,17 @@ static int v408_decode_frame(AVCodecContext *avctx, AVFrame *pic,
 
     for (i = 0; i < avctx->height; i++) {
         for (j = 0; j < avctx->width; j++) {
-            u[j] = *src++;
-            y[j] = *src++;
-            v[j] = *src++;
-            a[j] = *src++;
+            if (avctx->codec_id==AV_CODEC_ID_AYUV) {
+                v[j] = *src++;
+                u[j] = *src++;
+                y[j] = *src++;
+                a[j] = *src++;
+            } else {
+                u[j] = *src++;
+                y[j] = *src++;
+                v[j] = *src++;
+                a[j] = *src++;
+            }
         }
 
         y += pic->linesize[0];
@@ -69,12 +81,27 @@ static int v408_decode_frame(AVCodecContext *avctx, AVFrame *pic,
     return avpkt->size;
 }
 
+#if CONFIG_AYUV_DECODER
+const FFCodec ff_ayuv_decoder = {
+    .p.name       = "ayuv",
+    .p.long_name  = NULL_IF_CONFIG_SMALL("Uncompressed packed MS 4:4:4:4"),
+    .p.type       = AVMEDIA_TYPE_VIDEO,
+    .p.id         = AV_CODEC_ID_AYUV,
+    .init         = v408_decode_init,
+    FF_CODEC_DECODE_CB(v408_decode_frame),
+    .p.capabilities = AV_CODEC_CAP_DR1,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
+};
+#endif
+#if CONFIG_V408_DECODER
 const FFCodec ff_v408_decoder = {
     .p.name       = "v408",
-    CODEC_LONG_NAME("Uncompressed packed QT 4:4:4:4"),
+    .p.long_name  = NULL_IF_CONFIG_SMALL("Uncompressed packed QT 4:4:4:4"),
     .p.type       = AVMEDIA_TYPE_VIDEO,
     .p.id         = AV_CODEC_ID_V408,
     .init         = v408_decode_init,
     FF_CODEC_DECODE_CB(v408_decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };
+#endif

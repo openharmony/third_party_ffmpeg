@@ -19,12 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "filters.h"
+#include "internal.h"
 #include "metal/utils.h"
 #include "yadif.h"
 #include "libavutil/avassert.h"
 #include "libavutil/hwcontext.h"
-#include "libavutil/hwcontext_videotoolbox.h"
 #include "libavutil/objc.h"
 
 #include <assert.h>
@@ -175,7 +174,9 @@ static av_cold void do_uninit(AVFilterContext *ctx) API_AVAILABLE(macos(10.11), 
     YADIFVTContext *s = ctx->priv;
     YADIFContext *y = &s->yadif;
 
-    ff_yadif_uninit(ctx);
+    av_frame_free(&y->prev);
+    av_frame_free(&y->cur);
+    av_frame_free(&y->next);
 
     av_buffer_unref(&s->device_ref);
     av_buffer_unref(&s->input_frames_ref);
@@ -289,17 +290,16 @@ static av_cold int yadif_videotoolbox_init(AVFilterContext *ctx)
 
 static int do_config_input(AVFilterLink *inlink) API_AVAILABLE(macos(10.11), ios(8.0))
 {
-    FilterLink *l = ff_filter_link(inlink);
     AVFilterContext *ctx = inlink->dst;
     YADIFVTContext *s = ctx->priv;
 
-    if (!l->hw_frames_ctx) {
+    if (!inlink->hw_frames_ctx) {
         av_log(ctx, AV_LOG_ERROR, "A hardware frames reference is "
                "required to associate the processing device.\n");
         return AVERROR(EINVAL);
     }
 
-    s->input_frames_ref = av_buffer_ref(l->hw_frames_ctx);
+    s->input_frames_ref = av_buffer_ref(inlink->hw_frames_ctx);
     if (!s->input_frames_ref) {
         av_log(ctx, AV_LOG_ERROR, "A input frames reference create "
                "failed.\n");
@@ -323,9 +323,7 @@ static int config_input(AVFilterLink *inlink)
 
 static int do_config_output(AVFilterLink *link) API_AVAILABLE(macos(10.11), ios(8.0))
 {
-    FilterLink *l = ff_filter_link(link);
-    FilterLink *il = ff_filter_link(link->src->inputs[0]);
-    AVHWFramesContext *output_frames, *input_frames;
+    AVHWFramesContext *output_frames;
     AVFilterContext *ctx = link->src;
     YADIFVTContext *s = ctx->priv;
     YADIFContext *y = &s->yadif;
@@ -339,37 +337,46 @@ static int do_config_output(AVFilterLink *link) API_AVAILABLE(macos(10.11), ios(
         return AVERROR(ENOMEM);
     }
 
-    l->hw_frames_ctx = av_hwframe_ctx_alloc(s->device_ref);
-    if (!l->hw_frames_ctx) {
+    link->hw_frames_ctx = av_hwframe_ctx_alloc(s->device_ref);
+    if (!link->hw_frames_ctx) {
         av_log(ctx, AV_LOG_ERROR, "Failed to create HW frame context "
                "for output.\n");
         ret = AVERROR(ENOMEM);
         goto exit;
     }
 
-    input_frames = (AVHWFramesContext*)il->hw_frames_ctx->data;
-    output_frames = (AVHWFramesContext*)l->hw_frames_ctx->data;
+    output_frames = (AVHWFramesContext*)link->hw_frames_ctx->data;
 
     output_frames->format    = AV_PIX_FMT_VIDEOTOOLBOX;
     output_frames->sw_format = s->input_frames->sw_format;
     output_frames->width     = ctx->inputs[0]->w;
     output_frames->height    = ctx->inputs[0]->h;
-    ((AVVTFramesContext *)output_frames->hwctx)->color_range = ((AVVTFramesContext *)input_frames->hwctx)->color_range;
 
     ret = ff_filter_init_hw_frames(ctx, link, 10);
     if (ret < 0)
         goto exit;
 
-    ret = av_hwframe_ctx_init(l->hw_frames_ctx);
+    ret = av_hwframe_ctx_init(link->hw_frames_ctx);
     if (ret < 0) {
         av_log(ctx, AV_LOG_ERROR, "Failed to initialise VideoToolbox frame "
                "context for output: %d\n", ret);
         goto exit;
     }
 
-    ret = ff_yadif_config_output_common(link);
-    if (ret < 0)
+    link->time_base.num = ctx->inputs[0]->time_base.num;
+    link->time_base.den = ctx->inputs[0]->time_base.den * 2;
+    link->w             = ctx->inputs[0]->w;
+    link->h             = ctx->inputs[0]->h;
+
+    if(y->mode & 1)
+        link->frame_rate = av_mul_q(ctx->inputs[0]->frame_rate,
+                                    (AVRational){2, 1});
+
+    if (link->w < 3 || link->h < 3) {
+        av_log(ctx, AV_LOG_ERROR, "Video of less than 3 columns or lines is not supported\n");
+        ret = AVERROR(EINVAL);
         goto exit;
+    }
 
     y->csp = av_pix_fmt_desc_get(output_frames->sw_format);
     y->filter = filter;
@@ -394,18 +401,18 @@ static int config_output(AVFilterLink *link)
 
 static const AVOption yadif_videotoolbox_options[] = {
     #define OFFSET(x) offsetof(YADIFContext, x)
-    { "mode",   "specify the interlacing mode", OFFSET(mode), AV_OPT_TYPE_INT, {.i64=YADIF_MODE_SEND_FRAME}, 0, 3, FLAGS, .unit = "mode"},
+    { "mode",   "specify the interlacing mode", OFFSET(mode), AV_OPT_TYPE_INT, {.i64=YADIF_MODE_SEND_FRAME}, 0, 3, FLAGS, "mode"},
     CONST("send_frame",           "send one frame for each frame",                                     YADIF_MODE_SEND_FRAME,           "mode"),
     CONST("send_field",           "send one frame for each field",                                     YADIF_MODE_SEND_FIELD,           "mode"),
     CONST("send_frame_nospatial", "send one frame for each frame, but skip spatial interlacing check", YADIF_MODE_SEND_FRAME_NOSPATIAL, "mode"),
     CONST("send_field_nospatial", "send one frame for each field, but skip spatial interlacing check", YADIF_MODE_SEND_FIELD_NOSPATIAL, "mode"),
 
-    { "parity", "specify the assumed picture field parity", OFFSET(parity), AV_OPT_TYPE_INT, {.i64=YADIF_PARITY_AUTO}, -1, 1, FLAGS, .unit = "parity" },
+    { "parity", "specify the assumed picture field parity", OFFSET(parity), AV_OPT_TYPE_INT, {.i64=YADIF_PARITY_AUTO}, -1, 1, FLAGS, "parity" },
     CONST("tff",  "assume top field first",    YADIF_PARITY_TFF,  "parity"),
     CONST("bff",  "assume bottom field first", YADIF_PARITY_BFF,  "parity"),
     CONST("auto", "auto detect parity",        YADIF_PARITY_AUTO, "parity"),
 
-    { "deint", "specify which frames to deinterlace", OFFSET(deint), AV_OPT_TYPE_INT, {.i64=YADIF_DEINT_ALL}, 0, 1, FLAGS, .unit = "deint" },
+    { "deint", "specify which frames to deinterlace", OFFSET(deint), AV_OPT_TYPE_INT, {.i64=YADIF_DEINT_ALL}, 0, 1, FLAGS, "deint" },
     CONST("all",        "deinterlace all frames",                       YADIF_DEINT_ALL,        "deint"),
     CONST("interlaced", "only deinterlace frames marked as interlaced", YADIF_DEINT_INTERLACED, "deint"),
     #undef OFFSET

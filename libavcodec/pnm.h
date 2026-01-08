@@ -22,20 +22,21 @@
 #ifndef AVCODEC_PNM_H
 #define AVCODEC_PNM_H
 
-#include "libavutil/half2float.h"
 #include "avcodec.h"
 
 typedef struct PNMContext {
-    const uint8_t *bytestream;
-    const uint8_t *bytestream_start;
-    const uint8_t *bytestream_end;
+    uint8_t *bytestream;
+    uint8_t *bytestream_start;
+    uint8_t *bytestream_end;
     int maxval;                 ///< maximum value of a pixel
     int type;
     int endian;
     int half;
     float scale;
 
-    Half2FloatTables h2f_tables;
+    uint32_t mantissatable[2048];
+    uint32_t exponenttable[64];
+    uint16_t offsettable[64];
 } PNMContext;
 
 int ff_pnm_decode_header(AVCodecContext *avctx, PNMContext * const s);

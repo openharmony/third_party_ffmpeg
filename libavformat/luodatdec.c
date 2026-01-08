@@ -23,7 +23,6 @@
 #include "libavutil/intreadwrite.h"
 #include "avio_internal.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 
 static int dat_probe(const AVProbeData *p)
@@ -116,12 +115,12 @@ static int dat_read_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-const FFInputFormat ff_luodat_demuxer = {
-    .p.name         = "luodat",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Video CCTV DAT"),
-    .p.extensions   = "dat",
-    .p.flags        = AVFMT_GENERIC_INDEX,
+const AVInputFormat ff_luodat_demuxer = {
+    .name           = "luodat",
+    .long_name      = NULL_IF_CONFIG_SMALL("Video CCTV DAT"),
     .read_probe     = dat_probe,
     .read_header    = dat_read_header,
     .read_packet    = dat_read_packet,
+    .extensions     = "dat",
+    .flags          = AVFMT_GENERIC_INDEX,
 };

@@ -21,17 +21,15 @@
 #include "libavutil/mips/generic_macros_msa.h"
 #include "me_cmp_mips.h"
 
-static uint32_t sad_8width_msa(const uint8_t *src, int32_t src_stride,
-                               const uint8_t *ref, int32_t ref_stride,
+static uint32_t sad_8width_msa(uint8_t *src, int32_t src_stride,
+                               uint8_t *ref, int32_t ref_stride,
                                int32_t height)
 {
-    int32_t ht_cnt = height >> 2;
-    int res = (height & 0x03);
+    int32_t ht_cnt;
     v16u8 src0, src1, src2, src3, ref0, ref1, ref2, ref3;
-    v8u16 zero = { 0 };
     v8u16 sad = { 0 };
 
-    for (; ht_cnt--; ) {
+    for (ht_cnt = (height >> 2); ht_cnt--;) {
         LD_UB4(src, src_stride, src0, src1, src2, src3);
         src += (4 * src_stride);
         LD_UB4(ref, ref_stride, ref0, ref1, ref2, ref3);
@@ -41,30 +39,19 @@ static uint32_t sad_8width_msa(const uint8_t *src, int32_t src_stride,
                     src0, src1, ref0, ref1);
         sad += SAD_UB2_UH(src0, src1, ref0, ref1);
     }
-    for (; res--; ) {
-        v16u8 diff;
-        src0 = LD_UB(src);
-        ref0 = LD_UB(ref);
-        src += src_stride;
-        ref += ref_stride;
-        diff = __msa_asub_u_b((v16u8) src0, (v16u8) ref0);
-        diff = (v16u8)__msa_ilvr_d((v2i64)zero, (v2i64)diff);
-        sad += __msa_hadd_u_h((v16u8) diff, (v16u8) diff);
-    }
 
     return (HADD_UH_U32(sad));
 }
 
-static uint32_t sad_16width_msa(const uint8_t *src, int32_t src_stride,
-                                const uint8_t *ref, int32_t ref_stride,
+static uint32_t sad_16width_msa(uint8_t *src, int32_t src_stride,
+                                uint8_t *ref, int32_t ref_stride,
                                 int32_t height)
 {
-    int32_t ht_cnt = height >> 2;
-    int res = (height & 0x03);
+    int32_t ht_cnt;
     v16u8 src0, src1, ref0, ref1;
     v8u16 sad = { 0 };
 
-    for (; ht_cnt--; ) {
+    for (ht_cnt = (height >> 2); ht_cnt--;) {
         LD_UB2(src, src_stride, src0, src1);
         src += (2 * src_stride);
         LD_UB2(ref, ref_stride, ref0, ref1);
@@ -77,32 +64,22 @@ static uint32_t sad_16width_msa(const uint8_t *src, int32_t src_stride,
         ref += (2 * ref_stride);
         sad += SAD_UB2_UH(src0, src1, ref0, ref1);
     }
-    for (; res > 0; res--) {
-        v16u8 diff;
-        src0 = LD_UB(src);
-        ref0 = LD_UB(ref);
-        src += src_stride;
-        ref += ref_stride;
-        diff = __msa_asub_u_b((v16u8) src0, (v16u8) ref0);
-        sad += __msa_hadd_u_h((v16u8) diff, (v16u8) diff);
-    }
+
     return (HADD_UH_U32(sad));
 }
 
-static uint32_t sad_horiz_bilinear_filter_8width_msa(const uint8_t *src,
+static uint32_t sad_horiz_bilinear_filter_8width_msa(uint8_t *src,
                                                      int32_t src_stride,
-                                                     const uint8_t *ref,
+                                                     uint8_t *ref,
                                                      int32_t ref_stride,
                                                      int32_t height)
 {
-    int32_t ht_cnt = height >> 3;
-    int32_t res = height & 0x07;
+    int32_t ht_cnt;
     v16u8 src0, src1, src2, src3, comp0, comp1;
     v16u8 ref0, ref1, ref2, ref3, ref4, ref5;
-    v8u16 zero = { 0 };
     v8u16 sad = { 0 };
 
-    for (; ht_cnt--; ) {
+    for (ht_cnt = (height >> 3); ht_cnt--;) {
         LD_UB4(src, src_stride, src0, src1, src2, src3);
         src += (4 * src_stride);
         LD_UB4(ref, ref_stride, ref0, ref1, ref2, ref3);
@@ -130,34 +107,21 @@ static uint32_t sad_horiz_bilinear_filter_8width_msa(const uint8_t *src,
         sad += SAD_UB2_UH(src0, src1, comp0, comp1);
     }
 
-    for (; res--; ) {
-        v16u8 diff;
-        src0 = LD_UB(src);
-        ref0 = LD_UB(ref);
-        ref1 = LD_UB(ref + 1);
-        src += src_stride;
-        ref += ref_stride;
-        comp0 = (v16u8)__msa_aver_u_b((v16u8) ref0, (v16u8) ref1);
-        diff = __msa_asub_u_b((v16u8) src0, (v16u8) comp0);
-        diff = (v16u8)__msa_ilvr_d((v2i64) zero, (v2i64) diff);
-        sad += __msa_hadd_u_h((v16u8) diff, (v16u8) diff);
-    }
     return (HADD_UH_U32(sad));
 }
 
-static uint32_t sad_horiz_bilinear_filter_16width_msa(const uint8_t *src,
+static uint32_t sad_horiz_bilinear_filter_16width_msa(uint8_t *src,
                                                       int32_t src_stride,
-                                                      const uint8_t *ref,
+                                                      uint8_t *ref,
                                                       int32_t ref_stride,
                                                       int32_t height)
 {
-    int32_t ht_cnt = height >> 3;
-    int32_t res = height & 0x07;
+    int32_t ht_cnt;
     v16u8 src0, src1, src2, src3, comp0, comp1;
     v16u8 ref00, ref10, ref20, ref30, ref01, ref11, ref21, ref31;
     v8u16 sad = { 0 };
 
-    for (; ht_cnt--; ) {
+    for (ht_cnt = (height >> 3); ht_cnt--;) {
         LD_UB4(src, src_stride, src0, src1, src2, src3);
         src += (4 * src_stride);
         LD_UB4(ref, ref_stride, ref00, ref10, ref20, ref30);
@@ -181,34 +145,21 @@ static uint32_t sad_horiz_bilinear_filter_16width_msa(const uint8_t *src,
         sad += SAD_UB2_UH(src2, src3, comp0, comp1);
     }
 
-    for (; res--; ) {
-        v16u8 diff;
-        src0  = LD_UB(src);
-        ref00 = LD_UB(ref);
-        ref01 = LD_UB(ref + 1);
-        src += src_stride;
-        ref += ref_stride;
-        comp0 = (v16u8)__msa_aver_u_b((v16u8) ref00, (v16u8) ref01);
-        diff = __msa_asub_u_b((v16u8) src0, (v16u8) comp0);
-        sad += __msa_hadd_u_h((v16u8) diff, (v16u8) diff);
-    }
     return (HADD_UH_U32(sad));
 }
 
-static uint32_t sad_vert_bilinear_filter_8width_msa(const uint8_t *src,
+static uint32_t sad_vert_bilinear_filter_8width_msa(uint8_t *src,
                                                     int32_t src_stride,
-                                                    const uint8_t *ref,
+                                                    uint8_t *ref,
                                                     int32_t ref_stride,
                                                     int32_t height)
 {
-    int32_t ht_cnt = height >> 3;
-    int32_t res = height & 0x07;
+    int32_t ht_cnt;
     v16u8 src0, src1, src2, src3, comp0, comp1;
     v16u8 ref0, ref1, ref2, ref3, ref4;
-    v8u16 zero = { 0 };
     v8u16 sad = { 0 };
 
-    for (; ht_cnt--; ) {
+    for (ht_cnt = (height >> 3); ht_cnt--;) {
         LD_UB4(src, src_stride, src0, src1, src2, src3);
         src += (4 * src_stride);
         LD_UB5(ref, ref_stride, ref0, ref1, ref2, ref3, ref4);
@@ -232,33 +183,21 @@ static uint32_t sad_vert_bilinear_filter_8width_msa(const uint8_t *src,
         sad += SAD_UB2_UH(src0, src1, comp0, comp1);
     }
 
-    for (; res--; ) {
-        v16u8 diff;
-        src0 = LD_UB(src);
-        LD_UB2(ref, ref_stride, ref0, ref1);
-        src += src_stride;
-        ref += ref_stride;
-        comp0 = (v16u8)__msa_aver_u_b((v16u8) ref0, (v16u8) ref1);
-        diff = __msa_asub_u_b((v16u8) src0, (v16u8) comp0);
-        diff = (v16u8)__msa_ilvr_d((v2i64) zero, (v2i64) diff);
-        sad += __msa_hadd_u_h((v16u8) diff, (v16u8) diff);
-    }
     return (HADD_UH_U32(sad));
 }
 
-static uint32_t sad_vert_bilinear_filter_16width_msa(const uint8_t *src,
+static uint32_t sad_vert_bilinear_filter_16width_msa(uint8_t *src,
                                                      int32_t src_stride,
-                                                     const uint8_t *ref,
+                                                     uint8_t *ref,
                                                      int32_t ref_stride,
                                                      int32_t height)
 {
-    int32_t ht_cnt = height >> 3;
-    int32_t res = height & 0x07;
+    int32_t ht_cnt;
     v16u8 src0, src1, src2, src3, comp0, comp1;
     v16u8 ref0, ref1, ref2, ref3, ref4;
     v8u16 sad = { 0 };
 
-    for (; ht_cnt--; ) {
+    for (ht_cnt = (height >> 3); ht_cnt--;) {
         LD_UB5(ref, ref_stride, ref4, ref0, ref1, ref2, ref3);
         ref += (5 * ref_stride);
         LD_UB4(src, src_stride, src0, src1, src2, src3);
@@ -282,32 +221,20 @@ static uint32_t sad_vert_bilinear_filter_16width_msa(const uint8_t *src,
         sad += SAD_UB2_UH(src2, src3, comp0, comp1);
     }
 
-    for (; res--; ) {
-        v16u8 diff;
-        src0 = LD_UB(src);
-        LD_UB2(ref, ref_stride, ref0, ref1);
-        src += src_stride;
-        ref += ref_stride;
-        comp0 = (v16u8)__msa_aver_u_b((v16u8) ref0, (v16u8) ref1);
-        diff = __msa_asub_u_b((v16u8) src0, (v16u8) comp0);
-        sad += __msa_hadd_u_h((v16u8) diff, (v16u8) diff);
-    }
     return (HADD_UH_U32(sad));
 }
 
-static uint32_t sad_hv_bilinear_filter_8width_msa(const uint8_t *src,
+static uint32_t sad_hv_bilinear_filter_8width_msa(uint8_t *src,
                                                   int32_t src_stride,
-                                                  const uint8_t *ref,
+                                                  uint8_t *ref,
                                                   int32_t ref_stride,
                                                   int32_t height)
 {
-    int32_t ht_cnt = height >> 2;
-    int32_t res = height & 0x03;
+    int32_t ht_cnt;
     v16u8 src0, src1, src2, src3, temp0, temp1, diff;
     v16u8 ref0, ref1, ref2, ref3, ref4;
     v16i8 mask = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8 };
     v8u16 comp0, comp1, comp2, comp3;
-    v8u16 zero = { 0 };
     v8u16 sad = { 0 };
 
     for (ht_cnt = (height >> 2); ht_cnt--;) {
@@ -350,40 +277,23 @@ static uint32_t sad_hv_bilinear_filter_8width_msa(const uint8_t *src,
         sad += __msa_hadd_u_h(diff, diff);
     }
 
-    for (; res--; ) {
-        src0 = LD_UB(src);
-        LD_UB2(ref, ref_stride, ref0, ref1);
-        temp0 = (v16u8) __msa_vshf_b(mask, (v16i8) ref0, (v16i8) ref0);
-        temp1 = (v16u8) __msa_vshf_b(mask, (v16i8) ref1, (v16i8) ref1);
-        src += src_stride;
-        ref += ref_stride;
-        comp0 = __msa_hadd_u_h(temp0, temp0);
-        comp2 = __msa_hadd_u_h(temp1, temp1);
-        comp2 += comp0;
-        comp2 = (v8u16)__msa_srari_h((v8i16) comp2, 2);
-        comp0 = (v16u8) __msa_pckev_b((v16i8) zero, (v16i8) comp2);
-        diff = __msa_asub_u_b(src0, comp0);
-        diff = (v16u8)__msa_ilvr_d((v2i64) zero, (v2i64) diff);
-        sad += __msa_hadd_u_h(diff, diff);
-    }
     return (HADD_UH_U32(sad));
 }
 
-static uint32_t sad_hv_bilinear_filter_16width_msa(const uint8_t *src,
+static uint32_t sad_hv_bilinear_filter_16width_msa(uint8_t *src,
                                                    int32_t src_stride,
-                                                   const uint8_t *ref,
+                                                   uint8_t *ref,
                                                    int32_t ref_stride,
                                                    int32_t height)
 {
-    int32_t ht_cnt = height >> 3;
-    int32_t res = height & 0x07;
+    int32_t ht_cnt;
     v16u8 src0, src1, src2, src3, comp, diff;
     v16u8 temp0, temp1, temp2, temp3;
     v16u8 ref00, ref01, ref02, ref03, ref04, ref10, ref11, ref12, ref13, ref14;
     v8u16 comp0, comp1, comp2, comp3;
     v8u16 sad = { 0 };
 
-    for (; ht_cnt--; ) {
+    for (ht_cnt = (height >> 3); ht_cnt--;) {
         LD_UB4(src, src_stride, src0, src1, src2, src3);
         src += (4 * src_stride);
         LD_UB5(ref, ref_stride, ref04, ref00, ref01, ref02, ref03);
@@ -479,25 +389,6 @@ static uint32_t sad_hv_bilinear_filter_16width_msa(const uint8_t *src,
         diff = __msa_asub_u_b(src3, comp);
         sad += __msa_hadd_u_h(diff, diff);
     }
-    for (; res--; ) {
-        src0 = LD_UB(src);
-        LD_UB2(ref, ref_stride, ref00, ref10);
-        LD_UB2(ref + 1, ref_stride, ref01, ref11);
-        src += src_stride;
-        ref += ref_stride;
-        ILVRL_B2_UB(ref10, ref00, temp0, temp1);
-        ILVRL_B2_UB(ref11, ref01, temp2, temp3);
-        comp0 = __msa_hadd_u_h(temp0, temp0);
-        comp1 = __msa_hadd_u_h(temp1, temp1);
-        comp2 = __msa_hadd_u_h(temp2, temp2);
-        comp3 = __msa_hadd_u_h(temp3, temp3);
-        comp2 += comp0;
-        comp3 += comp1;
-        SRARI_H2_UH(comp2, comp3, 2);
-        comp = (v16u8) __msa_pckev_b((v16i8) comp3, (v16i8) comp2);
-        diff = __msa_asub_u_b(src0, comp);
-        sad += __msa_hadd_u_h(diff, diff);
-    }
 
     return (HADD_UH_U32(sad));
 }
@@ -512,21 +403,19 @@ static uint32_t sad_hv_bilinear_filter_16width_msa(const uint8_t *src,
     DPADD_SH2_SW(res_l0_m, res_l1_m, res_l0_m, res_l1_m, var, var);  \
 }
 
-static uint32_t sse_4width_msa(const uint8_t *src_ptr, int32_t src_stride,
-                               const uint8_t *ref_ptr, int32_t ref_stride,
+static uint32_t sse_4width_msa(uint8_t *src_ptr, int32_t src_stride,
+                               uint8_t *ref_ptr, int32_t ref_stride,
                                int32_t height)
 {
-    int32_t ht_cnt = height >> 2;
-    int32_t res = height & 0x03;
+    int32_t ht_cnt;
     uint32_t sse;
     uint32_t src0, src1, src2, src3;
     uint32_t ref0, ref1, ref2, ref3;
-    v16u8 src  = { 0 };
-    v16u8 ref  = { 0 };
-    v16u8 zero = { 0 };
-    v4i32 var  = { 0 };
+    v16u8 src = { 0 };
+    v16u8 ref = { 0 };
+    v4i32 var = { 0 };
 
-    for (; ht_cnt--; ) {
+    for (ht_cnt = (height >> 2); ht_cnt--;) {
         LW4(src_ptr, src_stride, src0, src1, src2, src3);
         src_ptr += (4 * src_stride);
         LW4(ref_ptr, ref_stride, ref0, ref1, ref2, ref3);
@@ -537,37 +426,22 @@ static uint32_t sse_4width_msa(const uint8_t *src_ptr, int32_t src_stride,
         CALC_MSE_B(src, ref, var);
     }
 
-    for (; res--; ) {
-        v16u8 reg0;
-        v8i16 tmp0;
-        src0 = LW(src_ptr);
-        ref0 = LW(ref_ptr);
-        src_ptr += src_stride;
-        ref_ptr += ref_stride;
-        src  = (v16u8)__msa_insert_w((v4i32) src, 0, src0);
-        ref  = (v16u8)__msa_insert_w((v4i32) ref, 0, ref0);
-        reg0 = (v16u8)__msa_ilvr_b(src, ref);
-        reg0 = (v16u8)__msa_ilvr_d((v2i64) zero, (v2i64) reg0);
-        tmp0 = (v8i16)__msa_hsub_u_h((v16u8) reg0, (v16u8) reg0);
-        var  = (v4i32)__msa_dpadd_s_w((v4i32) var, (v8i16) tmp0, (v8i16) tmp0);
-    }
     sse = HADD_SW_S32(var);
 
     return sse;
 }
 
-static uint32_t sse_8width_msa(const uint8_t *src_ptr, int32_t src_stride,
-                               const uint8_t *ref_ptr, int32_t ref_stride,
+static uint32_t sse_8width_msa(uint8_t *src_ptr, int32_t src_stride,
+                               uint8_t *ref_ptr, int32_t ref_stride,
                                int32_t height)
 {
-    int32_t ht_cnt = height >> 2;
-    int32_t res = height & 0x03;
+    int32_t ht_cnt;
     uint32_t sse;
     v16u8 src0, src1, src2, src3;
     v16u8 ref0, ref1, ref2, ref3;
     v4i32 var = { 0 };
 
-    for (; ht_cnt--; ) {
+    for (ht_cnt = (height >> 2); ht_cnt--;) {
         LD_UB4(src_ptr, src_stride, src0, src1, src2, src3);
         src_ptr += (4 * src_stride);
         LD_UB4(ref_ptr, ref_stride, ref0, ref1, ref2, ref3);
@@ -579,32 +453,21 @@ static uint32_t sse_8width_msa(const uint8_t *src_ptr, int32_t src_stride,
         CALC_MSE_B(src1, ref1, var);
     }
 
-    for (; res--; ) {
-        v8i16 tmp0;
-        src0 = LD_UB(src_ptr);
-        ref0 = LD_UB(ref_ptr);
-        src_ptr += src_stride;
-        ref_ptr += ref_stride;
-        ref1 = (v16u8)__msa_ilvr_b(src0, ref0);
-        tmp0 = (v8i16)__msa_hsub_u_h((v16u8) ref1, (v16u8) ref1);
-        var  = (v4i32)__msa_dpadd_s_w((v4i32) var, (v8i16) tmp0, (v8i16) tmp0);
-    }
     sse = HADD_SW_S32(var);
 
     return sse;
 }
 
-static uint32_t sse_16width_msa(const uint8_t *src_ptr, int32_t src_stride,
-                                const uint8_t *ref_ptr, int32_t ref_stride,
+static uint32_t sse_16width_msa(uint8_t *src_ptr, int32_t src_stride,
+                                uint8_t *ref_ptr, int32_t ref_stride,
                                 int32_t height)
 {
-    int32_t ht_cnt = height >> 2;
-    int32_t res = height & 0x03;
+    int32_t ht_cnt;
     uint32_t sse;
     v16u8 src, ref;
     v4i32 var = { 0 };
 
-    for (; ht_cnt--; ) {
+    for (ht_cnt = (height >> 2); ht_cnt--;) {
         src = LD_UB(src_ptr);
         src_ptr += src_stride;
         ref = LD_UB(ref_ptr);
@@ -623,14 +486,6 @@ static uint32_t sse_16width_msa(const uint8_t *src_ptr, int32_t src_stride,
         ref_ptr += ref_stride;
         CALC_MSE_B(src, ref, var);
 
-        src = LD_UB(src_ptr);
-        src_ptr += src_stride;
-        ref = LD_UB(ref_ptr);
-        ref_ptr += ref_stride;
-        CALC_MSE_B(src, ref, var);
-    }
-
-    for (; res--; ) {
         src = LD_UB(src_ptr);
         src_ptr += src_stride;
         ref = LD_UB(ref_ptr);
@@ -643,8 +498,8 @@ static uint32_t sse_16width_msa(const uint8_t *src_ptr, int32_t src_stride,
     return sse;
 }
 
-static int32_t hadamard_diff_8x8_msa(const uint8_t *src, int32_t src_stride,
-                                     const uint8_t *ref, int32_t ref_stride)
+static int32_t hadamard_diff_8x8_msa(uint8_t *src, int32_t src_stride,
+                                     uint8_t *ref, int32_t ref_stride)
 {
     v16u8 src0, src1, src2, src3, src4, src5, src6, src7;
     v16u8 ref0, ref1, ref2, ref3, ref4, ref5, ref6, ref7;
@@ -688,8 +543,8 @@ static int32_t hadamard_diff_8x8_msa(const uint8_t *src, int32_t src_stride,
     return (HADD_UH_U32(sum));
 }
 
-static int32_t hadamard_intra_8x8_msa(const uint8_t *src, int32_t src_stride,
-                                      const uint8_t *dumy, int32_t ref_stride)
+static int32_t hadamard_intra_8x8_msa(uint8_t *src, int32_t src_stride,
+                                      uint8_t *ref, int32_t ref_stride)
 {
     int32_t sum_res = 0;
     v16u8 src0, src1, src2, src3, src4, src5, src6, src7;
@@ -732,87 +587,87 @@ static int32_t hadamard_intra_8x8_msa(const uint8_t *src, int32_t src_stride,
     return sum_res;
 }
 
-int ff_pix_abs16_msa(MpegEncContext *v, const uint8_t *src, const uint8_t *ref,
+int ff_pix_abs16_msa(MpegEncContext *v, uint8_t *src, uint8_t *ref,
                      ptrdiff_t stride, int height)
 {
     return sad_16width_msa(src, stride, ref, stride, height);
 }
 
-int ff_pix_abs8_msa(MpegEncContext *v, const uint8_t *src, const uint8_t *ref,
+int ff_pix_abs8_msa(MpegEncContext *v, uint8_t *src, uint8_t *ref,
                     ptrdiff_t stride, int height)
 {
     return sad_8width_msa(src, stride, ref, stride, height);
 }
 
-int ff_pix_abs16_x2_msa(MpegEncContext *v, const uint8_t *pix1, const uint8_t *pix2,
+int ff_pix_abs16_x2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
                         ptrdiff_t stride, int h)
 {
     return sad_horiz_bilinear_filter_16width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_pix_abs16_y2_msa(MpegEncContext *v, const uint8_t *pix1, const uint8_t *pix2,
+int ff_pix_abs16_y2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
                         ptrdiff_t stride, int h)
 {
     return sad_vert_bilinear_filter_16width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_pix_abs16_xy2_msa(MpegEncContext *v, const uint8_t *pix1, const uint8_t *pix2,
+int ff_pix_abs16_xy2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
                          ptrdiff_t stride, int h)
 {
     return sad_hv_bilinear_filter_16width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_pix_abs8_x2_msa(MpegEncContext *v, const uint8_t *pix1, const uint8_t *pix2,
+int ff_pix_abs8_x2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
                        ptrdiff_t stride, int h)
 {
     return sad_horiz_bilinear_filter_8width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_pix_abs8_y2_msa(MpegEncContext *v, const uint8_t *pix1, const uint8_t *pix2,
+int ff_pix_abs8_y2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
                        ptrdiff_t stride, int h)
 {
     return sad_vert_bilinear_filter_8width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_pix_abs8_xy2_msa(MpegEncContext *v, const uint8_t *pix1, const uint8_t *pix2,
+int ff_pix_abs8_xy2_msa(MpegEncContext *v, uint8_t *pix1, uint8_t *pix2,
                         ptrdiff_t stride, int h)
 {
     return sad_hv_bilinear_filter_8width_msa(pix1, stride, pix2, stride, h);
 }
 
-int ff_sse16_msa(MpegEncContext *v, const uint8_t *src, const uint8_t *ref,
+int ff_sse16_msa(MpegEncContext *v, uint8_t *src, uint8_t *ref,
                  ptrdiff_t stride, int height)
 {
     return sse_16width_msa(src, stride, ref, stride, height);
 }
 
-int ff_sse8_msa(MpegEncContext *v, const uint8_t *src, const uint8_t *ref,
+int ff_sse8_msa(MpegEncContext *v, uint8_t *src, uint8_t *ref,
                 ptrdiff_t stride, int height)
 {
     return sse_8width_msa(src, stride, ref, stride, height);
 }
 
-int ff_sse4_msa(MpegEncContext *v, const uint8_t *src, const uint8_t *ref,
+int ff_sse4_msa(MpegEncContext *v, uint8_t *src, uint8_t *ref,
                 ptrdiff_t stride, int height)
 {
     return sse_4width_msa(src, stride, ref, stride, height);
 }
 
-int ff_hadamard8_diff8x8_msa(MpegEncContext *s, const uint8_t *dst, const uint8_t *src,
+int ff_hadamard8_diff8x8_msa(MpegEncContext *s, uint8_t *dst, uint8_t *src,
                              ptrdiff_t stride, int h)
 {
     return hadamard_diff_8x8_msa(src, stride, dst, stride);
 }
 
-int ff_hadamard8_intra8x8_msa(MpegEncContext *s, const uint8_t *src, const uint8_t *dummy,
+int ff_hadamard8_intra8x8_msa(MpegEncContext *s, uint8_t *dst, uint8_t *src,
                               ptrdiff_t stride, int h)
 {
-    return hadamard_intra_8x8_msa(src, stride, dummy, stride);
+    return hadamard_intra_8x8_msa(src, stride, dst, stride);
 }
 
 /* Hadamard Transform functions */
 #define WRAPPER8_16_SQ(name8, name16)                      \
-int name16(MpegEncContext *s, const uint8_t *dst, const uint8_t *src,  \
+int name16(MpegEncContext *s, uint8_t *dst, uint8_t *src,  \
            ptrdiff_t stride, int h)                        \
 {                                                          \
     int score = 0;                                         \

@@ -20,11 +20,14 @@
 
 #include <math.h>
 #include "libavutil/eval.h"
+#include "libavutil/imgutils.h"
+#include "libavutil/pixdesc.h"
 #include "libavutil/opt.h"
 #include "libavutil/video_enc_params.h"
 
 #include "avfilter.h"
-#include "filters.h"
+#include "formats.h"
+#include "internal.h"
 #include "video.h"
 
 typedef struct QPContext {
@@ -140,7 +143,7 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
             for (x = 0; x < s->qstride; x++) {
                 unsigned int block_idx = y * s->qstride + x;
                 AVVideoBlockParams *b = av_video_enc_params_block(par_out, block_idx);
-                double qp = sd_in ? in_qp_global + BLOCK_QP_DELTA(block_idx) : NAN;
+                int qp = sd_in ? in_qp_global + BLOCK_QP_DELTA(block_idx) : NAN;
                 double var_values[] = { !!sd_in, qp, x, y, s->qstride, s->h, 0};
                 double temp_val;
 
@@ -181,12 +184,19 @@ static const AVFilterPad qp_inputs[] = {
     },
 };
 
+static const AVFilterPad qp_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 const AVFilter ff_vf_qp = {
     .name          = "qp",
     .description   = NULL_IF_CONFIG_SMALL("Change video quantization parameters."),
     .priv_size     = sizeof(QPContext),
     FILTER_INPUTS(qp_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(qp_outputs),
     .priv_class    = &qp_class,
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
                      AVFILTER_FLAG_METADATA_ONLY,

@@ -29,7 +29,6 @@
 #include "libavutil/avstring.h"
 #include "libavutil/dict.h"
 #include "libavutil/intreadwrite.h"
-#include "libavutil/mem.h"
 #include "libavutil/tea.h"
 #include "libavutil/opt.h"
 
@@ -372,17 +371,17 @@ static const AVClass aa_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const FFInputFormat ff_aa_demuxer = {
-    .p.name         = "aa",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Audible AA format files"),
-    .p.priv_class   = &aa_class,
-    .p.extensions   = "aa",
-    .p.flags        = AVFMT_NO_BYTE_SEEK | AVFMT_NOGENSEARCH,
+const AVInputFormat ff_aa_demuxer = {
+    .name           = "aa",
+    .long_name      = NULL_IF_CONFIG_SMALL("Audible AA format files"),
+    .priv_class     = &aa_class,
     .priv_data_size = sizeof(AADemuxContext),
+    .extensions     = "aa",
     .read_probe     = aa_probe,
     .read_header    = aa_read_header,
     .read_packet    = aa_read_packet,
     .read_seek      = aa_read_seek,
     .read_close     = aa_read_close,
-    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
+    .flags          = AVFMT_NO_BYTE_SEEK | AVFMT_NOGENSEARCH,
+    .flags_internal = FF_FMT_INIT_CLEANUP,
 };

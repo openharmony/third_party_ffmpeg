@@ -17,9 +17,7 @@
  */
 
 #include "config.h"
-#include "error.h"
 #include "file.h"
-#include "file_open.h"
 #include "internal.h"
 #include "log.h"
 #include "mem.h"
@@ -60,18 +58,21 @@ int av_file_map(const char *filename, uint8_t **bufptr, size_t *size,
     struct stat st;
     av_unused void *ptr;
     off_t off_size;
+    char errbuf[128];
     *bufptr = NULL;
     *size = 0;
 
     if (fd < 0) {
         err = AVERROR(errno);
-        av_log(&file_log_ctx, AV_LOG_ERROR, "Cannot read file '%s': %s\n", filename, av_err2str(err));
+        av_strerror(err, errbuf, sizeof(errbuf));
+        av_log(&file_log_ctx, AV_LOG_ERROR, "Cannot read file '%s': %s\n", filename, errbuf);
         return err;
     }
 
     if (fstat(fd, &st) < 0) {
         err = AVERROR(errno);
-        av_log(&file_log_ctx, AV_LOG_ERROR, "Error occurred in fstat(): %s\n", av_err2str(err));
+        av_strerror(err, errbuf, sizeof(errbuf));
+        av_log(&file_log_ctx, AV_LOG_ERROR, "Error occurred in fstat(): %s\n", errbuf);
         close(fd);
         return err;
     }
@@ -94,7 +95,8 @@ int av_file_map(const char *filename, uint8_t **bufptr, size_t *size,
     ptr = mmap(NULL, *size, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, 0);
     if (ptr == MAP_FAILED) {
         err = AVERROR(errno);
-        av_log(&file_log_ctx, AV_LOG_ERROR, "Error occurred in mmap(): %s\n", av_err2str(err));
+        av_strerror(err, errbuf, sizeof(errbuf));
+        av_log(&file_log_ctx, AV_LOG_ERROR, "Error occurred in mmap(): %s\n", errbuf);
         close(fd);
         *size = 0;
         return err;
@@ -150,4 +152,8 @@ void av_file_unmap(uint8_t *bufptr, size_t size)
 #else
     av_free(bufptr);
 #endif
+}
+
+int av_tempfile(const char *prefix, char **filename, int log_offset, void *log_ctx) {
+    return avpriv_tempfile(prefix, filename, log_offset, log_ctx);
 }

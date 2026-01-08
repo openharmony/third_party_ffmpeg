@@ -20,7 +20,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 #include "avformat.h"
-#include "mux.h"
 #include "riff.h"
 #include "internal.h"
 #include "avio_internal.h"
@@ -113,7 +112,11 @@ static av_cold int amv_init(AVFormatContext *s)
         return AVERROR(EINVAL);
     }
 
-    av_assert1(ast->codecpar->codec_id == AV_CODEC_ID_ADPCM_IMA_AMV);
+    if (ast->codecpar->codec_id != AV_CODEC_ID_ADPCM_IMA_AMV) {
+        av_log(s, AV_LOG_ERROR, "Second AMV stream must be %s\n",
+                avcodec_get_name(AV_CODEC_ID_ADPCM_IMA_AMV));
+        return AVERROR(EINVAL);
+    }
 
     /* These files are broken-enough as they are. They shouldn't be streamed. */
     if (!(s->pb->seekable & AVIO_SEEKABLE_NORMAL)) {
@@ -398,17 +401,14 @@ static int amv_write_trailer(AVFormatContext *s)
     return 0;
 }
 
-const FFOutputFormat ff_amv_muxer = {
-    .p.name         = "amv",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("AMV"),
-    .p.mime_type    = "video/amv",
-    .p.extensions   = "amv",
+const AVOutputFormat ff_amv_muxer = {
+    .name           = "amv",
+    .long_name      = NULL_IF_CONFIG_SMALL("AMV"),
+    .mime_type      = "video/amv",
+    .extensions     = "amv",
     .priv_data_size = sizeof(AMVContext),
-    .p.audio_codec  = AV_CODEC_ID_ADPCM_IMA_AMV,
-    .p.video_codec  = AV_CODEC_ID_AMV,
-    .p.subtitle_codec = AV_CODEC_ID_NONE,
-    .flags_internal   = FF_OFMT_FLAG_MAX_ONE_OF_EACH |
-                        FF_OFMT_FLAG_ONLY_DEFAULT_CODECS,
+    .audio_codec    = AV_CODEC_ID_ADPCM_IMA_AMV,
+    .video_codec    = AV_CODEC_ID_AMV,
     .init           = amv_init,
     .deinit         = amv_deinit,
     .write_header   = amv_write_header,

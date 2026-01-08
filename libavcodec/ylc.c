@@ -18,17 +18,21 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define YLC_VLC_BITS 10
 
+#include "libavutil/imgutils.h"
+#include "libavutil/internal.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/mem.h"
-#include "libavutil/pixfmt.h"
 #include "avcodec.h"
 #include "bswapdsp.h"
 #include "codec_internal.h"
 #include "get_bits.h"
+#include "huffyuvdsp.h"
 #include "thread.h"
 #include "unary.h"
 
@@ -87,7 +91,7 @@ static int build_vlc(AVCodecContext *avctx, VLC *vlc, const uint32_t *table)
     uint8_t xlat[256];
     int cur_node, i, j, pos = 0;
 
-    ff_vlc_free(vlc);
+    ff_free_vlc(vlc);
 
     for (i = 0; i < 256; i++) {
         nodes[i].count = table[i];
@@ -142,7 +146,7 @@ static int build_vlc(AVCodecContext *avctx, VLC *vlc, const uint32_t *table)
 
     get_tree_codes(bits, lens, xlat, nodes, cur_node - 1, 0, 0, &pos);
 
-    return ff_vlc_init_sparse(vlc, YLC_VLC_BITS, pos, lens, 2, 2,
+    return ff_init_vlc_sparse(vlc, YLC_VLC_BITS, pos, lens, 2, 2,
                               bits, 4, 4, xlat, 1, 1, 0);
 }
 
@@ -426,6 +430,8 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *p,
         dst += p->linesize[0];
     }
 
+    p->pict_type = AV_PICTURE_TYPE_I;
+    p->key_frame = 1;
     *got_frame   = 1;
 
     return avpkt->size;
@@ -436,7 +442,7 @@ static av_cold int decode_end(AVCodecContext *avctx)
     YLCContext *s = avctx->priv_data;
 
     for (int i = 0; i < FF_ARRAY_ELEMS(s->vlc); i++)
-        ff_vlc_free(&s->vlc[i]);
+        ff_free_vlc(&s->vlc[i]);
     av_freep(&s->buffer);
     s->buffer_size = 0;
 
@@ -445,7 +451,7 @@ static av_cold int decode_end(AVCodecContext *avctx)
 
 const FFCodec ff_ylc_decoder = {
     .p.name         = "ylc",
-    CODEC_LONG_NAME("YUY2 Lossless Codec"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("YUY2 Lossless Codec"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_YLC,
     .priv_data_size = sizeof(YLCContext),
@@ -453,4 +459,5 @@ const FFCodec ff_ylc_decoder = {
     .close          = decode_end,
     FF_CODEC_DECODE_CB(decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_FRAME_THREADS,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

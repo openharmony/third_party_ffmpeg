@@ -24,7 +24,6 @@
 #include "libavutil/buffer.h"
 #include "libavutil/frame.h"
 #include "libavutil/imgutils.h"
-#include "libavutil/imgutils_internal.h"
 #include "libavutil/mem.h"
 #include "libavutil/pixfmt.h"
 
@@ -139,9 +138,7 @@ FFFramePool *ff_frame_pool_audio_init(AVBufferRef* (*alloc)(size_t size),
     if (ret < 0)
         goto fail;
 
-    if (pool->linesize[0] > SIZE_MAX - align)
-        goto fail;
-    pool->pools[0] = av_buffer_pool_init(pool->linesize[0] + align, NULL);
+    pool->pools[0] = av_buffer_pool_init(pool->linesize[0], NULL);
     if (!pool->pools[0])
         goto fail;
 
@@ -221,7 +218,7 @@ AVFrame *ff_frame_pool_get(FFFramePool *pool)
             if (!frame->buf[i])
                 goto fail;
 
-            frame->data[i] = (uint8_t *)FFALIGN((uintptr_t)frame->buf[i]->data, pool->align);
+            frame->data[i] = frame->buf[i]->data;
         }
 
         if (desc->flags & AV_PIX_FMT_FLAG_PAL) {
@@ -237,6 +234,11 @@ AVFrame *ff_frame_pool_get(FFFramePool *pool)
         break;
     case AVMEDIA_TYPE_AUDIO:
         frame->nb_samples = pool->nb_samples;
+#if FF_API_OLD_CHANNEL_LAYOUT
+FF_DISABLE_DEPRECATION_WARNINGS
+        frame->channels = pool->channels;
+FF_ENABLE_DEPRECATION_WARNINGS
+#endif
         frame->ch_layout.nb_channels = pool->channels;
         frame->format = pool->format;
         frame->linesize[0] = pool->linesize[0];
@@ -258,15 +260,13 @@ AVFrame *ff_frame_pool_get(FFFramePool *pool)
             frame->buf[i] = av_buffer_pool_get(pool->pools[0]);
             if (!frame->buf[i])
                 goto fail;
-            frame->extended_data[i] = frame->data[i] =
-                (uint8_t *)FFALIGN((uintptr_t)frame->buf[i]->data, pool->align);
+            frame->extended_data[i] = frame->data[i] = frame->buf[i]->data;
         }
         for (i = 0; i < frame->nb_extended_buf; i++) {
             frame->extended_buf[i] = av_buffer_pool_get(pool->pools[0]);
             if (!frame->extended_buf[i])
                 goto fail;
-            frame->extended_data[i + AV_NUM_DATA_POINTERS] =
-                (uint8_t *)FFALIGN((uintptr_t)frame->extended_buf[i]->data, pool->align);
+            frame->extended_data[i + AV_NUM_DATA_POINTERS] = frame->extended_buf[i]->data;
         }
 
         break;

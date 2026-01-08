@@ -28,7 +28,6 @@
 
 #include "libavutil/channel_layout.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "libavutil/avstring.h"
 
@@ -145,9 +144,9 @@ static int iss_read_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-const FFInputFormat ff_iss_demuxer = {
-    .p.name         = "iss",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Funcom ISS"),
+const AVInputFormat ff_iss_demuxer = {
+    .name           = "iss",
+    .long_name      = NULL_IF_CONFIG_SMALL("Funcom ISS"),
     .priv_data_size = sizeof(IssDemuxContext),
     .read_probe     = iss_probe,
     .read_header    = iss_read_header,

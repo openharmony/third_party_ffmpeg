@@ -516,6 +516,15 @@ av_cold int ff_aptx_init(AVCodecContext *avctx)
     s->hd = avctx->codec->id == AV_CODEC_ID_APTX_HD;
     s->block_size = s->hd ? 6 : 4;
 
+    if (avctx->frame_size == 0)
+        avctx->frame_size = 256 * s->block_size;
+
+    if (avctx->frame_size % s->block_size) {
+        av_log(avctx, AV_LOG_ERROR,
+               "Frame size must be a multiple of %d samples\n", s->block_size);
+        return AVERROR(EINVAL);
+    }
+
     for (chan = 0; chan < NB_CHANNELS; chan++) {
         Channel *channel = &s->channels[chan];
         for (subband = 0; subband < NB_SUBBANDS; subband++) {
@@ -525,5 +534,6 @@ av_cold int ff_aptx_init(AVCodecContext *avctx)
         }
     }
 
+    ff_af_queue_init(avctx, &s->afq);
     return 0;
 }

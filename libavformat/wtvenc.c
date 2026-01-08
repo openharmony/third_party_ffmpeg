@@ -26,7 +26,6 @@
  */
 
 #include "libavutil/avassert.h"
-#include "libavutil/mem.h"
 #include "avformat.h"
 #include "avio_internal.h"
 #include "internal.h"
@@ -671,12 +670,12 @@ static void write_table_entries_attrib(AVFormatContext *s)
 {
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
-    const AVDictionaryEntry *tag = NULL;
+    AVDictionaryEntry *tag = 0;
 
     ff_standardize_creation_time(s);
     //FIXME: translate special tags (e.g. WM/Bitrate) to binary representation
     ff_metadata_conv(&s->metadata, ff_asf_metadata_conv, NULL);
-    while ((tag = av_dict_iterate(s->metadata, tag)))
+    while ((tag = av_dict_get(s->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
         write_tag(pb, tag->key, tag->value);
 
     if (wctx->thumbnail.size) {
@@ -699,11 +698,11 @@ static void write_table_redirector_legacy_attrib(AVFormatContext *s)
 {
     WtvContext *wctx = s->priv_data;
     AVIOContext *pb = s->pb;
-    const AVDictionaryEntry *tag = NULL;
+    AVDictionaryEntry *tag = 0;
     int64_t pos = 0;
 
     //FIXME: translate special tags to binary representation
-    while ((tag = av_dict_iterate(s->metadata, tag))) {
+    while ((tag = av_dict_get(s->metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
         avio_wl64(pb, pos);
         pos += metadata_header_size(tag->key) + strlen(tag->value)*2 + 2;
     }
@@ -830,15 +829,15 @@ static int write_trailer(AVFormatContext *s)
     return 0;
 }
 
-const FFOutputFormat ff_wtv_muxer = {
-    .p.name         = "wtv",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Windows Television (WTV)"),
-    .p.extensions   = "wtv",
+const AVOutputFormat ff_wtv_muxer = {
+    .name           = "wtv",
+    .long_name      = NULL_IF_CONFIG_SMALL("Windows Television (WTV)"),
+    .extensions     = "wtv",
     .priv_data_size = sizeof(WtvContext),
-    .p.audio_codec  = AV_CODEC_ID_AC3,
-    .p.video_codec  = AV_CODEC_ID_MPEG2VIDEO,
+    .audio_codec    = AV_CODEC_ID_AC3,
+    .video_codec    = AV_CODEC_ID_MPEG2VIDEO,
     .write_header   = write_header,
     .write_packet   = write_packet,
     .write_trailer  = write_trailer,
-    .p.codec_tag    = ff_riff_codec_tags_list,
+    .codec_tag      = ff_riff_codec_tags_list,
 };

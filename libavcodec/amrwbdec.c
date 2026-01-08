@@ -24,11 +24,9 @@
  * AMR wideband decoder
  */
 
-#include "config.h"
-
-#include "libavutil/avassert.h"
 #include "libavutil/channel_layout.h"
 #include "libavutil/common.h"
+#include "libavutil/float_dsp.h"
 #include "libavutil/lfg.h"
 
 #include "avcodec.h"
@@ -39,15 +37,13 @@
 #include "acelp_vectors.h"
 #include "acelp_pitch_delay.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 
 #define AMR_USE_16BIT_TABLES
 #include "amr.h"
 
 #include "amrwbdata.h"
-#if ARCH_MIPS
 #include "mips/amrwbdec_mips.h"
-#endif /* ARCH_MIPS */
 
 typedef struct AMRWBContext {
     AMRWBFrame                             frame; ///< AMRWB parameters decoded from bitstream
@@ -370,7 +366,7 @@ static void decode_pitch_vector(AMRWBContext *ctx,
 }
 
 /** Get x bits in the index interval [lsb,lsb+len-1] inclusive */
-#define BIT_STR(x,lsb,len) av_zero_extend((x) >> (lsb), (len))
+#define BIT_STR(x,lsb,len) av_mod_uintp2((x) >> (lsb), (len))
 
 /** Get the bit at specified position */
 #define BIT_POS(x, p) (((x) >> (p)) & 1)
@@ -555,8 +551,6 @@ static void decode_fixed_vector(float *fixed_vector, const uint16_t *pulse_hi,
             decode_6p_track(sig_pos[i], (int) pulse_lo[i] +
                            ((int) pulse_hi[i] << 11), 4, 1);
         break;
-    default:
-        av_assert2(0);
     }
 
     memset(fixed_vector, 0, sizeof(float) * AMRWB_SFR_SIZE);
@@ -1295,18 +1289,19 @@ static int amrwb_decode_frame(AVCodecContext *avctx, AVFrame *frame,
 
     *got_frame_ptr = 1;
 
-    return buf - avpkt->data;
+    return avpkt->size;
 }
 
 const FFCodec ff_amrwb_decoder = {
     .p.name         = "amrwb",
-    CODEC_LONG_NAME("AMR-WB (Adaptive Multi-Rate WideBand)"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("AMR-WB (Adaptive Multi-Rate WideBand)"),
     .p.type         = AVMEDIA_TYPE_AUDIO,
     .p.id           = AV_CODEC_ID_AMR_WB,
     .priv_data_size = sizeof(AMRWBChannelsContext),
     .init           = amrwb_decode_init,
     FF_CODEC_DECODE_CB(amrwb_decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_CHANNEL_CONF,
-    .p.sample_fmts  = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_FLTP,
+    .p.sample_fmts  = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_FLT,
                                                      AV_SAMPLE_FMT_NONE },
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

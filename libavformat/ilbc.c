@@ -22,9 +22,7 @@
 #include "config_components.h"
 
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
-#include "mux.h"
 #include "rawenc.h"
 
 static const char mode20_header[] = "#!iLBC20\n";
@@ -33,7 +31,18 @@ static const char mode30_header[] = "#!iLBC30\n";
 static int ilbc_write_header(AVFormatContext *s)
 {
     AVIOContext *pb = s->pb;
-    AVCodecParameters *par = s->streams[0]->codecpar;
+    AVCodecParameters *par;
+
+    if (s->nb_streams != 1) {
+        av_log(s, AV_LOG_ERROR, "Unsupported number of streams\n");
+        return AVERROR(EINVAL);
+    }
+    par = s->streams[0]->codecpar;
+
+    if (par->codec_id != AV_CODEC_ID_ILBC) {
+        av_log(s, AV_LOG_ERROR, "Unsupported codec\n");
+        return AVERROR(EINVAL);
+    }
 
     if (par->block_align == 50) {
         avio_write(pb, mode30_header, sizeof(mode30_header) - 1);
@@ -61,8 +70,7 @@ static int ilbc_read_header(AVFormatContext *s)
     AVStream *st;
     uint8_t header[9];
 
-    if (avio_read(pb, header, 9) != 9)
-        return AVERROR_INVALIDDATA;
+    avio_read(pb, header, 9);
 
     st = avformat_new_stream(s, NULL);
     if (!st)
@@ -102,28 +110,24 @@ static int ilbc_read_packet(AVFormatContext *s,
     return 0;
 }
 
-const FFInputFormat ff_ilbc_demuxer = {
-    .p.name       = "ilbc",
-    .p.long_name  = NULL_IF_CONFIG_SMALL("iLBC storage"),
-    .p.flags      = AVFMT_GENERIC_INDEX,
+const AVInputFormat ff_ilbc_demuxer = {
+    .name         = "ilbc",
+    .long_name    = NULL_IF_CONFIG_SMALL("iLBC storage"),
     .read_probe   = ilbc_probe,
     .read_header  = ilbc_read_header,
     .read_packet  = ilbc_read_packet,
+    .flags        = AVFMT_GENERIC_INDEX,
 };
 
 #if CONFIG_ILBC_MUXER
-const FFOutputFormat ff_ilbc_muxer = {
-    .p.name         = "ilbc",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("iLBC storage"),
-    .p.mime_type    = "audio/iLBC",
-    .p.extensions   = "lbc",
-    .p.video_codec    = AV_CODEC_ID_NONE,
-    .p.audio_codec  = AV_CODEC_ID_ILBC,
-    .p.subtitle_codec = AV_CODEC_ID_NONE,
-    .p.flags        = AVFMT_NOTIMESTAMPS,
-    .flags_internal   = FF_OFMT_FLAG_MAX_ONE_OF_EACH |
-                        FF_OFMT_FLAG_ONLY_DEFAULT_CODECS,
+const AVOutputFormat ff_ilbc_muxer = {
+    .name         = "ilbc",
+    .long_name    = NULL_IF_CONFIG_SMALL("iLBC storage"),
+    .mime_type    = "audio/iLBC",
+    .extensions   = "lbc",
+    .audio_codec  = AV_CODEC_ID_ILBC,
     .write_header = ilbc_write_header,
     .write_packet = ff_raw_write_packet,
+    .flags        = AVFMT_NOTIMESTAMPS,
 };
 #endif

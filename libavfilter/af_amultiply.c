@@ -21,11 +21,13 @@
 #include "libavutil/channel_layout.h"
 #include "libavutil/common.h"
 #include "libavutil/float_dsp.h"
-#include "libavutil/mem.h"
+#include "libavutil/opt.h"
 
 #include "audio.h"
 #include "avfilter.h"
+#include "formats.h"
 #include "filters.h"
+#include "internal.h"
 
 typedef struct AudioMultiplyContext {
     const AVClass *class;
@@ -74,7 +76,6 @@ static int activate(AVFilterContext *ctx)
             return AVERROR(ENOMEM);
 
         out->pts = s->frames[0]->pts;
-        out->duration = s->frames[0]->duration;
 
         if (av_get_packed_sample_fmt(ctx->inputs[0]->format) == AV_SAMPLE_FMT_FLT) {
             for (i = 0; i < s->planes; i++) {
@@ -91,6 +92,7 @@ static int activate(AVFilterContext *ctx)
                                      plane_samples);
             }
         }
+        emms_c();
 
         av_frame_free(&s->frames[0]);
         av_frame_free(&s->frames[1]);
@@ -111,7 +113,7 @@ static int activate(AVFilterContext *ctx)
 
     if (ff_outlink_frame_wanted(ctx->outputs[0])) {
         for (i = 0; i < 2; i++) {
-            if (s->frames[i] || ff_inlink_queued_samples(ctx->inputs[i]) > 0)
+            if (ff_inlink_queued_samples(ctx->inputs[i]) > 0)
                 continue;
             ff_inlink_request_frame(ctx->inputs[i]);
             return 0;

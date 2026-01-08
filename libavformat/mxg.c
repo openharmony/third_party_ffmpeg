@@ -22,10 +22,8 @@
 #include "libavutil/channel_layout.h"
 #include "libavutil/internal.h"
 #include "libavutil/intreadwrite.h"
-#include "libavutil/mem.h"
 #include "libavcodec/mjpeg.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "avio.h"
 
@@ -250,12 +248,12 @@ static int mxg_close(struct AVFormatContext *s)
     return 0;
 }
 
-const FFInputFormat ff_mxg_demuxer = {
-    .p.name         = "mxg",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("MxPEG clip"),
-    .p.extensions   = "mxg",
+const AVInputFormat ff_mxg_demuxer = {
+    .name           = "mxg",
+    .long_name      = NULL_IF_CONFIG_SMALL("MxPEG clip"),
     .priv_data_size = sizeof(MXGContext),
     .read_header    = mxg_read_header,
     .read_packet    = mxg_read_packet,
     .read_close     = mxg_close,
+    .extensions     = "mxg",
 };

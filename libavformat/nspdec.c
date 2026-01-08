@@ -22,7 +22,6 @@
 #include "libavutil/avstring.h"
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "pcm.h"
 
@@ -97,13 +96,13 @@ static int nsp_read_header(AVFormatContext *s)
     return 0;
 }
 
-const FFInputFormat ff_nsp_demuxer = {
-    .p.name         = "nsp",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Computerized Speech Lab NSP"),
-    .p.extensions   = "nsp",
-    .p.flags        = AVFMT_GENERIC_INDEX,
+const AVInputFormat ff_nsp_demuxer = {
+    .name           = "nsp",
+    .long_name      = NULL_IF_CONFIG_SMALL("Computerized Speech Lab NSP"),
     .read_probe     = nsp_probe,
     .read_header    = nsp_read_header,
     .read_packet    = ff_pcm_read_packet,
     .read_seek      = ff_pcm_read_seek,
+    .extensions     = "nsp",
+    .flags          = AVFMT_GENERIC_INDEX,
 };

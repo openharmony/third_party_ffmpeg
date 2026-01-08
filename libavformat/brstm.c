@@ -20,7 +20,6 @@
  */
 
 #include "libavutil/intreadwrite.h"
-#include "libavutil/mem.h"
 #include "libavcodec/bytestream.h"
 #include "avformat.h"
 #include "demux.h"
@@ -468,28 +467,28 @@ static int read_seek(AVFormatContext *s, int stream_index,
     return 0;
 }
 
-const FFInputFormat ff_brstm_demuxer = {
-    .p.name         = "brstm",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("BRSTM (Binary Revolution Stream)"),
-    .p.extensions   = "brstm",
+const AVInputFormat ff_brstm_demuxer = {
+    .name           = "brstm",
+    .long_name      = NULL_IF_CONFIG_SMALL("BRSTM (Binary Revolution Stream)"),
     .priv_data_size = sizeof(BRSTMDemuxContext),
-    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
+    .flags_internal = FF_FMT_INIT_CLEANUP,
     .read_probe     = probe,
     .read_header    = read_header,
     .read_packet    = read_packet,
     .read_close     = read_close,
     .read_seek      = read_seek,
+    .extensions     = "brstm",
 };
 
-const FFInputFormat ff_bfstm_demuxer = {
-    .p.name         = "bfstm",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("BFSTM (Binary Cafe Stream)"),
-    .p.extensions   = "bfstm,bcstm",
+const AVInputFormat ff_bfstm_demuxer = {
+    .name           = "bfstm",
+    .long_name      = NULL_IF_CONFIG_SMALL("BFSTM (Binary Cafe Stream)"),
     .priv_data_size = sizeof(BRSTMDemuxContext),
-    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
+    .flags_internal = FF_FMT_INIT_CLEANUP,
     .read_probe     = probe_bfstm,
     .read_header    = read_header,
     .read_packet    = read_packet,
     .read_close     = read_close,
     .read_seek      = read_seek,
+    .extensions     = "bfstm,bcstm",
 };

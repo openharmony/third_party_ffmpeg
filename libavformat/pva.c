@@ -21,7 +21,6 @@
 
 #include "avformat.h"
 #include "avio_internal.h"
-#include "demux.h"
 #include "internal.h"
 #include "mpeg.h"
 
@@ -229,9 +228,9 @@ static int64_t pva_read_timestamp(struct AVFormatContext *s, int stream_index,
     return res;
 }
 
-const FFInputFormat ff_pva_demuxer = {
-    .p.name         = "pva",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("TechnoTrend PVA"),
+const AVInputFormat ff_pva_demuxer = {
+    .name           = "pva",
+    .long_name      = NULL_IF_CONFIG_SMALL("TechnoTrend PVA"),
     .priv_data_size = sizeof(PVAContext),
     .read_probe     = pva_probe,
     .read_header    = pva_read_header,

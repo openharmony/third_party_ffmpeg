@@ -853,67 +853,27 @@ struct Convert_yuv444p16le_yuv444p16le
     }
 };
 
-#define DEF_CONVERT_IDENTITY(fmt1, fmt2)\
-                                        \
-struct Convert_##fmt1##_##fmt2          \
-{                                       \
-    static const int in_bit_depth = 8;  \
-    typedef uchar4 in_T;                \
-    typedef uchar in_T_uv;              \
-    typedef uchar4 out_T;               \
-    typedef uchar out_T_uv;             \
-                                        \
-    DEF_F(Convert, out_T)               \
-    {                                   \
-        DEFAULT_DST(0) = SUB_F(y, 0);   \
-    }                                   \
-                                        \
-    DEF_F(Convert_uv, out_T_uv)         \
-    {                                   \
-    }                                   \
-};                                      \
+// bgr0->X
 
-#define DEF_CONVERT_REORDER(fmt1, fmt2) \
-                                        \
-struct Convert_##fmt1##_##fmt2          \
-{                                       \
-    static const int in_bit_depth = 8;  \
-    typedef uchar4 in_T;                \
-    typedef uchar in_T_uv;              \
-    typedef uchar4 out_T;               \
-    typedef uchar out_T_uv;             \
-                                        \
-    DEF_F(Convert, out_T)               \
-    {                                   \
-        uchar4 res = SUB_F(y, 0);       \
-        DEFAULT_DST(0) = make_uchar4(   \
-            res.z,                      \
-            res.y,                      \
-            res.x,                      \
-            res.w                       \
-        );                              \
-    }                                   \
-                                        \
-    DEF_F(Convert_uv, out_T_uv)         \
-    {                                   \
-    }                                   \
-};                                      \
+struct Convert_bgr0_bgr0
+{
+    static const int in_bit_depth = 8;
+    typedef uchar4 in_T;
+    typedef uchar in_T_uv;
+    typedef uchar4 out_T;
+    typedef uchar out_T_uv;
 
-#define DEF_CONVERT_RGB(fmt1, fmt2)     \
-                                        \
-DEF_CONVERT_IDENTITY(fmt1, fmt1)        \
-DEF_CONVERT_REORDER (fmt1, fmt2)        \
-DEF_CONVERT_REORDER (fmt2, fmt1)        \
-DEF_CONVERT_IDENTITY(fmt2, fmt2)
+    DEF_F(Convert, out_T)
+    {
+        DEFAULT_DST(0) = SUB_F(y, 0);
+    }
 
-DEF_CONVERT_RGB(rgb0, bgr0)
-DEF_CONVERT_RGB(rgba, bgra)
-DEF_CONVERT_IDENTITY(rgba, rgb0)
-DEF_CONVERT_IDENTITY(bgra, bgr0)
-DEF_CONVERT_REORDER(rgba, bgr0)
-DEF_CONVERT_REORDER(bgra, rgb0)
+    DEF_F(Convert_uv, out_T_uv)
+    {
+    }
+};
 
-struct Convert_bgr0_bgra
+struct Convert_bgr0_rgb0
 {
     static const int in_bit_depth = 8;
     typedef uchar4 in_T;
@@ -925,10 +885,10 @@ struct Convert_bgr0_bgra
     {
         uchar4 res = SUB_F(y, 0);
         DEFAULT_DST(0) = make_uchar4(
-            res.x,
-            res.y,
             res.z,
-            1
+            res.y,
+            res.x,
+            res.w
         );
     }
 
@@ -937,7 +897,9 @@ struct Convert_bgr0_bgra
     }
 };
 
-struct Convert_bgr0_rgba
+// rgb0->X
+
+struct Convert_rgb0_bgr0
 {
     static const int in_bit_depth = 8;
     typedef uchar4 in_T;
@@ -952,7 +914,7 @@ struct Convert_bgr0_rgba
             res.z,
             res.y,
             res.x,
-            1
+            res.w
         );
     }
 
@@ -961,7 +923,7 @@ struct Convert_bgr0_rgba
     }
 };
 
-struct Convert_rgb0_bgra
+struct Convert_rgb0_rgb0
 {
     static const int in_bit_depth = 8;
     typedef uchar4 in_T;
@@ -971,37 +933,7 @@ struct Convert_rgb0_bgra
 
     DEF_F(Convert, out_T)
     {
-        uchar4 res = SUB_F(y, 0);
-        DEFAULT_DST(0) = make_uchar4(
-            res.z,
-            res.y,
-            res.x,
-            1
-        );
-    }
-
-    DEF_F(Convert_uv, out_T_uv)
-    {
-    }
-};
-
-struct Convert_rgb0_rgba
-{
-    static const int in_bit_depth = 8;
-    typedef uchar4 in_T;
-    typedef uchar in_T_uv;
-    typedef uchar4 out_T;
-    typedef uchar out_T_uv;
-
-    DEF_F(Convert, out_T)
-    {
-        uchar4 res = SUB_F(y, 0);
-        DEFAULT_DST(0) = make_uchar4(
-            res.x,
-            res.y,
-            res.z,
-            1
-        );
+        DEFAULT_DST(0) = SUB_F(y, 0);
     }
 
     DEF_F(Convert_uv, out_T_uv)
@@ -1185,12 +1117,6 @@ extern "C" {
     NEAREST_KERNEL_RAW(p016le_ ## C)      \
     NEAREST_KERNEL_RAW(yuv444p16le_ ## C)
 
-#define NEAREST_KERNELS_RGB(C) \
-    NEAREST_KERNEL_RAW(rgb0_ ## C)  \
-    NEAREST_KERNEL_RAW(bgr0_ ## C)  \
-    NEAREST_KERNEL_RAW(rgba_ ## C)  \
-    NEAREST_KERNEL_RAW(bgra_ ## C)  \
-
 NEAREST_KERNELS(yuv420p)
 NEAREST_KERNELS(nv12)
 NEAREST_KERNELS(yuv444p)
@@ -1198,10 +1124,11 @@ NEAREST_KERNELS(p010le)
 NEAREST_KERNELS(p016le)
 NEAREST_KERNELS(yuv444p16le)
 
-NEAREST_KERNELS_RGB(rgb0)
-NEAREST_KERNELS_RGB(bgr0)
-NEAREST_KERNELS_RGB(rgba)
-NEAREST_KERNELS_RGB(bgra)
+NEAREST_KERNEL_RAW(bgr0_bgr0)
+NEAREST_KERNEL_RAW(rgb0_rgb0)
+NEAREST_KERNEL_RAW(bgr0_rgb0)
+NEAREST_KERNEL_RAW(rgb0_bgr0)
+
 
 #define BILINEAR_KERNEL(C, S) \
     __global__ void Subsample_Bilinear_##C##S(                      \
@@ -1225,12 +1152,6 @@ NEAREST_KERNELS_RGB(bgra)
     BILINEAR_KERNEL_RAW(p016le_ ## C)      \
     BILINEAR_KERNEL_RAW(yuv444p16le_ ## C)
 
-#define BILINEAR_KERNELS_RGB(C)     \
-    BILINEAR_KERNEL_RAW(rgb0_ ## C) \
-    BILINEAR_KERNEL_RAW(bgr0_ ## C) \
-    BILINEAR_KERNEL_RAW(rgba_ ## C) \
-    BILINEAR_KERNEL_RAW(bgra_ ## C)
-
 BILINEAR_KERNELS(yuv420p)
 BILINEAR_KERNELS(nv12)
 BILINEAR_KERNELS(yuv444p)
@@ -1238,10 +1159,10 @@ BILINEAR_KERNELS(p010le)
 BILINEAR_KERNELS(p016le)
 BILINEAR_KERNELS(yuv444p16le)
 
-BILINEAR_KERNELS_RGB(rgb0)
-BILINEAR_KERNELS_RGB(bgr0)
-BILINEAR_KERNELS_RGB(rgba)
-BILINEAR_KERNELS_RGB(bgra)
+BILINEAR_KERNEL_RAW(bgr0_bgr0)
+BILINEAR_KERNEL_RAW(rgb0_rgb0)
+BILINEAR_KERNEL_RAW(bgr0_rgb0)
+BILINEAR_KERNEL_RAW(rgb0_bgr0)
 
 #define BICUBIC_KERNEL(C, S) \
     __global__ void Subsample_Bicubic_##C##S(                                        \
@@ -1265,12 +1186,6 @@ BILINEAR_KERNELS_RGB(bgra)
     BICUBIC_KERNEL_RAW(p016le_ ## C)      \
     BICUBIC_KERNEL_RAW(yuv444p16le_ ## C)
 
-#define BICUBIC_KERNELS_RGB(C)      \
-    BICUBIC_KERNEL_RAW(rgb0_ ## C)  \
-    BICUBIC_KERNEL_RAW(bgr0_ ## C)  \
-    BICUBIC_KERNEL_RAW(rgba_ ## C)  \
-    BICUBIC_KERNEL_RAW(bgra_ ## C)
-
 BICUBIC_KERNELS(yuv420p)
 BICUBIC_KERNELS(nv12)
 BICUBIC_KERNELS(yuv444p)
@@ -1278,10 +1193,11 @@ BICUBIC_KERNELS(p010le)
 BICUBIC_KERNELS(p016le)
 BICUBIC_KERNELS(yuv444p16le)
 
-BICUBIC_KERNELS_RGB(rgb0)
-BICUBIC_KERNELS_RGB(bgr0)
-BICUBIC_KERNELS_RGB(rgba)
-BICUBIC_KERNELS_RGB(bgra)
+BICUBIC_KERNEL_RAW(bgr0_bgr0)
+BICUBIC_KERNEL_RAW(rgb0_rgb0)
+BICUBIC_KERNEL_RAW(bgr0_rgb0)
+BICUBIC_KERNEL_RAW(rgb0_bgr0)
+
 
 #define LANCZOS_KERNEL(C, S) \
     __global__ void Subsample_Lanczos_##C##S(                                        \
@@ -1305,12 +1221,6 @@ BICUBIC_KERNELS_RGB(bgra)
     LANCZOS_KERNEL_RAW(p016le_ ## C)      \
     LANCZOS_KERNEL_RAW(yuv444p16le_ ## C)
 
-#define LANCZOS_KERNELS_RGB(C)      \
-    LANCZOS_KERNEL_RAW(rgb0_ ## C)  \
-    LANCZOS_KERNEL_RAW(bgr0_ ## C)  \
-    LANCZOS_KERNEL_RAW(rgba_ ## C)  \
-    LANCZOS_KERNEL_RAW(bgra_ ## C)
-
 LANCZOS_KERNELS(yuv420p)
 LANCZOS_KERNELS(nv12)
 LANCZOS_KERNELS(yuv444p)
@@ -1318,8 +1228,9 @@ LANCZOS_KERNELS(p010le)
 LANCZOS_KERNELS(p016le)
 LANCZOS_KERNELS(yuv444p16le)
 
-LANCZOS_KERNELS_RGB(rgb0)
-LANCZOS_KERNELS_RGB(bgr0)
-LANCZOS_KERNELS_RGB(rgba)
-LANCZOS_KERNELS_RGB(bgra)
+LANCZOS_KERNEL_RAW(bgr0_bgr0)
+LANCZOS_KERNEL_RAW(rgb0_rgb0)
+LANCZOS_KERNEL_RAW(bgr0_rgb0)
+LANCZOS_KERNEL_RAW(rgb0_bgr0)
+
 }

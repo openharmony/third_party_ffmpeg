@@ -20,8 +20,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <time.h>
-
 #include "config_components.h"
 
 #include "libavutil/intreadwrite.h"
@@ -35,7 +33,6 @@
 #include "avio_internal.h"
 #include "internal.h"
 #include "img2.h"
-#include "mux.h"
 
 typedef struct VideoMuxData {
     const AVClass *class;  /**< Class for private options. */
@@ -160,13 +157,13 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
             return AVERROR(EINVAL);
         }
     } else if (img->frame_pts) {
-        if (ff_get_frame_filename(filename, sizeof(filename), s->url, pkt->pts, AV_FRAME_FILENAME_FLAGS_MULTIPLE) < 0) {
+        if (av_get_frame_filename2(filename, sizeof(filename), s->url, pkt->pts, AV_FRAME_FILENAME_FLAGS_MULTIPLE) < 0) {
             av_log(s, AV_LOG_ERROR, "Cannot write filename by pts of the frames.");
             return AVERROR(EINVAL);
         }
-    } else if (ff_get_frame_filename(filename, sizeof(filename), s->url,
-                                     img->img_number,
-                                     AV_FRAME_FILENAME_FLAGS_MULTIPLE) < 0) {
+    } else if (av_get_frame_filename2(filename, sizeof(filename), s->url,
+                                      img->img_number,
+                                      AV_FRAME_FILENAME_FLAGS_MULTIPLE) < 0) {
         if (img->img_number == img->start_img_number) {
             av_log(s, AV_LOG_WARNING, "The specified filename '%s' does not contain an image sequence pattern or a pattern is invalid.\n", s->url);
             av_log(s, AV_LOG_WARNING,
@@ -271,30 +268,30 @@ static const AVClass img2mux_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const FFOutputFormat ff_image2_muxer = {
-    .p.name         = "image2",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("image2 sequence"),
-    .p.extensions   = "bmp,dpx,exr,jls,jpeg,jpg,jxl,ljpg,pam,pbm,pcx,pfm,pgm,pgmyuv,phm,"
+const AVOutputFormat ff_image2_muxer = {
+    .name           = "image2",
+    .long_name      = NULL_IF_CONFIG_SMALL("image2 sequence"),
+    .extensions     = "bmp,dpx,exr,jls,jpeg,jpg,jxl,ljpg,pam,pbm,pcx,pfm,pgm,pgmyuv,phm,"
                       "png,ppm,sgi,tga,tif,tiff,jp2,j2c,j2k,xwd,sun,ras,rs,im1,im8,"
-                      "im24,sunras,vbn,xbm,xface,pix,y,avif,qoi,hdr,wbmp",
+                      "im24,sunras,vbn,xbm,xface,pix,y,avif,qoi",
     .priv_data_size = sizeof(VideoMuxData),
-    .p.video_codec  = AV_CODEC_ID_MJPEG,
+    .video_codec    = AV_CODEC_ID_MJPEG,
     .write_header   = write_header,
     .write_packet   = write_packet,
     .query_codec    = query_codec,
-    .p.flags        = AVFMT_NOTIMESTAMPS | AVFMT_NODIMENSIONS | AVFMT_NOFILE,
-    .p.priv_class   = &img2mux_class,
+    .flags          = AVFMT_NOTIMESTAMPS | AVFMT_NODIMENSIONS | AVFMT_NOFILE,
+    .priv_class     = &img2mux_class,
 };
 #endif
 #if CONFIG_IMAGE2PIPE_MUXER
-const FFOutputFormat ff_image2pipe_muxer = {
-    .p.name         = "image2pipe",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("piped image2 sequence"),
+const AVOutputFormat ff_image2pipe_muxer = {
+    .name           = "image2pipe",
+    .long_name      = NULL_IF_CONFIG_SMALL("piped image2 sequence"),
     .priv_data_size = sizeof(VideoMuxData),
-    .p.video_codec  = AV_CODEC_ID_MJPEG,
+    .video_codec    = AV_CODEC_ID_MJPEG,
     .write_header   = write_header,
     .write_packet   = write_packet_pipe,
     .query_codec    = query_codec,
-    .p.flags        = AVFMT_NOTIMESTAMPS | AVFMT_NODIMENSIONS
+    .flags          = AVFMT_NOTIMESTAMPS | AVFMT_NODIMENSIONS
 };
 #endif

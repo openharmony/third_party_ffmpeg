@@ -22,14 +22,11 @@
 
 #include "libavutil/avstring.h"
 #include "libavutil/intreadwrite.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/xga_font_data.h"
 #include "audio.h"
 #include "avfilter.h"
-#include "filters.h"
-#include "formats.h"
-#include "video.h"
+#include "internal.h"
 
 typedef struct ThreadData {
     AVFrame *in, *out;
@@ -78,11 +75,9 @@ typedef struct AudioIIRContext {
     int (*iir_channel)(AVFilterContext *ctx, void *arg, int ch, int nb_jobs);
 } AudioIIRContext;
 
-static int query_formats(const AVFilterContext *ctx,
-                         AVFilterFormatsConfig **cfg_in,
-                         AVFilterFormatsConfig **cfg_out)
+static int query_formats(AVFilterContext *ctx)
 {
-    const AudioIIRContext *s = ctx->priv;
+    AudioIIRContext *s = ctx->priv;
     AVFilterFormats *formats;
     enum AVSampleFormat sample_fmts[] = {
         AV_SAMPLE_FMT_DBLP,
@@ -95,17 +90,23 @@ static int query_formats(const AVFilterContext *ctx,
     int ret;
 
     if (s->response) {
+        AVFilterLink *videolink = ctx->outputs[1];
+
         formats = ff_make_format_list(pix_fmts);
-        if ((ret = ff_formats_ref(formats, &cfg_out[1]->formats)) < 0)
+        if ((ret = ff_formats_ref(formats, &videolink->incfg.formats)) < 0)
             return ret;
     }
 
-    sample_fmts[0] = s->sample_format;
-    ret = ff_set_common_formats_from_list2(ctx, cfg_in, cfg_out, sample_fmts);
+    ret = ff_set_common_all_channel_counts(ctx);
     if (ret < 0)
         return ret;
 
-    return 0;
+    sample_fmts[0] = s->sample_format;
+    ret = ff_set_common_formats_from_list(ctx, sample_fmts);
+    if (ret < 0)
+        return ret;
+
+    return ff_set_common_all_samplerates(ctx);
 }
 
 #define IIR_CH(name, type, min, max, need_clipping)                     \
@@ -816,6 +817,7 @@ static void solve(double *matrix, double *vector, int n, double *y, double *x, d
 static int convert_serial2parallel(AVFilterContext *ctx, int channels)
 {
     AudioIIRContext *s = ctx->priv;
+    int ret = 0;
 
     for (int ch = 0; ch < channels; ch++) {
         IIRChannel *iir = &s->iir[ch];
@@ -824,17 +826,17 @@ static int convert_serial2parallel(AVFilterContext *ctx, int channels)
         double *impulse = av_calloc(length, sizeof(*impulse));
         double *y = av_calloc(length, sizeof(*y));
         double *resp = av_calloc(length, sizeof(*resp));
-        double *M = av_calloc((length - 1) * nb_biquads, 2 * 2 * sizeof(*M));
-        double *W;
+        double *M = av_calloc((length - 1) * 2 * nb_biquads, sizeof(*M));
+        double *W = av_calloc((length - 1) * 2 * nb_biquads, sizeof(*W));
 
         if (!impulse || !y || !resp || !M) {
             av_free(impulse);
             av_free(y);
             av_free(resp);
             av_free(M);
+            av_free(W);
             return AVERROR(ENOMEM);
         }
-        W = M + (length - 1) * 2 * nb_biquads;
 
         impulse[0] = 1.;
 
@@ -873,6 +875,10 @@ static int convert_serial2parallel(AVFilterContext *ctx, int channels)
         av_free(y);
         av_free(resp);
         av_free(M);
+        av_free(W);
+
+        if (ret < 0)
+            return ret;
     }
 
     return 0;
@@ -1301,7 +1307,7 @@ static int config_output(AVFilterLink *outlink)
         av_log(ctx, AV_LOG_WARNING, "transfer function coefficients format is not recommended for too high number of zeros/poles.\n");
 
     if (s->format > 0 && s->process == 0) {
-        av_log(ctx, AV_LOG_WARNING, "Direct processing is not recommended for zp coefficients format.\n");
+        av_log(ctx, AV_LOG_WARNING, "Direct processsing is not recommended for zp coefficients format.\n");
 
         ret = convert_zp2tf(ctx, inlink->ch_layout.nb_channels);
         if (ret < 0)
@@ -1430,15 +1436,14 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
 
 static int config_video(AVFilterLink *outlink)
 {
-    FilterLink *l = ff_filter_link(outlink);
     AVFilterContext *ctx = outlink->src;
     AudioIIRContext *s = ctx->priv;
 
     outlink->sample_aspect_ratio = (AVRational){1,1};
     outlink->w = s->w;
     outlink->h = s->h;
-    l->frame_rate = s->rate;
-    outlink->time_base = av_inv_q(l->frame_rate);
+    outlink->frame_rate = s->rate;
+    outlink->time_base = av_inv_q(outlink->frame_rate);
 
     return 0;
 }
@@ -1528,26 +1533,26 @@ static const AVOption aiir_options[] = {
     { "k", "set channels gains",                   OFFSET(g_str),    AV_OPT_TYPE_STRING, {.str="1|1"}, 0, 0, AF },
     { "dry", "set dry gain",                       OFFSET(dry_gain), AV_OPT_TYPE_DOUBLE, {.dbl=1},     0, 1, AF },
     { "wet", "set wet gain",                       OFFSET(wet_gain), AV_OPT_TYPE_DOUBLE, {.dbl=1},     0, 1, AF },
-    { "format", "set coefficients format",         OFFSET(format),   AV_OPT_TYPE_INT,    {.i64=1},    -2, 4, AF, .unit = "format" },
-    { "f", "set coefficients format",              OFFSET(format),   AV_OPT_TYPE_INT,    {.i64=1},    -2, 4, AF, .unit = "format" },
-    { "ll", "lattice-ladder function",             0,                AV_OPT_TYPE_CONST,  {.i64=-2},    0, 0, AF, .unit = "format" },
-    { "sf", "analog transfer function",            0,                AV_OPT_TYPE_CONST,  {.i64=-1},    0, 0, AF, .unit = "format" },
-    { "tf", "digital transfer function",           0,                AV_OPT_TYPE_CONST,  {.i64=0},     0, 0, AF, .unit = "format" },
-    { "zp", "Z-plane zeros/poles",                 0,                AV_OPT_TYPE_CONST,  {.i64=1},     0, 0, AF, .unit = "format" },
-    { "pr", "Z-plane zeros/poles (polar radians)", 0,                AV_OPT_TYPE_CONST,  {.i64=2},     0, 0, AF, .unit = "format" },
-    { "pd", "Z-plane zeros/poles (polar degrees)", 0,                AV_OPT_TYPE_CONST,  {.i64=3},     0, 0, AF, .unit = "format" },
-    { "sp", "S-plane zeros/poles",                 0,                AV_OPT_TYPE_CONST,  {.i64=4},     0, 0, AF, .unit = "format" },
-    { "process", "set kind of processing",         OFFSET(process),  AV_OPT_TYPE_INT,    {.i64=1},     0, 2, AF, .unit = "process" },
-    { "r", "set kind of processing",               OFFSET(process),  AV_OPT_TYPE_INT,    {.i64=1},     0, 2, AF, .unit = "process" },
-    { "d", "direct",                               0,                AV_OPT_TYPE_CONST,  {.i64=0},     0, 0, AF, .unit = "process" },
-    { "s", "serial",                               0,                AV_OPT_TYPE_CONST,  {.i64=1},     0, 0, AF, .unit = "process" },
-    { "p", "parallel",                             0,                AV_OPT_TYPE_CONST,  {.i64=2},     0, 0, AF, .unit = "process" },
-    { "precision", "set filtering precision",      OFFSET(precision),AV_OPT_TYPE_INT,    {.i64=0},     0, 3, AF, .unit = "precision" },
-    { "e", "set precision",                        OFFSET(precision),AV_OPT_TYPE_INT,    {.i64=0},     0, 3, AF, .unit = "precision" },
-    { "dbl", "double-precision floating-point",    0,                AV_OPT_TYPE_CONST,  {.i64=0},     0, 0, AF, .unit = "precision" },
-    { "flt", "single-precision floating-point",    0,                AV_OPT_TYPE_CONST,  {.i64=1},     0, 0, AF, .unit = "precision" },
-    { "i32", "32-bit integers",                    0,                AV_OPT_TYPE_CONST,  {.i64=2},     0, 0, AF, .unit = "precision" },
-    { "i16", "16-bit integers",                    0,                AV_OPT_TYPE_CONST,  {.i64=3},     0, 0, AF, .unit = "precision" },
+    { "format", "set coefficients format",         OFFSET(format),   AV_OPT_TYPE_INT,    {.i64=1},    -2, 4, AF, "format" },
+    { "f", "set coefficients format",              OFFSET(format),   AV_OPT_TYPE_INT,    {.i64=1},    -2, 4, AF, "format" },
+    { "ll", "lattice-ladder function",             0,                AV_OPT_TYPE_CONST,  {.i64=-2},    0, 0, AF, "format" },
+    { "sf", "analog transfer function",            0,                AV_OPT_TYPE_CONST,  {.i64=-1},    0, 0, AF, "format" },
+    { "tf", "digital transfer function",           0,                AV_OPT_TYPE_CONST,  {.i64=0},     0, 0, AF, "format" },
+    { "zp", "Z-plane zeros/poles",                 0,                AV_OPT_TYPE_CONST,  {.i64=1},     0, 0, AF, "format" },
+    { "pr", "Z-plane zeros/poles (polar radians)", 0,                AV_OPT_TYPE_CONST,  {.i64=2},     0, 0, AF, "format" },
+    { "pd", "Z-plane zeros/poles (polar degrees)", 0,                AV_OPT_TYPE_CONST,  {.i64=3},     0, 0, AF, "format" },
+    { "sp", "S-plane zeros/poles",                 0,                AV_OPT_TYPE_CONST,  {.i64=4},     0, 0, AF, "format" },
+    { "process", "set kind of processing",         OFFSET(process),  AV_OPT_TYPE_INT,    {.i64=1},     0, 2, AF, "process" },
+    { "r", "set kind of processing",               OFFSET(process),  AV_OPT_TYPE_INT,    {.i64=1},     0, 2, AF, "process" },
+    { "d", "direct",                               0,                AV_OPT_TYPE_CONST,  {.i64=0},     0, 0, AF, "process" },
+    { "s", "serial",                               0,                AV_OPT_TYPE_CONST,  {.i64=1},     0, 0, AF, "process" },
+    { "p", "parallel",                             0,                AV_OPT_TYPE_CONST,  {.i64=2},     0, 0, AF, "process" },
+    { "precision", "set filtering precision",      OFFSET(precision),AV_OPT_TYPE_INT,    {.i64=0},     0, 3, AF, "precision" },
+    { "e", "set precision",                        OFFSET(precision),AV_OPT_TYPE_INT,    {.i64=0},     0, 3, AF, "precision" },
+    { "dbl", "double-precision floating-point",    0,                AV_OPT_TYPE_CONST,  {.i64=0},     0, 0, AF, "precision" },
+    { "flt", "single-precision floating-point",    0,                AV_OPT_TYPE_CONST,  {.i64=1},     0, 0, AF, "precision" },
+    { "i32", "32-bit integers",                    0,                AV_OPT_TYPE_CONST,  {.i64=2},     0, 0, AF, "precision" },
+    { "i16", "16-bit integers",                    0,                AV_OPT_TYPE_CONST,  {.i64=3},     0, 0, AF, "precision" },
     { "normalize", "normalize coefficients",       OFFSET(normalize),AV_OPT_TYPE_BOOL,   {.i64=1},     0, 1, AF },
     { "n", "normalize coefficients",               OFFSET(normalize),AV_OPT_TYPE_BOOL,   {.i64=1},     0, 1, AF },
     { "mix", "set mix",                            OFFSET(mix),      AV_OPT_TYPE_DOUBLE, {.dbl=1},     0, 1, AF },
@@ -1568,7 +1573,7 @@ const AVFilter ff_af_aiir = {
     .init          = init,
     .uninit        = uninit,
     FILTER_INPUTS(inputs),
-    FILTER_QUERY_FUNC2(query_formats),
+    FILTER_QUERY_FUNC(query_formats),
     .flags         = AVFILTER_FLAG_DYNAMIC_OUTPUTS |
                      AVFILTER_FLAG_SLICE_THREADS,
 };

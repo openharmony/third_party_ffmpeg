@@ -21,6 +21,8 @@
 #include "libavutil/channel_layout.h"
 #include "avcodec.h"
 #include "dolby_e.h"
+#include "get_bits.h"
+#include "put_bits.h"
 
 typedef struct DBEParseContext {
     DBEContext dectx;

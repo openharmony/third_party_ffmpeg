@@ -29,12 +29,11 @@
 #include "libavutil/imgutils.h"
 #include "libavutil/internal.h"
 #include "libavutil/intreadwrite.h"
-#include "libavutil/mem.h"
 #include "thread.h"
 
 typedef struct ThreadData {
     AVFrame *frame;
-    const uint8_t *buf;
+    uint8_t *buf;
     int stride;
 } ThreadData;
 
@@ -112,7 +111,7 @@ static int v210_decode_slice(AVCodecContext *avctx, void *arg, int jobnr, int th
     int stride = td->stride;
     int slice_start = (avctx->height *  jobnr) / s->thread_count;
     int slice_end = (avctx->height * (jobnr+1)) / s->thread_count;
-    const uint8_t *psrc = td->buf + stride * slice_start;
+    uint8_t *psrc = td->buf + stride * slice_start;
     int16_t *py = (uint16_t*)frame->data[0] + slice_start * frame->linesize[0] / 2;
     int16_t *pu = (uint16_t*)frame->data[1] + slice_start * frame->linesize[1] / 2;
     int16_t *pv = (uint16_t*)frame->data[2] + slice_start * frame->linesize[2] / 2;
@@ -187,9 +186,12 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *pic,
     if ((ret = ff_thread_get_buffer(avctx, pic, 0)) < 0)
         return ret;
 
+    pic->pict_type = AV_PICTURE_TYPE_I;
+    pic->key_frame = 1;
+
     if (stride) {
         td.stride = stride;
-        td.buf = psrc;
+        td.buf = (uint8_t*)psrc;
         td.frame = pic;
         avctx->execute2(avctx, v210_decode_slice, &td, NULL, s->thread_count);
     } else {
@@ -199,16 +201,15 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *pic,
         if (ret < 0)
             return ret;
         decode_row((const uint32_t *)psrc, (uint16_t *)pointers[0], (uint16_t *)pointers[1], (uint16_t *)pointers[2], avctx->width * avctx->height, s->unpack_frame);
-        av_image_copy2(pic->data, pic->linesize, pointers, linesizes,
-                       avctx->pix_fmt, avctx->width, avctx->height);
+        av_image_copy(pic->data, pic->linesize, (const uint8_t **)pointers, linesizes, avctx->pix_fmt, avctx->width, avctx->height);
         av_freep(&pointers[0]);
     }
 
     if (avctx->field_order > AV_FIELD_PROGRESSIVE) {
         /* we have interlaced material flagged in container */
-        pic->flags |= AV_FRAME_FLAG_INTERLACED;
+        pic->interlaced_frame = 1;
         if (avctx->field_order == AV_FIELD_TT || avctx->field_order == AV_FIELD_TB)
-            pic->flags |= AV_FRAME_FLAG_TOP_FIELD_FIRST;
+            pic->top_field_first = 1;
     }
 
     *got_frame      = 1;
@@ -232,7 +233,7 @@ static const AVClass v210dec_class = {
 
 const FFCodec ff_v210_decoder = {
     .p.name         = "v210",
-    CODEC_LONG_NAME("Uncompressed 4:2:2 10-bit"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Uncompressed 4:2:2 10-bit"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_V210,
     .priv_data_size = sizeof(V210DecContext),
@@ -242,4 +243,5 @@ const FFCodec ff_v210_decoder = {
                       AV_CODEC_CAP_SLICE_THREADS |
                       AV_CODEC_CAP_FRAME_THREADS,
     .p.priv_class   = &v210dec_class,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

@@ -20,10 +20,8 @@
  */
 
 #include "avformat.h"
-#include "demux.h"
 #include "libavutil/avstring.h"
 #include "libavutil/intreadwrite.h"
-#include "libavutil/mem.h"
 #include "network.h"
 #include "os_support.h"
 #include "internal.h"
@@ -150,7 +148,8 @@ static int sap_read_header(AVFormatContext *s)
     }
 
     av_log(s, AV_LOG_VERBOSE, "SDP:\n%s\n", sap->sdp);
-    ffio_init_read_context(&sap->sdp_pb, sap->sdp, strlen(sap->sdp));
+    ffio_init_context(&sap->sdp_pb, sap->sdp, strlen(sap->sdp), 0, NULL, NULL,
+                  NULL, NULL);
 
     infmt = av_find_input_format("sdp");
     if (!infmt)
@@ -198,9 +197,6 @@ static int sap_fetch_packet(AVFormatContext *s, AVPacket *pkt)
     struct pollfd p = {fd, POLLIN, 0};
     uint8_t recvbuf[RTP_MAX_PACKET_LENGTH];
 
-    if (fd < 0)
-        return fd;
-
     if (sap->eof)
         return AVERROR_EOF;
 
@@ -237,13 +233,13 @@ static int sap_fetch_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-const FFInputFormat ff_sap_demuxer = {
-    .p.name         = "sap",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("SAP input"),
-    .p.flags        = AVFMT_NOFILE,
+const AVInputFormat ff_sap_demuxer = {
+    .name           = "sap",
+    .long_name      = NULL_IF_CONFIG_SMALL("SAP input"),
     .priv_data_size = sizeof(struct SAPState),
     .read_probe     = sap_probe,
     .read_header    = sap_read_header,
     .read_packet    = sap_fetch_packet,
     .read_close     = sap_read_close,
+    .flags          = AVFMT_NOFILE,
 };

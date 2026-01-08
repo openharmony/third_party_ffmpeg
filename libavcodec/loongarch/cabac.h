@@ -25,7 +25,6 @@
 #ifndef AVCODEC_LOONGARCH_CABAC_H
 #define AVCODEC_LOONGARCH_CABAC_H
 
-#include "libavutil/attributes.h"
 #include "libavcodec/cabac.h"
 #include "config.h"
 

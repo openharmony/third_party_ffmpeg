@@ -19,15 +19,18 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
+#include "libavutil/imgutils.h"
 #include "libavutil/internal.h"
 #include "libavutil/intreadwrite.h"
 
 #include "avcodec.h"
 #include "bytestream.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 
 typedef struct ArgoContext {
     GetByteContext gb;
@@ -666,10 +669,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *rframe,
         return ret;
 
     frame->pict_type = s->key ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_P;
-    if (s->key)
-        frame->flags |= AV_FRAME_FLAG_KEY;
-    else
-        frame->flags &= ~AV_FRAME_FLAG_KEY;
+    frame->key_frame = s->key;
     *got_frame = 1;
 
     return avpkt->size;
@@ -735,7 +735,7 @@ static av_cold int decode_close(AVCodecContext *avctx)
 
 const FFCodec ff_argo_decoder = {
     .p.name         = "argo",
-    CODEC_LONG_NAME("Argonaut Games Video"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Argonaut Games Video"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_ARGO,
     .priv_data_size = sizeof(ArgoContext),
@@ -744,5 +744,5 @@ const FFCodec ff_argo_decoder = {
     .flush          = decode_flush,
     .close          = decode_close,
     .p.capabilities = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
 };

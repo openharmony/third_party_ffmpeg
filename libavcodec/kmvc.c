@@ -25,11 +25,13 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "avcodec.h"
 #include "bytestream.h"
 #include "codec_internal.h"
 #include "decode.h"
+#include "internal.h"
 #include "libavutil/common.h"
 
 #define KMVC_KEYFRAME 0x80
@@ -273,14 +275,7 @@ static int decode_frame(AVCodecContext * avctx, AVFrame *frame,
     if ((ret = ff_get_buffer(avctx, frame, 0)) < 0)
         return ret;
 
-#if FF_API_PALETTE_HAS_CHANGED
-FF_DISABLE_DEPRECATION_WARNINGS
-    frame->palette_has_changed =
-#endif
-    ff_copy_palette(ctx->pal, avpkt, avctx);
-#if FF_API_PALETTE_HAS_CHANGED
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
+    frame->palette_has_changed = ff_copy_palette(ctx->pal, avpkt, avctx);
 
     header = bytestream2_get_byte(&ctx->g);
 
@@ -295,19 +290,15 @@ FF_ENABLE_DEPRECATION_WARNINGS
     }
 
     if (header & KMVC_KEYFRAME) {
-        frame->flags |= AV_FRAME_FLAG_KEY;
+        frame->key_frame = 1;
         frame->pict_type = AV_PICTURE_TYPE_I;
     } else {
-        frame->flags &= ~AV_FRAME_FLAG_KEY;
+        frame->key_frame = 0;
         frame->pict_type = AV_PICTURE_TYPE_P;
     }
 
     if (header & KMVC_PALETTE) {
-#if FF_API_PALETTE_HAS_CHANGED
-FF_DISABLE_DEPRECATION_WARNINGS
         frame->palette_has_changed = 1;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
         // palette starts from index 1 and has 127 entries
         for (i = 1; i <= ctx->palsize; i++) {
             ctx->pal[i] = 0xFFU << 24 | bytestream2_get_be24(&ctx->g);
@@ -316,11 +307,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     if (ctx->setpal) {
         ctx->setpal = 0;
-#if FF_API_PALETTE_HAS_CHANGED
-FF_DISABLE_DEPRECATION_WARNINGS
         frame->palette_has_changed = 1;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
     }
 
     /* make the palette available on the way out */
@@ -419,11 +406,12 @@ static av_cold int decode_init(AVCodecContext * avctx)
 
 const FFCodec ff_kmvc_decoder = {
     .p.name         = "kmvc",
-    CODEC_LONG_NAME("Karl Morton's video codec"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Karl Morton's video codec"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_KMVC,
     .priv_data_size = sizeof(KmvcContext),
     .init           = decode_init,
     FF_CODEC_DECODE_CB(decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

@@ -25,9 +25,7 @@
 #include "libavutil/channel_layout.h"
 #include "avformat.h"
 #include "avio_internal.h"
-#include "demux.h"
 #include "internal.h"
-#include "mux.h"
 #include "rawenc.h"
 #include "libavutil/intreadwrite.h"
 
@@ -119,9 +117,9 @@ static int kvag_seek(AVFormatContext *s, int stream_index,
     return avio_seek(s->pb, KVAG_HEADER_SIZE, SEEK_SET);
 }
 
-const FFInputFormat ff_kvag_demuxer = {
-    .p.name         = "kvag",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Simon & Schuster Interactive VAG"),
+const AVInputFormat ff_kvag_demuxer = {
+    .name           = "kvag",
+    .long_name      = NULL_IF_CONFIG_SMALL("Simon & Schuster Interactive VAG"),
     .read_probe     = kvag_probe,
     .read_header    = kvag_read_header,
     .read_packet    = kvag_read_packet,
@@ -132,7 +130,20 @@ const FFInputFormat ff_kvag_demuxer = {
 #if CONFIG_KVAG_MUXER
 static int kvag_write_init(AVFormatContext *s)
 {
-    AVCodecParameters *par = s->streams[0]->codecpar;
+    AVCodecParameters *par;
+
+    if (s->nb_streams != 1) {
+        av_log(s, AV_LOG_ERROR, "KVAG files have exactly one stream\n");
+        return AVERROR(EINVAL);
+    }
+
+    par = s->streams[0]->codecpar;
+
+    if (par->codec_id != AV_CODEC_ID_ADPCM_IMA_SSI) {
+        av_log(s, AV_LOG_ERROR, "%s codec not supported\n",
+               avcodec_get_name(par->codec_id));
+        return AVERROR(EINVAL);
+    }
 
     if (par->ch_layout.nb_channels > 2) {
         av_log(s, AV_LOG_ERROR, "KVAG files only support up to 2 channels\n");
@@ -180,15 +191,12 @@ static int kvag_write_trailer(AVFormatContext *s)
     return 0;
 }
 
-const FFOutputFormat ff_kvag_muxer = {
-    .p.name         = "kvag",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Simon & Schuster Interactive VAG"),
-    .p.extensions   = "vag",
-    .p.audio_codec  = AV_CODEC_ID_ADPCM_IMA_SSI,
-    .p.video_codec  = AV_CODEC_ID_NONE,
-    .p.subtitle_codec = AV_CODEC_ID_NONE,
-    .flags_internal   = FF_OFMT_FLAG_MAX_ONE_OF_EACH |
-                        FF_OFMT_FLAG_ONLY_DEFAULT_CODECS,
+const AVOutputFormat ff_kvag_muxer = {
+    .name           = "kvag",
+    .long_name      = NULL_IF_CONFIG_SMALL("Simon & Schuster Interactive VAG"),
+    .extensions     = "vag",
+    .audio_codec    = AV_CODEC_ID_ADPCM_IMA_SSI,
+    .video_codec    = AV_CODEC_ID_NONE,
     .init           = kvag_write_init,
     .write_header   = kvag_write_header,
     .write_packet   = ff_raw_write_packet,

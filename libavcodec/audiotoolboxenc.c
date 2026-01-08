@@ -35,7 +35,6 @@
 #include "libavformat/isom.h"
 #include "libavutil/avassert.h"
 #include "libavutil/channel_layout.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/log.h"
 
@@ -61,28 +60,24 @@ static UInt32 ffat_get_format_id(enum AVCodecID codec, int profile)
     switch (codec) {
     case AV_CODEC_ID_AAC:
         switch (profile) {
-        case AV_PROFILE_AAC_LOW:
+        case FF_PROFILE_AAC_LOW:
         default:
             return kAudioFormatMPEG4AAC;
-        case AV_PROFILE_AAC_HE:
+        case FF_PROFILE_AAC_HE:
             return kAudioFormatMPEG4AAC_HE;
-        case AV_PROFILE_AAC_HE_V2:
+        case FF_PROFILE_AAC_HE_V2:
             return kAudioFormatMPEG4AAC_HE_V2;
-        case AV_PROFILE_AAC_LD:
+        case FF_PROFILE_AAC_LD:
             return kAudioFormatMPEG4AAC_LD;
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
-        case AV_PROFILE_AAC_ELD:
+        case FF_PROFILE_AAC_ELD:
             return kAudioFormatMPEG4AAC_ELD;
-#endif
         }
     case AV_CODEC_ID_ADPCM_IMA_QT:
         return kAudioFormatAppleIMA4;
     case AV_CODEC_ID_ALAC:
         return kAudioFormatAppleLossless;
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     case AV_CODEC_ID_ILBC:
         return kAudioFormatiLBC;
-#endif
     case AV_CODEC_ID_PCM_ALAW:
         return kAudioFormatALaw;
     case AV_CODEC_ID_PCM_MULAW:
@@ -93,7 +88,7 @@ static UInt32 ffat_get_format_id(enum AVCodecID codec, int profile)
     }
 }
 
-static int ffat_update_ctx(AVCodecContext *avctx)
+static void ffat_update_ctx(AVCodecContext *avctx)
 {
     ATDecodeContext *at = avctx->priv_data;
     UInt32 size = sizeof(unsigned);
@@ -119,23 +114,10 @@ static int ffat_update_ctx(AVCodecContext *avctx)
     if (!AudioConverterGetProperty(at->converter,
                                    kAudioConverterCurrentOutputStreamDescription,
                                    &size, &out_format)) {
-        if (out_format.mFramesPerPacket) {
+        if (out_format.mFramesPerPacket)
             avctx->frame_size = out_format.mFramesPerPacket;
-        } else {
-            /* The doc on mFramesPerPacket says:
-             *   For formats with a variable number of frames per packet, such as
-             *   Ogg Vorbis, set this field to 0.
-             * Looks like it means for decoding. There is no known case that
-             * mFramesPerPacket is zero for encoding. Use a default value for safety.
-             */
-            avctx->frame_size = 1024;
-            av_log(avctx, AV_LOG_WARNING, "Missing mFramesPerPacket\n");
-        }
         if (out_format.mBytesPerPacket && avctx->codec_id == AV_CODEC_ID_ILBC)
             avctx->block_align = out_format.mBytesPerPacket;
-    } else {
-        av_log(avctx, AV_LOG_ERROR, "Get OutputStreamDescription failed\n");
-        return AVERROR_EXTERNAL;
     }
 
     at->frame_size = avctx->frame_size;
@@ -144,8 +126,6 @@ static int ffat_update_ctx(AVCodecContext *avctx)
         at->pkt_size *= 1024;
         avctx->frame_size *= 1024;
     }
-
-    return 0;
 }
 
 static int read_descr(GetByteContext *gb, int *tag)
@@ -252,7 +232,6 @@ static av_cold int ffat_init_encoder(AVCodecContext *avctx)
 {
     ATDecodeContext *at = avctx->priv_data;
     OSStatus status;
-    int ret;
 
     AudioStreamBasicDescription in_format = {
         .mSampleRate = avctx->sample_rate,
@@ -449,9 +428,7 @@ static av_cold int ffat_init_encoder(AVCodecContext *avctx)
         }
     }
 
-    ret = ffat_update_ctx(avctx);
-    if (ret < 0)
-        return ret;
+    ffat_update_ctx(avctx);
 
 #if !TARGET_OS_IPHONE && defined(__MAC_10_9)
     if (at->mode == kAudioCodecBitRateControlMode_Variable && avctx->rc_max_rate) {
@@ -502,7 +479,8 @@ static OSStatus ffat_encode_callback(AudioConverterRef converter, UInt32 *nb_pac
     if (*nb_packets > frame->nb_samples)
         *nb_packets = frame->nb_samples;
 
-    ret = av_frame_replace(at->encoding_frame, frame);
+    av_frame_unref(at->encoding_frame);
+    ret = av_frame_ref(at->encoding_frame, frame);
     if (ret < 0) {
         *nb_packets = 0;
         return ret;
@@ -576,7 +554,6 @@ static int ffat_encode(AVCodecContext *avctx, AVPacket *avpkt,
                                      avctx->frame_size,
                            &avpkt->pts,
                            &avpkt->duration);
-        avpkt->flags |= AV_PKT_FLAG_KEY;
     } else if (ret && ret != 1) {
         av_log(avctx, AV_LOG_ERROR, "Encode error: %i\n", ret);
         return AVERROR_EXTERNAL;
@@ -605,23 +582,23 @@ static av_cold int ffat_close_encoder(AVCodecContext *avctx)
 }
 
 static const AVProfile aac_profiles[] = {
-    { AV_PROFILE_AAC_LOW,   "LC"       },
-    { AV_PROFILE_AAC_HE,    "HE-AAC"   },
-    { AV_PROFILE_AAC_HE_V2, "HE-AACv2" },
-    { AV_PROFILE_AAC_LD,    "LD"       },
-    { AV_PROFILE_AAC_ELD,   "ELD"      },
-    { AV_PROFILE_UNKNOWN },
+    { FF_PROFILE_AAC_LOW,   "LC"       },
+    { FF_PROFILE_AAC_HE,    "HE-AAC"   },
+    { FF_PROFILE_AAC_HE_V2, "HE-AACv2" },
+    { FF_PROFILE_AAC_LD,    "LD"       },
+    { FF_PROFILE_AAC_ELD,   "ELD"      },
+    { FF_PROFILE_UNKNOWN },
 };
 
 #define AE AV_OPT_FLAG_AUDIO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption options[] = {
 #if !TARGET_OS_IPHONE
-    {"aac_at_mode", "ratecontrol mode", offsetof(ATDecodeContext, mode), AV_OPT_TYPE_INT, {.i64 = -1}, -1, kAudioCodecBitRateControlMode_Variable, AE, .unit = "mode"},
-        {"auto", "VBR if global quality is given; CBR otherwise", 0, AV_OPT_TYPE_CONST, {.i64 = -1}, INT_MIN, INT_MAX, AE, .unit = "mode"},
-        {"cbr",  "constant bitrate", 0, AV_OPT_TYPE_CONST, {.i64 = kAudioCodecBitRateControlMode_Constant}, INT_MIN, INT_MAX, AE, .unit = "mode"},
-        {"abr",  "long-term average bitrate", 0, AV_OPT_TYPE_CONST, {.i64 = kAudioCodecBitRateControlMode_LongTermAverage}, INT_MIN, INT_MAX, AE, .unit = "mode"},
-        {"cvbr", "constrained variable bitrate", 0, AV_OPT_TYPE_CONST, {.i64 = kAudioCodecBitRateControlMode_VariableConstrained}, INT_MIN, INT_MAX, AE, .unit = "mode"},
-        {"vbr" , "variable bitrate", 0, AV_OPT_TYPE_CONST, {.i64 = kAudioCodecBitRateControlMode_Variable}, INT_MIN, INT_MAX, AE, .unit = "mode"},
+    {"aac_at_mode", "ratecontrol mode", offsetof(ATDecodeContext, mode), AV_OPT_TYPE_INT, {.i64 = -1}, -1, kAudioCodecBitRateControlMode_Variable, AE, "mode"},
+        {"auto", "VBR if global quality is given; CBR otherwise", 0, AV_OPT_TYPE_CONST, {.i64 = -1}, INT_MIN, INT_MAX, AE, "mode"},
+        {"cbr",  "constant bitrate", 0, AV_OPT_TYPE_CONST, {.i64 = kAudioCodecBitRateControlMode_Constant}, INT_MIN, INT_MAX, AE, "mode"},
+        {"abr",  "long-term average bitrate", 0, AV_OPT_TYPE_CONST, {.i64 = kAudioCodecBitRateControlMode_LongTermAverage}, INT_MIN, INT_MAX, AE, "mode"},
+        {"cvbr", "constrained variable bitrate", 0, AV_OPT_TYPE_CONST, {.i64 = kAudioCodecBitRateControlMode_VariableConstrained}, INT_MIN, INT_MAX, AE, "mode"},
+        {"vbr" , "variable bitrate", 0, AV_OPT_TYPE_CONST, {.i64 = kAudioCodecBitRateControlMode_Variable}, INT_MIN, INT_MAX, AE, "mode"},
 #endif
     {"aac_at_quality", "quality vs speed control", offsetof(ATDecodeContext, quality), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 2, AE},
     { NULL },
@@ -639,7 +616,7 @@ static const AVOption options[] = {
     FFAT_ENC_CLASS(NAME) \
     const FFCodec ff_##NAME##_at_encoder = { \
         .p.name         = #NAME "_at", \
-        CODEC_LONG_NAME(#NAME " (AudioToolbox)"), \
+        .p.long_name    = NULL_IF_CONFIG_SMALL(#NAME " (AudioToolbox)"), \
         .p.type         = AVMEDIA_TYPE_AUDIO, \
         .p.id           = ID, \
         .priv_data_size = sizeof(ATDecodeContext), \
@@ -650,11 +627,13 @@ static const AVOption options[] = {
         .p.priv_class   = &ffat_##NAME##_enc_class, \
         .p.capabilities = AV_CODEC_CAP_DELAY | \
                           AV_CODEC_CAP_ENCODER_FLUSH CAPS, \
+        .p.channel_layouts = CHANNEL_LAYOUTS, \
         .p.ch_layouts   = CH_LAYOUTS, \
         .p.sample_fmts  = (const enum AVSampleFormat[]) { \
             AV_SAMPLE_FMT_S16, \
             AV_SAMPLE_FMT_U8,  AV_SAMPLE_FMT_NONE \
         }, \
+        .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE, \
         .p.profiles     = PROFILES, \
         .p.wrapper_name = "at", \
     };
@@ -675,9 +654,27 @@ static const AVChannelLayout aac_at_ch_layouts[] = {
     { 0 },
 };
 
+#if FF_API_OLD_CHANNEL_LAYOUT
+static const uint64_t aac_at_channel_layouts[] = {
+    AV_CH_LAYOUT_MONO,
+    AV_CH_LAYOUT_STEREO,
+    AV_CH_LAYOUT_SURROUND,
+    AV_CH_LAYOUT_4POINT0,
+    AV_CH_LAYOUT_5POINT0,
+    AV_CH_LAYOUT_5POINT1,
+    AV_CH_LAYOUT_6POINT0,
+    AV_CH_LAYOUT_6POINT1,
+    AV_CH_LAYOUT_7POINT0,
+    AV_CH_LAYOUT_7POINT1_WIDE_BACK,
+    AV_CH_LAYOUT_QUAD,
+    AV_CH_LAYOUT_OCTAGONAL,
+    0,
+};
+#endif
+
 FFAT_ENC(aac,          AV_CODEC_ID_AAC,          aac_profiles, , aac_at_channel_layouts, aac_at_ch_layouts)
 //FFAT_ENC(adpcm_ima_qt, AV_CODEC_ID_ADPCM_IMA_QT, NULL)
-FFAT_ENC(alac,         AV_CODEC_ID_ALAC,         NULL, , NULL, NULL)
+FFAT_ENC(alac,         AV_CODEC_ID_ALAC,         NULL, | AV_CODEC_CAP_VARIABLE_FRAME_SIZE, NULL, NULL)
 FFAT_ENC(ilbc,         AV_CODEC_ID_ILBC,         NULL, , NULL, NULL)
 FFAT_ENC(pcm_alaw,     AV_CODEC_ID_PCM_ALAW,     NULL, , NULL, NULL)
 FFAT_ENC(pcm_mulaw,    AV_CODEC_ID_PCM_MULAW,    NULL, , NULL, NULL)

@@ -167,7 +167,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     LclDecContext * const c = avctx->priv_data;
-    ptrdiff_t pixel_ptr;
+    unsigned int pixel_ptr;
     int row, col;
     unsigned char *encoded = avpkt->data, *outptr;
     uint8_t *y_out, *u_out, *v_out;
@@ -221,9 +221,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
                 if (c->decomp_size != mszh_dlen) {
                     av_log(avctx, AV_LOG_ERROR, "Decoded size differs (%d != %d)\n",
                            c->decomp_size, mszh_dlen);
-                    if (c->decomp_size != mszh_dlen &&
-                        c->decomp_size != mszh_dlen + 2) // YUV420 306x306 is missing 2 bytes
-                        return AVERROR_INVALIDDATA;
+                    return AVERROR_INVALIDDATA;
                 }
                 encoded = c->decomp_buf;
                 len = mszh_dlen;
@@ -481,6 +479,9 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
         return AVERROR_INVALIDDATA;
     }
 
+    frame->key_frame = 1;
+    frame->pict_type = AV_PICTURE_TYPE_I;
+
     *got_frame = 1;
 
     /* always report that the buffer was completely consumed */
@@ -645,7 +646,7 @@ static av_cold int decode_end(AVCodecContext *avctx)
 #if CONFIG_MSZH_DECODER
 const FFCodec ff_mszh_decoder = {
     .p.name         = "mszh",
-    CODEC_LONG_NAME("LCL (LossLess Codec Library) MSZH"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("LCL (LossLess Codec Library) MSZH"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_MSZH,
     .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_FRAME_THREADS,
@@ -653,14 +654,14 @@ const FFCodec ff_mszh_decoder = {
     .init           = decode_init,
     .close          = decode_end,
     FF_CODEC_DECODE_CB(decode_frame),
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
 };
 #endif
 
 #if CONFIG_ZLIB_DECODER
 const FFCodec ff_zlib_decoder = {
     .p.name         = "zlib",
-    CODEC_LONG_NAME("LCL (LossLess Codec Library) ZLIB"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("LCL (LossLess Codec Library) ZLIB"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_ZLIB,
     .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_FRAME_THREADS,
@@ -668,6 +669,6 @@ const FFCodec ff_zlib_decoder = {
     .init           = decode_init,
     .close          = decode_end,
     FF_CODEC_DECODE_CB(decode_frame),
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
 };
 #endif
