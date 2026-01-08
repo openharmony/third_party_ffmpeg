@@ -1890,7 +1890,7 @@ action("gen_config_header") {
     ohos_ffmpeg_enable_demuxers += "rm,"
   }
   if (ffmpeg_enable_codec_rv) {
-    ohos_ffmpeg_enable_parsers += "rv30,rv40,"
+    ohos_ffmpeg_enable_parsers += "rv34,"
     ohos_ffmpeg_enable_decoders += "rv30,rv40,"
   }
   if (ffmpeg_enable_codec_vc1) {
