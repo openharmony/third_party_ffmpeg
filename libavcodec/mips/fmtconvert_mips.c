@@ -49,6 +49,7 @@
  */
 #include "config.h"
 #include "libavutil/attributes.h"
+#include "libavcodec/avcodec.h"
 #include "libavcodec/fmtconvert.h"
 #include "libavutil/mips/asmdefs.h"
 

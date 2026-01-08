@@ -68,8 +68,7 @@ static const double htaps[HTAPS] = {
      3.423230509967409e-07,  1.244182214744588e-07,  3.130441005359396e-08
 };
 
-static double ctables_lsbf[CTABLES][256];
-static double ctables_msbf[CTABLES][256];
+static float ctables[CTABLES][256];
 
 static av_cold void dsd_ctables_tableinit(void)
 {
@@ -82,10 +81,8 @@ static av_cold void dsd_ctables_tableinit(void)
             for (t = 0; t < CTABLES; ++t)
                 acc[t] += sign * htaps[t * 8 + m];
         }
-        for (t = 0; t < CTABLES; ++t) {
-            ctables_msbf[CTABLES - 1 - t][e] = acc[t];
-            ctables_lsbf[CTABLES - 1 - t][ff_reverse[e]] = acc[t];
-        }
+        for (t = 0; t < CTABLES; ++t)
+            ctables[CTABLES - 1 - t][e] = acc[t];
     }
 }
 
@@ -103,14 +100,13 @@ void ff_dsd2pcm_translate(DSDContext* s, size_t samples, int lsbf,
     unsigned pos, i;
     uint8_t* p;
     double sum;
-    const double (*const ctables)[256] = lsbf ? ctables_lsbf : ctables_msbf;
 
     pos = s->pos;
 
     memcpy(buf, s->buf, sizeof(buf));
 
     while (samples-- > 0) {
-        buf[pos] = *src;
+        buf[pos] = lsbf ? ff_reverse[*src] : *src;
         src += src_stride;
 
         p = buf + ((pos - CTABLES) & FIFOMASK);

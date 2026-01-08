@@ -30,7 +30,6 @@
 #include <sys/ioctl.h>
 #include <sys/soundcard.h>
 
-#include "libavutil/file_open.h"
 #include "libavutil/log.h"
 
 #include "avdevice.h"

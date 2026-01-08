@@ -20,20 +20,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "libavutil/mem.h"
 #include "libavutil/thread.h"
 
 #include "avcodec.h"
 #include "bytestream.h"
 #include "codec_internal.h"
 #include "copy_block.h"
-#include "decode.h"
 #include "mathops.h"
 #include "blockdsp.h"
 #include "get_bits.h"
+#include "internal.h"
 #include "aandcttab.h"
 
 #define CBP_VLC_BITS  9
@@ -60,7 +60,7 @@ typedef struct MV30Context {
     AVFrame *prev_frame;
 } MV30Context;
 
-static VLCElem cbp_tab[1 << CBP_VLC_BITS];
+static VLC cbp_tab;
 
 static const uint8_t luma_tab[] = {
     12, 12, 15, 19, 25, 34, 40, 48,
@@ -380,7 +380,7 @@ static int decode_coeffs(GetBitContext *gb, int16_t *coeffs, int nb_codes)
     memset(coeffs, 0, nb_codes * sizeof(*coeffs));
 
     for (int i = 0; i < nb_codes;) {
-        int value = get_vlc2(gb, cbp_tab, CBP_VLC_BITS, 1);
+        int value = get_vlc2(gb, cbp_tab.table, CBP_VLC_BITS, 1);
 
         if (value > 0) {
             int x = get_bits(gb, value);
@@ -624,8 +624,9 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
     get_qtable(s->intraq_tab[0], s->intra_quant, luma_tab);
     get_qtable(s->intraq_tab[1], s->intra_quant, chroma_tab);
 
-    if (s->is_inter == 0) {
-        frame->flags |= AV_FRAME_FLAG_KEY;
+    frame->key_frame = s->is_inter == 0;
+
+    if (frame->key_frame) {
         ret = decode_intra(avctx, gb, frame);
         if (ret < 0)
             return ret;
@@ -638,13 +639,13 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
             return AVERROR_INVALIDDATA;
         }
 
-        frame->flags &= ~AV_FRAME_FLAG_KEY;
         ret = decode_inter(avctx, gb, frame, s->prev_frame);
         if (ret < 0)
             return ret;
     }
 
-    if ((ret = av_frame_replace(s->prev_frame, frame)) < 0)
+    av_frame_unref(s->prev_frame);
+    if ((ret = av_frame_ref(s->prev_frame, frame)) < 0)
         return ret;
 
     *got_frame = 1;
@@ -658,9 +659,8 @@ static const uint8_t cbp_bits[] = {
 
 static av_cold void init_static_data(void)
 {
-    VLC_INIT_STATIC_TABLE_FROM_LENGTHS(cbp_tab, CBP_VLC_BITS,
-                                       FF_ARRAY_ELEMS(cbp_bits),
-                                       cbp_bits, 1, NULL, 0, 0, 0, 0);
+    INIT_VLC_STATIC_FROM_LENGTHS(&cbp_tab, CBP_VLC_BITS, FF_ARRAY_ELEMS(cbp_bits),
+                                 cbp_bits, 1, NULL, 0, 0, 0, 0, 1 << CBP_VLC_BITS);
 }
 
 static av_cold int decode_init(AVCodecContext *avctx)
@@ -671,7 +671,7 @@ static av_cold int decode_init(AVCodecContext *avctx)
     avctx->pix_fmt = AV_PIX_FMT_YUV420P;
     avctx->color_range = AVCOL_RANGE_JPEG;
 
-    ff_blockdsp_init(&s->bdsp);
+    ff_blockdsp_init(&s->bdsp, avctx);
 
     s->prev_frame = av_frame_alloc();
     if (!s->prev_frame)
@@ -704,7 +704,7 @@ static av_cold int decode_close(AVCodecContext *avctx)
 
 const FFCodec ff_mv30_decoder = {
     .p.name           = "mv30",
-    CODEC_LONG_NAME("MidiVid 3.0"),
+    .p.long_name      = NULL_IF_CONFIG_SMALL("MidiVid 3.0"),
     .p.type           = AVMEDIA_TYPE_VIDEO,
     .p.id             = AV_CODEC_ID_MV30,
     .priv_data_size   = sizeof(MV30Context),
@@ -713,5 +713,6 @@ const FFCodec ff_mv30_decoder = {
     FF_CODEC_DECODE_CB(decode_frame),
     .flush            = decode_flush,
     .p.capabilities   = AV_CODEC_CAP_DR1,
-    .caps_internal    = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal    = FF_CODEC_CAP_INIT_THREADSAFE |
+                        FF_CODEC_CAP_INIT_CLEANUP,
 };

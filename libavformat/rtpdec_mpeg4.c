@@ -31,7 +31,6 @@
 #include "internal.h"
 #include "libavutil/attributes.h"
 #include "libavutil/avstring.h"
-#include "libavutil/mem.h"
 #include "libavcodec/get_bits.h"
 
 #define MAX_AAC_HBR_FRAME_SIZE 8191

@@ -25,7 +25,6 @@
 #include "libavcodec/codec_par.h"
 #include "libavcodec/packet.h"
 #include "libavcodec/mpeg4audio.h"
-#include "libavcodec/mpeg4audio_copy_pce.h"
 #include "libavutil/opt.h"
 #include "avformat.h"
 #include "internal.h"
@@ -260,19 +259,17 @@ static int latm_check_bitstream(AVFormatContext *s, AVStream *st,
     return ret;
 }
 
-const FFOutputFormat ff_latm_muxer = {
-    .p.name         = "latm",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("LOAS/LATM"),
-    .p.mime_type    = "audio/MP4A-LATM",
-    .p.extensions   = "latm,loas",
+const AVOutputFormat ff_latm_muxer = {
+    .name           = "latm",
+    .long_name      = NULL_IF_CONFIG_SMALL("LOAS/LATM"),
+    .mime_type      = "audio/MP4A-LATM",
+    .extensions     = "latm,loas",
     .priv_data_size = sizeof(LATMContext),
-    .p.audio_codec  = AV_CODEC_ID_AAC,
-    .p.video_codec  = AV_CODEC_ID_NONE,
-    .p.subtitle_codec = AV_CODEC_ID_NONE,
-    .flags_internal   = FF_OFMT_FLAG_MAX_ONE_OF_EACH,
+    .audio_codec    = AV_CODEC_ID_AAC,
+    .video_codec    = AV_CODEC_ID_NONE,
     .write_header   = latm_write_header,
     .write_packet   = latm_write_packet,
-    .p.priv_class   = &latm_muxer_class,
+    .priv_class     = &latm_muxer_class,
     .check_bitstream= latm_check_bitstream,
-    .p.flags        = AVFMT_NOTIMESTAMPS,
+    .flags          = AVFMT_NOTIMESTAMPS,
 };

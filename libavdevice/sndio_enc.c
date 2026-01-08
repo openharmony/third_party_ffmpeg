@@ -24,7 +24,6 @@
 
 #include "libavutil/internal.h"
 
-#include "libavformat/mux.h"
 
 #include "libavdevice/avdevice.h"
 #include "libavdevice/sndio.h"
@@ -87,18 +86,18 @@ static const AVClass sndio_muxer_class = {
     .category       = AV_CLASS_CATEGORY_DEVICE_AUDIO_OUTPUT,
 };
 
-const FFOutputFormat ff_sndio_muxer = {
-    .p.name         = "sndio",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("sndio audio playback"),
+const AVOutputFormat ff_sndio_muxer = {
+    .name           = "sndio",
+    .long_name      = NULL_IF_CONFIG_SMALL("sndio audio playback"),
     .priv_data_size = sizeof(SndioData),
     /* XXX: we make the assumption that the soundcard accepts this format */
     /* XXX: find better solution with "preinit" method, needed also in
        other formats */
-    .p.audio_codec  = AV_NE(AV_CODEC_ID_PCM_S16BE, AV_CODEC_ID_PCM_S16LE),
-    .p.video_codec  = AV_CODEC_ID_NONE,
+    .audio_codec    = AV_NE(AV_CODEC_ID_PCM_S16BE, AV_CODEC_ID_PCM_S16LE),
+    .video_codec    = AV_CODEC_ID_NONE,
     .write_header   = audio_write_header,
     .write_packet   = audio_write_packet,
     .write_trailer  = audio_write_trailer,
-    .p.flags        = AVFMT_NOFILE,
-    .p.priv_class   = &sndio_muxer_class,
+    .flags          = AVFMT_NOFILE,
+    .priv_class     = &sndio_muxer_class,
 };

@@ -23,7 +23,6 @@
 #include "libavutil/intfloat.h"
 #include "avformat.h"
 #include "avio_internal.h"
-#include "demux.h"
 #include "internal.h"
 
 typedef struct ThpDemuxContext {
@@ -216,9 +215,9 @@ static int thp_read_packet(AVFormatContext *s,
     return 0;
 }
 
-const FFInputFormat ff_thp_demuxer = {
-    .p.name         = "thp",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("THP"),
+const AVInputFormat ff_thp_demuxer = {
+    .name           = "thp",
+    .long_name      = NULL_IF_CONFIG_SMALL("THP"),
     .priv_data_size = sizeof(ThpDemuxContext),
     .read_probe     = thp_probe,
     .read_header    = thp_read_header,

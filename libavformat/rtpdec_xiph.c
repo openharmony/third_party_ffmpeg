@@ -31,7 +31,6 @@
 #include "libavutil/avassert.h"
 #include "libavutil/avstring.h"
 #include "libavutil/base64.h"
-#include "libavutil/mem.h"
 #include "libavcodec/bytestream.h"
 
 #include "avio_internal.h"

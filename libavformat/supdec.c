@@ -17,7 +17,6 @@
  */
 
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "libavutil/intreadwrite.h"
 
@@ -98,13 +97,13 @@ static int sup_probe(const AVProbeData *p)
     return AVPROBE_SCORE_MAX;
 }
 
-const FFInputFormat ff_sup_demuxer = {
-    .p.name         = "sup",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("raw HDMV Presentation Graphic Stream subtitles"),
-    .p.extensions   = "sup",
-    .p.mime_type    = "application/x-pgs",
-    .p.flags        = AVFMT_GENERIC_INDEX,
+const AVInputFormat ff_sup_demuxer = {
+    .name           = "sup",
+    .long_name      = NULL_IF_CONFIG_SMALL("raw HDMV Presentation Graphic Stream subtitles"),
+    .extensions     = "sup",
+    .mime_type      = "application/x-pgs",
     .read_probe     = sup_probe,
     .read_header    = sup_read_header,
     .read_packet    = sup_read_packet,
+    .flags          = AVFMT_GENERIC_INDEX,
 };

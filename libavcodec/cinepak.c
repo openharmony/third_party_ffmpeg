@@ -34,6 +34,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "libavutil/common.h"
@@ -41,6 +42,7 @@
 #include "avcodec.h"
 #include "codec_internal.h"
 #include "decode.h"
+#include "internal.h"
 
 
 typedef uint8_t cvid_codebook[12];
@@ -379,7 +381,7 @@ static int cinepak_decode (CinepakContext *s)
 
     num_strips = FFMIN(num_strips, MAX_STRIPS);
 
-    s->frame->flags &= ~AV_FRAME_FLAG_KEY;
+    s->frame->key_frame = 0;
 
     for (i=0; i < num_strips; i++) {
         if ((s->data + 12) > eod)
@@ -395,7 +397,7 @@ static int cinepak_decode (CinepakContext *s)
         s->strips[i].x2 = AV_RB16 (&s->data[10]);
 
         if (s->strips[i].id == 0x10)
-            s->frame->flags |= AV_FRAME_FLAG_KEY;
+            s->frame->key_frame = 1;
 
         strip_size = AV_RB24 (&s->data[1]) - 12;
         if (strip_size < 0)
@@ -476,14 +478,7 @@ static int cinepak_decode_frame(AVCodecContext *avctx, AVFrame *rframe,
         return ret;
 
     if (s->palette_video) {
-#if FF_API_PALETTE_HAS_CHANGED
-FF_DISABLE_DEPRECATION_WARNINGS
-        s->frame->palette_has_changed =
-#endif
-        ff_copy_palette(s->pal, avpkt, avctx);
-#if FF_API_PALETTE_HAS_CHANGED
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
+        s->frame->palette_has_changed = ff_copy_palette(s->pal, avpkt, avctx);
     }
 
     if ((ret = cinepak_decode(s)) < 0) {
@@ -513,7 +508,7 @@ static av_cold int cinepak_decode_end(AVCodecContext *avctx)
 
 const FFCodec ff_cinepak_decoder = {
     .p.name         = "cinepak",
-    CODEC_LONG_NAME("Cinepak"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Cinepak"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_CINEPAK,
     .priv_data_size = sizeof(CinepakContext),
@@ -521,4 +516,5 @@ const FFCodec ff_cinepak_decoder = {
     .close          = cinepak_decode_end,
     FF_CODEC_DECODE_CB(cinepak_decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

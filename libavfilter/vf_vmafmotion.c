@@ -24,14 +24,11 @@
  * Calculate VMAF Motion score.
  */
 
-#include "libavutil/file_open.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
 #include "avfilter.h"
-#include "filters.h"
 #include "formats.h"
-#include "video.h"
+#include "internal.h"
 #include "vmaf_motion.h"
 
 #define BIT_SHIFT 15
@@ -90,10 +87,11 @@ static void convolution_x(const uint16_t *filter, int filt_w, const uint16_t *sr
     int borders_left = radius;
     int borders_right = w - (filt_w - radius);
     int i, j, k;
+    int sum = 0;
 
     for (i = 0; i < h; i++) {
         for (j = 0; j < borders_left; j++) {
-            int sum = 0;
+            sum = 0;
             for (k = 0; k < filt_w; k++) {
                 int j_tap = FFABS(j - radius + k);
                 if (j_tap >= w) {
@@ -113,7 +111,7 @@ static void convolution_x(const uint16_t *filter, int filt_w, const uint16_t *sr
         }
 
         for (j = borders_right; j < w; j++) {
-            int sum = 0;
+            sum = 0;
             for (k = 0; k < filt_w; k++) {
                 int j_tap = FFABS(j - radius + k);
                 if (j_tap >= w) {
@@ -317,8 +315,10 @@ static av_cold int init(AVFilterContext *ctx)
             s->stats_file = avpriv_fopen_utf8(s->stats_file_str, "w");
             if (!s->stats_file) {
                 int err = AVERROR(errno);
+                char buf[128];
+                av_strerror(err, buf, sizeof(buf));
                 av_log(ctx, AV_LOG_ERROR, "Could not open stats file %s: %s\n",
-                       s->stats_file_str, av_err2str(err));
+                       s->stats_file_str, buf);
                 return err;
             }
         }
@@ -349,6 +349,13 @@ static const AVFilterPad vmafmotion_inputs[] = {
     },
 };
 
+static const AVFilterPad vmafmotion_outputs[] = {
+    {
+        .name          = "default",
+        .type          = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 const AVFilter ff_vf_vmafmotion = {
     .name          = "vmafmotion",
     .description   = NULL_IF_CONFIG_SMALL("Calculate the VMAF Motion score."),
@@ -358,6 +365,6 @@ const AVFilter ff_vf_vmafmotion = {
     .priv_class    = &vmafmotion_class,
     .flags         = AVFILTER_FLAG_METADATA_ONLY,
     FILTER_INPUTS(vmafmotion_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(vmafmotion_outputs),
     FILTER_QUERY_FUNC(query_formats),
 };

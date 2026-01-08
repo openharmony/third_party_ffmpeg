@@ -175,12 +175,9 @@ static av_always_inline void premult2straight(uint8_t *src)
     int b = src[2];
     int a = src[3]; /* unchanged */
 
-    if (a == 0)
-        return;
-
-    src[0] = (uint8_t) FFMIN(r * 255 / a, 255);
-    src[1] = (uint8_t) FFMIN(g * 255 / a, 255);
-    src[2] = (uint8_t) FFMIN(b * 255 / a, 255);
+    src[0] = (uint8_t) r * a / 255;
+    src[1] = (uint8_t) g * a / 255;
+    src[2] = (uint8_t) b * a / 255;
 }
 
 /**
@@ -656,6 +653,6 @@ av_cold void ff_texturedsp_init(TextureDSPContext *c)
     c->dxn3dc_block       = dxn3dc_block;
 }
 
-#define TEXTUREDSP_FUNC_NAME ff_texturedsp_exec_decompress_threads
+#define TEXTUREDSP_FUNC_NAME ff_texturedsp_decompress_thread
 #define TEXTUREDSP_TEX_FUNC(a, b, c) tex_funct(a, b, c)
 #include "texturedsp_template.c"

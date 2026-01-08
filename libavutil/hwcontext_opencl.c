@@ -47,7 +47,7 @@
 
 #if HAVE_OPENCL_VAAPI_INTEL_MEDIA
 #if CONFIG_LIBMFX
-#include <mfxstructures.h>
+#include <mfx/mfxstructures.h>
 #endif
 #include <va/va.h>
 #include <CL/cl_va_api_media_sharing_intel.h>
@@ -72,11 +72,6 @@
 #include "hwcontext_drm.h"
 #endif
 
-#if HAVE_OPENCL_VIDEOTOOLBOX
-#include <OpenCL/cl_gl_ext.h>
-#include <VideoToolbox/VideoToolbox.h>
-#endif
-
 #if HAVE_OPENCL_VAAPI_INTEL_MEDIA && CONFIG_LIBMFX
 extern int ff_qsv_get_surface_base_handle(mfxFrameSurface1 *surf,
                                           enum AVHWDeviceType base_dev_typ,
@@ -85,11 +80,6 @@ extern int ff_qsv_get_surface_base_handle(mfxFrameSurface1 *surf,
 
 
 typedef struct OpenCLDeviceContext {
-    /**
-     * The public AVOpenCLDeviceContext. See hwcontext_opencl.h for it.
-     */
-    AVOpenCLDeviceContext p;
-
     // Default command queue to use for transfer/mapping operations on
     // the device.  If the user supplies one, this is a reference to it.
     // Otherwise, it is newly-created.
@@ -143,11 +133,6 @@ typedef struct OpenCLDeviceContext {
 } OpenCLDeviceContext;
 
 typedef struct OpenCLFramesContext {
-    /**
-     * The public AVOpenCLFramesContext. See hwcontext_opencl.h for it.
-     */
-    AVOpenCLFramesContext p;
-
     // Command queue used for transfer/mapping operations on this frames
     // context.  If the user supplies one, this is a reference to it.
     // Otherwise, it is a reference to the default command queue for the
@@ -291,8 +276,8 @@ static int opencl_check_device_extension(cl_device_id device_id,
 static av_unused int opencl_check_extension(AVHWDeviceContext *hwdev,
                                             const char *name)
 {
-    OpenCLDeviceContext    *priv = hwdev->hwctx;
-    AVOpenCLDeviceContext *hwctx = &priv->p;
+    AVOpenCLDeviceContext *hwctx = hwdev->hwctx;
+    OpenCLDeviceContext    *priv = hwdev->internal->priv;
 
     if (opencl_check_platform_extension(priv->platform_id, name)) {
         av_log(hwdev, AV_LOG_DEBUG,
@@ -673,8 +658,8 @@ static int opencl_device_create(AVHWDeviceContext *hwdev, const char *device,
 
 static int opencl_device_init(AVHWDeviceContext *hwdev)
 {
-    OpenCLDeviceContext    *priv = hwdev->hwctx;
-    AVOpenCLDeviceContext *hwctx = &priv->p;
+    AVOpenCLDeviceContext *hwctx = hwdev->hwctx;
+    OpenCLDeviceContext    *priv = hwdev->internal->priv;
     cl_int cle;
 
     if (hwctx->command_queue) {
@@ -909,7 +894,7 @@ static int opencl_device_init(AVHWDeviceContext *hwdev)
 
 static void opencl_device_uninit(AVHWDeviceContext *hwdev)
 {
-    OpenCLDeviceContext *priv = hwdev->hwctx;
+    OpenCLDeviceContext *priv = hwdev->internal->priv;
     cl_int cle;
 
     if (priv->command_queue) {
@@ -1379,12 +1364,6 @@ static int opencl_device_derive(AVHWDeviceContext *hwdev,
         break;
 #endif
 
-#if HAVE_OPENCL_VIDEOTOOLBOX
-    case AV_HWDEVICE_TYPE_VIDEOTOOLBOX:
-        err = opencl_device_create(hwdev, NULL, NULL, 0);
-        break;
-#endif
-
     default:
         err = AVERROR(ENOSYS);
         break;
@@ -1705,9 +1684,9 @@ fail:
 
 static int opencl_frames_init_command_queue(AVHWFramesContext *hwfc)
 {
-    OpenCLFramesContext    *priv = hwfc->hwctx;
-    AVOpenCLFramesContext *hwctx = &priv->p;
-    OpenCLDeviceContext *devpriv = hwfc->device_ctx->hwctx;
+    AVOpenCLFramesContext *hwctx = hwfc->hwctx;
+    OpenCLDeviceContext *devpriv = hwfc->device_ctx->internal->priv;
+    OpenCLFramesContext    *priv = hwfc->internal->priv;
     cl_int cle;
 
     priv->command_queue = hwctx->command_queue ? hwctx->command_queue
@@ -1725,10 +1704,10 @@ static int opencl_frames_init_command_queue(AVHWFramesContext *hwfc)
 static int opencl_frames_init(AVHWFramesContext *hwfc)
 {
     if (!hwfc->pool) {
-        ffhwframesctx(hwfc)->pool_internal =
+        hwfc->internal->pool_internal =
             av_buffer_pool_init2(sizeof(cl_mem), hwfc,
                                  &opencl_pool_alloc, NULL);
-        if (!ffhwframesctx(hwfc)->pool_internal)
+        if (!hwfc->internal->pool_internal)
             return AVERROR(ENOMEM);
     }
 
@@ -1737,7 +1716,7 @@ static int opencl_frames_init(AVHWFramesContext *hwfc)
 
 static void opencl_frames_uninit(AVHWFramesContext *hwfc)
 {
-    OpenCLFramesContext *priv = hwfc->hwctx;
+    OpenCLFramesContext *priv = hwfc->internal->priv;
     cl_int cle;
 
 #if HAVE_OPENCL_DXVA2 || HAVE_OPENCL_D3D11
@@ -1831,7 +1810,7 @@ static int opencl_wait_events(AVHWFramesContext *hwfc,
 static int opencl_transfer_data_from(AVHWFramesContext *hwfc,
                                      AVFrame *dst, const AVFrame *src)
 {
-    OpenCLFramesContext *priv = hwfc->hwctx;
+    OpenCLFramesContext *priv = hwfc->internal->priv;
     cl_image_format image_format;
     cl_image_desc image_desc;
     cl_int cle;
@@ -1886,7 +1865,7 @@ static int opencl_transfer_data_from(AVHWFramesContext *hwfc,
 static int opencl_transfer_data_to(AVHWFramesContext *hwfc,
                                    AVFrame *dst, const AVFrame *src)
 {
-    OpenCLFramesContext *priv = hwfc->hwctx;
+    OpenCLFramesContext *priv = hwfc->internal->priv;
     cl_image_format image_format;
     cl_image_desc image_desc;
     cl_int cle;
@@ -1948,7 +1927,7 @@ typedef struct OpenCLMapping {
 static void opencl_unmap_frame(AVHWFramesContext *hwfc,
                                HWMapDescriptor *hwmap)
 {
-    OpenCLFramesContext *priv = hwfc->hwctx;
+    OpenCLFramesContext *priv = hwfc->internal->priv;
     OpenCLMapping *map = hwmap->priv;
     cl_event events[AV_NUM_DATA_POINTERS];
     int p, e;
@@ -1977,7 +1956,7 @@ static void opencl_unmap_frame(AVHWFramesContext *hwfc,
 static int opencl_map_frame(AVHWFramesContext *hwfc, AVFrame *dst,
                             const AVFrame *src, int flags)
 {
-    OpenCLFramesContext *priv = hwfc->hwctx;
+    OpenCLFramesContext *priv = hwfc->internal->priv;
     cl_map_flags map_flags;
     cl_image_format image_format;
     cl_image_desc image_desc;
@@ -2035,7 +2014,6 @@ static int opencl_map_frame(AVHWFramesContext *hwfc, AVFrame *dst,
         }
 
         dst->data[p] = map->address[p];
-        dst->linesize[p] = row_pitch;
 
         av_log(hwfc, AV_LOG_DEBUG, "Map plane %d (%p -> %p).\n",
                p, src->data[p], dst->data[p]);
@@ -2101,8 +2079,8 @@ static int opencl_map_from_drm_beignet(AVHWFramesContext *dst_fc,
                                        AVFrame *dst, const AVFrame *src,
                                        int flags)
 {
-    OpenCLDeviceContext    *priv = dst_fc->device_ctx->hwctx;
-    AVOpenCLDeviceContext *hwctx = &priv->p;
+    AVOpenCLDeviceContext *hwctx = dst_fc->device_ctx->hwctx;
+    OpenCLDeviceContext    *priv = dst_fc->device_ctx->internal->priv;
     DRMBeignetToOpenCLMapping *mapping;
     const AVDRMFrameDescriptor *desc;
     cl_int cle;
@@ -2233,8 +2211,8 @@ static void opencl_unmap_from_qsv(AVHWFramesContext *dst_fc,
                                   HWMapDescriptor *hwmap)
 {
     AVOpenCLFrameDescriptor    *desc = hwmap->priv;
-    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->hwctx;
-    OpenCLFramesContext *frames_priv = dst_fc->hwctx;
+    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->internal->priv;
+    OpenCLFramesContext *frames_priv = dst_fc->internal->priv;
     cl_event event;
     cl_int cle;
     int p;
@@ -2268,9 +2246,9 @@ static int opencl_map_from_qsv(AVHWFramesContext *dst_fc, AVFrame *dst,
 {
     AVHWFramesContext *src_fc =
         (AVHWFramesContext*)src->hw_frames_ctx->data;
-    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->hwctx;
-    AVOpenCLDeviceContext   *dst_dev = &device_priv->p;
-    OpenCLFramesContext *frames_priv = dst_fc->hwctx;
+    AVOpenCLDeviceContext   *dst_dev = dst_fc->device_ctx->hwctx;
+    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->internal->priv;
+    OpenCLFramesContext *frames_priv = dst_fc->internal->priv;
     AVOpenCLFrameDescriptor *desc;
     VASurfaceID va_surface;
     cl_mem_flags cl_flags;
@@ -2367,8 +2345,8 @@ static void opencl_unmap_from_dxva2(AVHWFramesContext *dst_fc,
                                     HWMapDescriptor *hwmap)
 {
     AVOpenCLFrameDescriptor    *desc = hwmap->priv;
-    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->hwctx;
-    OpenCLFramesContext *frames_priv = dst_fc->hwctx;
+    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->internal->priv;
+    OpenCLFramesContext *frames_priv = dst_fc->device_ctx->internal->priv;
     cl_event event;
     cl_int cle;
 
@@ -2392,8 +2370,8 @@ static int opencl_map_from_dxva2(AVHWFramesContext *dst_fc, AVFrame *dst,
     AVHWFramesContext *src_fc =
         (AVHWFramesContext*)src->hw_frames_ctx->data;
     AVDXVA2FramesContext  *src_hwctx = src_fc->hwctx;
-    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->hwctx;
-    OpenCLFramesContext *frames_priv = dst_fc->hwctx;
+    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->internal->priv;
+    OpenCLFramesContext *frames_priv = dst_fc->internal->priv;
     AVOpenCLFrameDescriptor *desc;
     cl_event event;
     cl_int cle;
@@ -2453,10 +2431,10 @@ fail:
 static int opencl_frames_derive_from_dxva2(AVHWFramesContext *dst_fc,
                                            AVHWFramesContext *src_fc, int flags)
 {
+    AVOpenCLDeviceContext   *dst_dev = dst_fc->device_ctx->hwctx;
     AVDXVA2FramesContext  *src_hwctx = src_fc->hwctx;
-    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->hwctx;
-    AVOpenCLDeviceContext   *dst_dev = &device_priv->p;
-    OpenCLFramesContext *frames_priv = dst_fc->hwctx;
+    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->internal->priv;
+    OpenCLFramesContext *frames_priv = dst_fc->internal->priv;
     cl_mem_flags cl_flags;
     cl_int cle;
     int err, i, p, nb_planes;
@@ -2532,8 +2510,8 @@ static void opencl_unmap_from_d3d11(AVHWFramesContext *dst_fc,
                                     HWMapDescriptor *hwmap)
 {
     AVOpenCLFrameDescriptor    *desc = hwmap->priv;
-    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->hwctx;
-    OpenCLFramesContext *frames_priv = dst_fc->hwctx;
+    OpenCLDeviceContext *device_priv = dst_fc->device_ctx->internal->priv;
+    OpenCLFramesContext *frames_priv = dst_fc->device_ctx->internal->priv;
     cl_event event;
     cl_int cle;
 
@@ -2551,8 +2529,8 @@ static void opencl_unmap_from_d3d11(AVHWFramesContext *dst_fc,
 static int opencl_map_from_d3d11(AVHWFramesContext *dst_fc, AVFrame *dst,
                                  const AVFrame *src, int flags)
 {
-    OpenCLDeviceContext  *device_priv = dst_fc->device_ctx->hwctx;
-    OpenCLFramesContext  *frames_priv = dst_fc->hwctx;
+    OpenCLDeviceContext  *device_priv = dst_fc->device_ctx->internal->priv;
+    OpenCLFramesContext  *frames_priv = dst_fc->internal->priv;
     AVOpenCLFrameDescriptor *desc;
     cl_event event;
     cl_int cle;
@@ -2609,10 +2587,10 @@ fail:
 static int opencl_frames_derive_from_d3d11(AVHWFramesContext *dst_fc,
                                            AVHWFramesContext *src_fc, int flags)
 {
+    AVOpenCLDeviceContext    *dst_dev = dst_fc->device_ctx->hwctx;
     AVD3D11VAFramesContext *src_hwctx = src_fc->hwctx;
-    OpenCLDeviceContext  *device_priv = dst_fc->device_ctx->hwctx;
-    AVOpenCLDeviceContext    *dst_dev = &device_priv->p;
-    OpenCLFramesContext  *frames_priv = dst_fc->hwctx;
+    OpenCLDeviceContext  *device_priv = dst_fc->device_ctx->internal->priv;
+    OpenCLFramesContext  *frames_priv = dst_fc->internal->priv;
     cl_mem_flags cl_flags;
     cl_int cle;
     int err, i, p, nb_planes;
@@ -2840,84 +2818,6 @@ fail:
 
 #endif
 
-#if HAVE_OPENCL_VIDEOTOOLBOX
-
-static void opencl_unmap_from_vt(AVHWFramesContext *hwfc,
-                                 HWMapDescriptor *hwmap)
-{
-    uint8_t *desc = hwmap->priv;
-    opencl_pool_free(hwfc, desc);
-}
-
-static int opencl_map_from_vt(AVHWFramesContext *dst_fc, AVFrame *dst,
-                              const AVFrame *src, int flags)
-{
-    CVPixelBufferRef pixbuf = (CVPixelBufferRef) src->data[3];
-    IOSurfaceRef io_surface_ref = CVPixelBufferGetIOSurface(pixbuf);
-    cl_int err = 0;
-    AVOpenCLFrameDescriptor *desc = NULL;
-    AVOpenCLDeviceContext *dst_dev = dst_fc->device_ctx->hwctx;
-
-    if (!io_surface_ref) {
-        av_log(dst_fc, AV_LOG_ERROR, "Failed to get IOSurfaceRef\n");
-        return AVERROR_EXTERNAL;
-    }
-
-    desc = av_mallocz(sizeof(*desc));
-    if (!desc)
-        return AVERROR(ENOMEM);
-
-    for (int p = 0;; p++) {
-        cl_image_format image_format;
-        cl_image_desc image_desc;
-        cl_iosurface_properties_APPLE props[] = {
-                CL_IOSURFACE_REF_APPLE, (cl_iosurface_properties_APPLE) io_surface_ref,
-                CL_IOSURFACE_PLANE_APPLE, p,
-                0
-        };
-
-        err = opencl_get_plane_format(dst_fc->sw_format, p,
-                                      src->width, src->height,
-                                      &image_format, &image_desc);
-        if (err == AVERROR(ENOENT))
-            break;
-        if (err < 0)
-            goto fail;
-
-        desc->planes[p] = clCreateImageFromIOSurfaceWithPropertiesAPPLE(dst_dev->context,
-                                                    opencl_mem_flags_for_mapping(flags),
-                                                    &image_format, &image_desc,
-                                                    props, &err);
-        if (!desc->planes[p]) {
-            av_log(dst_fc, AV_LOG_ERROR, "Failed to create image from IOSurfaceRef\n");
-            err = AVERROR(EIO);
-            goto fail;
-        }
-        desc->nb_planes++;
-    }
-
-    for (int i = 0; i < desc->nb_planes; i++)
-        dst->data[i] = (uint8_t *) desc->planes[i];
-
-    err = ff_hwframe_map_create(dst->hw_frames_ctx, dst, src,
-                                opencl_unmap_from_vt, desc);
-    if (err < 0)
-        goto fail;
-
-    dst->width = src->width;
-    dst->height = src->height;
-
-    return 0;
-
-fail:
-    for (int i = 0; i < desc->nb_planes; i++)
-        clReleaseMemObject(desc->planes[i]);
-    av_freep(&desc);
-    return err;
-}
-
-#endif
-
 static int opencl_map_from(AVHWFramesContext *hwfc, AVFrame *dst,
                            const AVFrame *src, int flags)
 {
@@ -2930,7 +2830,7 @@ static int opencl_map_from(AVHWFramesContext *hwfc, AVFrame *dst,
 static int opencl_map_to(AVHWFramesContext *hwfc, AVFrame *dst,
                          const AVFrame *src, int flags)
 {
-    av_unused OpenCLDeviceContext *priv = hwfc->device_ctx->hwctx;
+    av_unused OpenCLDeviceContext *priv = hwfc->device_ctx->internal->priv;
     av_assert0(dst->format == AV_PIX_FMT_OPENCL);
     switch (src->format) {
 #if HAVE_OPENCL_DRM_BEIGNET
@@ -2964,10 +2864,6 @@ static int opencl_map_to(AVHWFramesContext *hwfc, AVFrame *dst,
         if (priv->drm_arm_mapping_usable)
             return opencl_map_from_drm_arm(hwfc, dst, src, flags);
 #endif
-#if HAVE_OPENCL_VIDEOTOOLBOX
-    case AV_PIX_FMT_VIDEOTOOLBOX:
-        return opencl_map_from_vt(hwfc, dst, src, flags);
-#endif
     }
     return AVERROR(ENOSYS);
 }
@@ -2975,7 +2871,7 @@ static int opencl_map_to(AVHWFramesContext *hwfc, AVFrame *dst,
 static int opencl_frames_derive_to(AVHWFramesContext *dst_fc,
                                    AVHWFramesContext *src_fc, int flags)
 {
-    av_unused OpenCLDeviceContext *priv = dst_fc->device_ctx->hwctx;
+    av_unused OpenCLDeviceContext *priv = dst_fc->device_ctx->internal->priv;
     switch (src_fc->device_ctx->type) {
 #if HAVE_OPENCL_DRM_BEIGNET
     case AV_HWDEVICE_TYPE_DRM:
@@ -3026,10 +2922,6 @@ static int opencl_frames_derive_to(AVHWFramesContext *dst_fc,
             return AVERROR(ENOSYS);
         break;
 #endif
-#if HAVE_OPENCL_VIDEOTOOLBOX
-    case AV_HWDEVICE_TYPE_VIDEOTOOLBOX:
-        break;
-#endif
     default:
         return AVERROR(ENOSYS);
     }
@@ -3040,8 +2932,10 @@ const HWContextType ff_hwcontext_type_opencl = {
     .type                   = AV_HWDEVICE_TYPE_OPENCL,
     .name                   = "OpenCL",
 
-    .device_hwctx_size      = sizeof(OpenCLDeviceContext),
-    .frames_hwctx_size      = sizeof(OpenCLFramesContext),
+    .device_hwctx_size      = sizeof(AVOpenCLDeviceContext),
+    .device_priv_size       = sizeof(OpenCLDeviceContext),
+    .frames_hwctx_size      = sizeof(AVOpenCLFramesContext),
+    .frames_priv_size       = sizeof(OpenCLFramesContext),
 
     .device_create          = &opencl_device_create,
     .device_derive          = &opencl_device_derive,

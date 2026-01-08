@@ -21,11 +21,10 @@
 #include "libavutil/avstring.h"
 #include "libavutil/common.h"
 #include "libavutil/internal.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 
 #include "avfilter.h"
-#include "filters.h"
+#include "internal.h"
 #include "video.h"
 
 typedef struct ShuffleFramesContext {
@@ -147,6 +146,13 @@ static const AVFilterPad shuffleframes_inputs[] = {
     },
 };
 
+static const AVFilterPad shuffleframes_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 const AVFilter ff_vf_shuffleframes = {
     .name          = "shuffleframes",
     .description   = NULL_IF_CONFIG_SMALL("Shuffle video frames."),
@@ -155,6 +161,6 @@ const AVFilter ff_vf_shuffleframes = {
     .init          = init,
     .uninit        = uninit,
     FILTER_INPUTS(shuffleframes_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(shuffleframes_outputs),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
 };

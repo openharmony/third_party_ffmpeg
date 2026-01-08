@@ -37,6 +37,7 @@
 #include "audio.h"
 #include "avfilter.h"
 #include "filters.h"
+#include "internal.h"
 #include "video.h"
 
 static const char *const var_names[] = {
@@ -127,7 +128,6 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *frame)
     AVFilterLink *outlink = ctx->outputs[0];
 
     frame->pts = rescale_pts(inlink, outlink, frame->pts);
-    frame->duration = av_rescale_q(frame->duration, inlink->time_base, outlink->time_base);
 
     return ff_filter_frame(outlink, frame);
 }
@@ -164,6 +164,13 @@ static int activate(AVFilterContext *ctx)
 DEFINE_OPTIONS(settb, VIDEO);
 AVFILTER_DEFINE_CLASS(settb);
 
+static const AVFilterPad avfilter_vf_settb_inputs[] = {
+    {
+        .name         = "default",
+        .type         = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 static const AVFilterPad avfilter_vf_settb_outputs[] = {
     {
         .name         = "default",
@@ -177,7 +184,7 @@ const AVFilter ff_vf_settb = {
     .description = NULL_IF_CONFIG_SMALL("Set timebase for the video output link."),
     .priv_size   = sizeof(SetTBContext),
     .priv_class  = &settb_class,
-    FILTER_INPUTS(ff_video_default_filterpad),
+    FILTER_INPUTS(avfilter_vf_settb_inputs),
     FILTER_OUTPUTS(avfilter_vf_settb_outputs),
     .activate    = activate,
     .flags       = AVFILTER_FLAG_METADATA_ONLY,
@@ -188,6 +195,13 @@ const AVFilter ff_vf_settb = {
 
 DEFINE_OPTIONS(asettb, AUDIO);
 AVFILTER_DEFINE_CLASS(asettb);
+
+static const AVFilterPad avfilter_af_asettb_inputs[] = {
+    {
+        .name         = "default",
+        .type         = AVMEDIA_TYPE_AUDIO,
+    },
+};
 
 static const AVFilterPad avfilter_af_asettb_outputs[] = {
     {
@@ -201,7 +215,7 @@ const AVFilter ff_af_asettb = {
     .name        = "asettb",
     .description = NULL_IF_CONFIG_SMALL("Set timebase for the audio output link."),
     .priv_size   = sizeof(SetTBContext),
-    FILTER_INPUTS(ff_audio_default_filterpad),
+    FILTER_INPUTS(avfilter_af_asettb_inputs),
     FILTER_OUTPUTS(avfilter_af_asettb_outputs),
     .priv_class  = &asettb_class,
     .activate    = activate,

@@ -28,7 +28,7 @@ pd_128: times 4 dd 128
 
 SECTION .text
 
-%macro TAK_DECORRELATE 0
+INIT_XMM sse2
 cglobal tak_decorrelate_ls, 3, 3, 2, p1, p2, length
     shl                     lengthd, 2
     add                         p1q, lengthq
@@ -43,7 +43,7 @@ cglobal tak_decorrelate_ls, 3, 3, 2, p1, p2, length
     mova     [p2q+lengthq+mmsize*1], m1
     add                     lengthq, mmsize*2
     jl .loop
-    RET
+    REP_RET
 
 cglobal tak_decorrelate_sr, 3, 3, 2, p1, p2, length
     shl                     lengthd, 2
@@ -60,7 +60,7 @@ cglobal tak_decorrelate_sr, 3, 3, 2, p1, p2, length
     mova     [p1q+lengthq+mmsize*1], m1
     add                     lengthq, mmsize*2
     jl .loop
-    RET
+    REP_RET
 
 cglobal tak_decorrelate_sm, 3, 3, 6, p1, p2, length
     shl                     lengthd, 2
@@ -73,8 +73,10 @@ cglobal tak_decorrelate_sm, 3, 3, 6, p1, p2, length
     mova                         m1, [p2q+lengthq]
     mova                         m3, [p1q+lengthq+mmsize]
     mova                         m4, [p2q+lengthq+mmsize]
-    psrad                        m2, m1, 1
-    psrad                        m5, m4, 1
+    mova                         m2, m1
+    mova                         m5, m4
+    psrad                        m2, 1
+    psrad                        m5, 1
     psubd                        m0, m2
     psubd                        m3, m5
     paddd                        m1, m0
@@ -85,49 +87,30 @@ cglobal tak_decorrelate_sm, 3, 3, 6, p1, p2, length
     mova       [p2q+lengthq+mmsize], m4
     add                     lengthq, mmsize*2
     jl .loop
-    RET
-%endmacro
+    REP_RET
 
-INIT_XMM sse2
-TAK_DECORRELATE
-%if HAVE_AVX2_EXTERNAL
-INIT_YMM avx2
-TAK_DECORRELATE
-%endif
-
-%macro TAK_DECORRELATE_SF 0
+INIT_XMM sse4
 cglobal tak_decorrelate_sf, 3, 3, 5, p1, p2, length, dshift, dfactor
     shl             lengthd, 2
     add                 p1q, lengthq
     add                 p2q, lengthq
     neg             lengthq
 
-    movd                xm2, dshiftm
-%if UNIX64
-    movd                xm3, dfactorm
-    VPBROADCASTD         m3, xm3
-%else
-    VPBROADCASTD         m3, dfactorm
-%endif
-    VBROADCASTI128       m4, [pd_128]
+    movd                 m2, dshiftm
+    movd                 m3, dfactorm
+    pshufd               m3, m3, 0
+    mova                 m4, [pd_128]
 
 .loop:
+    mova                 m0, [p1q+lengthq]
     mova                 m1, [p2q+lengthq]
-    psrad                m1, xm2
+    psrad                m1, m2
     pmulld               m1, m3
     paddd                m1, m4
     psrad                m1, 8
-    pslld                m1, xm2
-    psubd                m1, [p1q+lengthq]
+    pslld                m1, m2
+    psubd                m1, m0
     mova      [p1q+lengthq], m1
     add             lengthq, mmsize
     jl .loop
-    RET
-%endmacro
-
-INIT_XMM sse4
-TAK_DECORRELATE_SF
-%if HAVE_AVX2_EXTERNAL
-INIT_YMM avx2
-TAK_DECORRELATE_SF
-%endif
+    REP_RET

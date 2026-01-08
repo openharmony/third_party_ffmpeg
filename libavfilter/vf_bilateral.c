@@ -22,11 +22,11 @@
  */
 
 #include "libavutil/imgutils.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
 #include "avfilter.h"
-#include "filters.h"
+#include "formats.h"
+#include "internal.h"
 #include "video.h"
 
 typedef struct BilateralContext {
@@ -498,6 +498,13 @@ static const AVFilterPad bilateral_inputs[] = {
     },
 };
 
+static const AVFilterPad bilateral_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 const AVFilter ff_vf_bilateral = {
     .name          = "bilateral",
     .description   = NULL_IF_CONFIG_SMALL("Apply Bilateral filter."),
@@ -505,7 +512,7 @@ const AVFilter ff_vf_bilateral = {
     .priv_class    = &bilateral_class,
     .uninit        = uninit,
     FILTER_INPUTS(bilateral_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(bilateral_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                      AVFILTER_FLAG_SLICE_THREADS,

@@ -24,7 +24,6 @@
 #include "libavutil/float_dsp.h"
 #include "libavutil/fixed_dsp.h"
 #include "libavutil/mem_internal.h"
-#include "libavutil/tx.h"
 
 #include "avcodec.h"
 #include "get_bits.h"
@@ -34,6 +33,7 @@
 #include "dcadct.h"
 #include "dcamath.h"
 #include "dcahuff.h"
+#include "fft.h"
 #include "synth_filter.h"
 
 #define DCA_CHANNELS            7
@@ -190,8 +190,7 @@ typedef struct DCACoreDecoder {
     DCADSPData              dcadsp_data[DCA_CHANNELS];    ///< FIR history buffers
     DCADSPContext           *dcadsp;
     DCADCTContext           dcadct;
-    AVTXContext            *imdct[2];
-    av_tx_fn                imdct_fn[2];
+    FFTContext              imdct[2];
     SynthFilterContext      synth;
     AVFloatDSPContext       *float_dsp;
     AVFixedDSPContext       *fixed_dsp;

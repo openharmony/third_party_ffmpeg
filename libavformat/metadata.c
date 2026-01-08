@@ -29,14 +29,14 @@ void ff_metadata_conv(AVDictionary **pm, const AVMetadataConv *d_conv,
     /* TODO: use binary search to look up the two conversion tables
        if the tables are getting big enough that it would matter speed wise */
     const AVMetadataConv *sc, *dc;
-    const AVDictionaryEntry *mtag = NULL;
+    AVDictionaryEntry *mtag = NULL;
     AVDictionary *dst = NULL;
     const char *key;
 
     if (d_conv == s_conv || !pm)
         return;
 
-    while ((mtag = av_dict_iterate(*pm, mtag))) {
+    while ((mtag = av_dict_get(*pm, "", mtag, AV_DICT_IGNORE_SUFFIX))) {
         key = mtag->key;
         if (s_conv)
             for (sc=s_conv; sc->native; sc++)

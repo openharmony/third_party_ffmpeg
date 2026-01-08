@@ -22,14 +22,9 @@
 #ifndef AVCODEC_PRORESDEC_H
 #define AVCODEC_PRORESDEC_H
 
-#include <stdint.h>
-
 #include "get_bits.h"
 #include "blockdsp.h"
 #include "proresdsp.h"
-
-#include "libavutil/frame.h"
-#include "libavutil/pixfmt.h"
 
 typedef struct {
     const uint8_t *data;

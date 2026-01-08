@@ -22,12 +22,11 @@
 #include "libavutil/channel_layout.h"
 #include "libavutil/ffmath.h"
 #include "libavutil/lfg.h"
-#include "libavutil/mem.h"
 #include "libavutil/random_seed.h"
 #include "libavutil/opt.h"
 #include "avfilter.h"
 #include "audio.h"
-#include "filters.h"
+#include "formats.h"
 
 #define MAX_STAGES 16
 #define FILTER_FC  1100.0
@@ -231,6 +230,13 @@ static const AVFilterPad inputs[] = {
     },
 };
 
+static const AVFilterPad outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_AUDIO,
+    },
+};
+
 const AVFilter ff_af_adecorrelate = {
     .name            = "adecorrelate",
     .description     = NULL_IF_CONFIG_SMALL("Apply decorrelation to input audio."),
@@ -238,7 +244,7 @@ const AVFilter ff_af_adecorrelate = {
     .priv_class      = &adecorrelate_class,
     .uninit          = uninit,
     FILTER_INPUTS(inputs),
-    FILTER_OUTPUTS(ff_audio_default_filterpad),
+    FILTER_OUTPUTS(outputs),
     FILTER_SINGLE_SAMPLEFMT(AV_SAMPLE_FMT_DBLP),
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC |
                        AVFILTER_FLAG_SLICE_THREADS,

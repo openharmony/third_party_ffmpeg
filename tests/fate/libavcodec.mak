@@ -1,22 +1,7 @@
-FATE_LIBAVCODEC-$(CONFIG_AV1_VAAPI_ENCODER) += fate-av1-levels
-fate-av1-levels: libavcodec/tests/av1_levels$(EXESUF)
-fate-av1-levels: CMD = run libavcodec/tests/av1_levels$(EXESUF)
-fate-av1-levels: REF = /dev/null
-
 FATE_LIBAVCODEC-yes += fate-avpacket
 fate-avpacket: libavcodec/tests/avpacket$(EXESUF)
 fate-avpacket: CMD = run libavcodec/tests/avpacket$(EXESUF)
 fate-avpacket: CMP = null
-
-FATE_LIBAVCODEC-yes += fate-bitstream-be
-fate-bitstream-be: libavcodec/tests/bitstream_be$(EXESUF)
-fate-bitstream-be: CMD = run libavcodec/tests/bitstream_be$(EXESUF)
-fate-bitstream-be: CMP = null
-
-FATE_LIBAVCODEC-yes += fate-bitstream-le
-fate-bitstream-le: libavcodec/tests/bitstream_le$(EXESUF)
-fate-bitstream-le: CMD = run libavcodec/tests/bitstream_le$(EXESUF)
-fate-bitstream-le: CMP = null
 
 FATE_LIBAVCODEC-$(CONFIG_CABAC) += fate-cabac
 fate-cabac: libavcodec/tests/cabac$(EXESUF)
@@ -99,7 +84,7 @@ fate-libavcodec-avcodec: libavcodec/tests/avcodec$(EXESUF)
 fate-libavcodec-avcodec: CMD = run libavcodec/tests/avcodec$(EXESUF)
 fate-libavcodec-avcodec: CMP = null
 
-FATE_LIBAVCODEC-$(call ALLYES, MJPEG_ENCODER) += fate-libavcodec-huffman
+FATE_LIBAVCODEC-yes += fate-libavcodec-huffman
 fate-libavcodec-huffman: libavcodec/tests/mjpegenc_huffman$(EXESUF)
 fate-libavcodec-huffman: CMD = run libavcodec/tests/mjpegenc_huffman$(EXESUF)
 fate-libavcodec-huffman: CMP = null

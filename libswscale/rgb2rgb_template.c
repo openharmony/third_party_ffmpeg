@@ -640,8 +640,11 @@ static inline void uyvytoyv12_c(const uint8_t *src, uint8_t *ydst,
 }
 
 /**
- * width should be a multiple of 2.
+ * Height should be a multiple of 2 and width should be a multiple of 2.
  * (If this is a problem for anyone then tell me, and I will fix it.)
+ * Chrominance data is only taken from every second line,
+ * others are ignored in the C version.
+ * FIXME: Write HQ version.
  */
 void ff_rgb24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
                    uint8_t *vdst, int width, int height, int lumStride,
@@ -652,57 +655,55 @@ void ff_rgb24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
     int32_t rv = rgb2yuv[RV_IDX], gv = rgb2yuv[GV_IDX], bv = rgb2yuv[BV_IDX];
     int y;
     const int chromWidth = width >> 1;
-    const uint8_t *src1 = src;
-    const uint8_t *src2 = src1 + srcStride;
-    uint8_t *ydst1 = ydst;
-    uint8_t *ydst2 = ydst + lumStride;
 
     for (y = 0; y < height; y += 2) {
         int i;
-        if (y + 1 == height) {
-            ydst2 = ydst1;
-            src2  = src1;
+        for (i = 0; i < chromWidth; i++) {
+            unsigned int b = src[6 * i + 0];
+            unsigned int g = src[6 * i + 1];
+            unsigned int r = src[6 * i + 2];
+
+            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) +  16;
+            unsigned int V = ((rv * r + gv * g + bv * b) >> RGB2YUV_SHIFT) + 128;
+            unsigned int U = ((ru * r + gu * g + bu * b) >> RGB2YUV_SHIFT) + 128;
+
+            udst[i]     = U;
+            vdst[i]     = V;
+            ydst[2 * i] = Y;
+
+            b = src[6 * i + 3];
+            g = src[6 * i + 4];
+            r = src[6 * i + 5];
+
+            Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
+            ydst[2 * i + 1] = Y;
         }
+        ydst += lumStride;
+        src  += srcStride;
+
+        if (y+1 == height)
+            break;
 
         for (i = 0; i < chromWidth; i++) {
-            unsigned int b11 = src1[6 * i + 0];
-            unsigned int g11 = src1[6 * i + 1];
-            unsigned int r11 = src1[6 * i + 2];
-            unsigned int b12 = src1[6 * i + 3];
-            unsigned int g12 = src1[6 * i + 4];
-            unsigned int r12 = src1[6 * i + 5];
-            unsigned int b21 = src2[6 * i + 0];
-            unsigned int g21 = src2[6 * i + 1];
-            unsigned int r21 = src2[6 * i + 2];
-            unsigned int b22 = src2[6 * i + 3];
-            unsigned int g22 = src2[6 * i + 4];
-            unsigned int r22 = src2[6 * i + 5];
+            unsigned int b = src[6 * i + 0];
+            unsigned int g = src[6 * i + 1];
+            unsigned int r = src[6 * i + 2];
 
-            unsigned int Y11 = ((ry * r11 + gy * g11 + by * b11) >> RGB2YUV_SHIFT) + 16;
-            unsigned int Y12 = ((ry * r12 + gy * g12 + by * b12) >> RGB2YUV_SHIFT) + 16;
-            unsigned int Y21 = ((ry * r21 + gy * g21 + by * b21) >> RGB2YUV_SHIFT) + 16;
-            unsigned int Y22 = ((ry * r22 + gy * g22 + by * b22) >> RGB2YUV_SHIFT) + 16;
+            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
 
-            unsigned int bx = (b11 + b12 + b21 + b22) >> 2;
-            unsigned int gx = (g11 + g12 + g21 + g22) >> 2;
-            unsigned int rx = (r11 + r12 + r21 + r22) >> 2;
+            ydst[2 * i] = Y;
 
-            unsigned int U  = ((ru * rx + gu * gx + bu * bx) >> RGB2YUV_SHIFT) + 128;
-            unsigned int V  = ((rv * rx + gv * gx + bv * bx) >> RGB2YUV_SHIFT) + 128;
+            b = src[6 * i + 3];
+            g = src[6 * i + 4];
+            r = src[6 * i + 5];
 
-            ydst1[2 * i + 0] = Y11;
-            ydst1[2 * i + 1] = Y12;
-            ydst2[2 * i + 0] = Y21;
-            ydst2[2 * i + 1] = Y22;
-            udst[i]          = U;
-            vdst[i]          = V;
+            Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
+            ydst[2 * i + 1] = Y;
         }
-        src1  += srcStride * 2;
-        src2  += srcStride * 2;
-        ydst1 += lumStride * 2;
-        ydst2 += lumStride * 2;
-        udst  += chromStride;
-        vdst  += chromStride;
+        udst += chromStride;
+        vdst += chromStride;
+        ydst += lumStride;
+        src  += srcStride;
     }
 }
 

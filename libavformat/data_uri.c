@@ -22,7 +22,6 @@
 #include "libavutil/avstring.h"
 #include "libavutil/avutil.h"
 #include "libavutil/base64.h"
-#include "libavutil/mem.h"
 #include "url.h"
 
 typedef struct {

@@ -21,7 +21,6 @@
 
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "pcm.h"
 
@@ -82,9 +81,9 @@ static int hcom_read_header(AVFormatContext *s)
     return 0;
 }
 
-const FFInputFormat ff_hcom_demuxer = {
-    .p.name         = "hcom",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Macintosh HCOM"),
+const AVInputFormat ff_hcom_demuxer = {
+    .name           = "hcom",
+    .long_name      = NULL_IF_CONFIG_SMALL("Macintosh HCOM"),
     .read_probe     = hcom_probe,
     .read_header    = hcom_read_header,
     .read_packet    = ff_pcm_read_packet,

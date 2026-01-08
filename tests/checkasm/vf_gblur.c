@@ -19,7 +19,6 @@
 #include <float.h>
 #include <string.h>
 #include "checkasm.h"
-#include "libavutil/mem.h"
 #include "libavfilter/vf_gblur_init.h"
 
 #define WIDTH 256

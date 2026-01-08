@@ -22,11 +22,10 @@
 
 #include "avcodec.h"
 #include "internal.h"
+#include "mpeg4video.h"
 #include "mpeg4videodec.h"
-#include "mpeg4videodefs.h"
 #include "nvdec.h"
 #include "decode.h"
-#include "hwaccel_internal.h"
 
 static int nvdec_mpeg4_start_frame(AVCodecContext *avctx, const uint8_t *buffer, uint32_t size)
 {
@@ -38,7 +37,7 @@ static int nvdec_mpeg4_start_frame(AVCodecContext *avctx, const uint8_t *buffer,
     CUVIDMPEG4PICPARAMS *ppc = &pp->CodecSpecific.mpeg4;
     FrameDecodeData *fdd;
     NVDECFrame *cf;
-    AVFrame *cur_frame = s->cur_pic.ptr->f;
+    AVFrame *cur_frame = s->current_picture.f;
 
     int ret, i;
 
@@ -60,8 +59,8 @@ static int nvdec_mpeg4_start_frame(AVCodecContext *avctx, const uint8_t *buffer,
                              s->pict_type == AV_PICTURE_TYPE_S,
 
         .CodecSpecific.mpeg4 = {
-            .ForwardRefIdx                = ff_nvdec_get_ref_idx(s->last_pic.ptr ? s->last_pic.ptr->f : NULL),
-            .BackwardRefIdx               = ff_nvdec_get_ref_idx(s->next_pic.ptr ? s->next_pic.ptr->f : NULL),
+            .ForwardRefIdx                = ff_nvdec_get_ref_idx(s->last_picture.f),
+            .BackwardRefIdx               = ff_nvdec_get_ref_idx(s->next_picture.f),
 
             .video_object_layer_width     = s->width,
             .video_object_layer_height    = s->height,
@@ -110,11 +109,11 @@ static int nvdec_mpeg4_frame_params(AVCodecContext *avctx,
     return ff_nvdec_frame_params(avctx, hw_frames_ctx, 2, 0);
 }
 
-const FFHWAccel ff_mpeg4_nvdec_hwaccel = {
-    .p.name               = "mpeg4_nvdec",
-    .p.type               = AVMEDIA_TYPE_VIDEO,
-    .p.id                 = AV_CODEC_ID_MPEG4,
-    .p.pix_fmt            = AV_PIX_FMT_CUDA,
+const AVHWAccel ff_mpeg4_nvdec_hwaccel = {
+    .name                 = "mpeg4_nvdec",
+    .type                 = AVMEDIA_TYPE_VIDEO,
+    .id                   = AV_CODEC_ID_MPEG4,
+    .pix_fmt              = AV_PIX_FMT_CUDA,
     .start_frame          = nvdec_mpeg4_start_frame,
     .end_frame            = ff_nvdec_simple_end_frame,
     .decode_slice         = nvdec_mpeg4_decode_slice,

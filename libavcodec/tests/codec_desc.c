@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavcodec/codec_desc.h"
+#include "libavcodec/avcodec.h"
 
 int main(int argc, char **argv)
 {

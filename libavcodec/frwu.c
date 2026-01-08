@@ -23,7 +23,7 @@
 #include "avcodec.h"
 #include "bytestream.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 #include "libavutil/opt.h"
 
 typedef struct {
@@ -61,6 +61,9 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *pic,
 
     if ((ret = ff_get_buffer(avctx, pic, 0)) < 0)
         return ret;
+
+    pic->pict_type = AV_PICTURE_TYPE_I;
+    pic->key_frame = 1;
 
     for (field = 0; field < 2; field++) {
         int i;
@@ -114,7 +117,7 @@ static const AVClass frwu_class = {
 
 const FFCodec ff_frwu_decoder = {
     .p.name         = "frwu",
-    CODEC_LONG_NAME("Forward Uncompressed"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Forward Uncompressed"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_FRWU,
     .priv_data_size = sizeof(FRWUContext),
@@ -122,4 +125,5 @@ const FFCodec ff_frwu_decoder = {
     FF_CODEC_DECODE_CB(decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
     .p.priv_class   = &frwu_class,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

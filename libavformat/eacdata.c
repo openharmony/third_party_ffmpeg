@@ -30,7 +30,6 @@
 
 #include "libavutil/channel_layout.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 
 #include "libavutil/channel_layout.h"
@@ -104,12 +103,12 @@ static int cdata_read_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-const FFInputFormat ff_ea_cdata_demuxer = {
-    .p.name         = "ea_cdata",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Electronic Arts cdata"),
-    .p.extensions   = "cdata",
+const AVInputFormat ff_ea_cdata_demuxer = {
+    .name           = "ea_cdata",
+    .long_name      = NULL_IF_CONFIG_SMALL("Electronic Arts cdata"),
     .priv_data_size = sizeof(CdataDemuxContext),
     .read_probe     = cdata_probe,
     .read_header    = cdata_read_header,
     .read_packet    = cdata_read_packet,
+    .extensions = "cdata",
 };

@@ -19,11 +19,13 @@
  */
 
 /**
- * @file libavfilter audio filtering API usage example
- * @example filter_audio.c
+ * @file
+ * libavfilter API usage example.
  *
- * This example will generate a sine wave audio, pass it through a simple filter
- * chain, and then compute the MD5 checksum of the output data.
+ * @example filter_audio.c
+ * This example will generate a sine wave audio,
+ * pass it through a simple filter chain, and then compute the MD5 checksum of
+ * the output data.
  *
  * The filter chain it uses is:
  * (input) -> abuffer -> volume -> aformat -> abuffersink -> (output)
@@ -41,15 +43,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <libavutil/channel_layout.h>
-#include <libavutil/md5.h>
-#include <libavutil/mem.h>
-#include <libavutil/opt.h>
-#include <libavutil/samplefmt.h>
+#include "libavutil/channel_layout.h"
+#include "libavutil/md5.h"
+#include "libavutil/mem.h"
+#include "libavutil/opt.h"
+#include "libavutil/samplefmt.h"
 
-#include <libavfilter/avfilter.h>
-#include <libavfilter/buffersink.h>
-#include <libavfilter/buffersrc.h>
+#include "libavfilter/avfilter.h"
+#include "libavfilter/buffersink.h"
+#include "libavfilter/buffersrc.h"
 
 #define INPUT_SAMPLERATE     48000
 #define INPUT_FORMAT         AV_SAMPLE_FMT_FLTP

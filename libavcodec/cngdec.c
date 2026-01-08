@@ -23,11 +23,10 @@
 
 #include "libavutil/common.h"
 #include "libavutil/ffmath.h"
-#include "libavutil/mem.h"
+#include "libavutil/intreadwrite.h"
 #include "avcodec.h"
 #include "celp_filters.h"
 #include "codec_internal.h"
-#include "decode.h"
 #include "internal.h"
 #include "libavutil/lfg.h"
 
@@ -165,7 +164,7 @@ static int cng_decode_frame(AVCodecContext *avctx, AVFrame *frame,
 
 const FFCodec ff_comfortnoise_decoder = {
     .p.name         = "comfortnoise",
-    CODEC_LONG_NAME("RFC 3389 comfort noise generator"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("RFC 3389 comfort noise generator"),
     .p.type         = AVMEDIA_TYPE_AUDIO,
     .p.id           = AV_CODEC_ID_COMFORT_NOISE,
     .priv_data_size = sizeof(CNGContext),
@@ -176,5 +175,6 @@ const FFCodec ff_comfortnoise_decoder = {
     .p.sample_fmts  = (const enum AVSampleFormat[]){ AV_SAMPLE_FMT_S16,
                                                      AV_SAMPLE_FMT_NONE },
     .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_CHANNEL_CONF,
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE |
+                      FF_CODEC_CAP_INIT_CLEANUP,
 };

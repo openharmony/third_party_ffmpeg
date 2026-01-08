@@ -20,7 +20,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 #include "mem.h"
 #include "intreadwrite.h"
 #include "murmur3.h"

@@ -23,7 +23,6 @@
 
 #include "avformat.h"
 #include "ffmeta.h"
-#include "mux.h"
 #include "libavutil/dict.h"
 
 
@@ -41,8 +40,8 @@ static void write_escape_str(AVIOContext *s, const uint8_t *str)
 
 static void write_tags(AVIOContext *s, AVDictionary *m)
 {
-    const AVDictionaryEntry *t = NULL;
-    while ((t = av_dict_iterate(m, t))) {
+    AVDictionaryEntry *t = NULL;
+    while ((t = av_dict_get(m, "", t, AV_DICT_IGNORE_SUFFIX))) {
         write_escape_str(s, t->key);
         avio_w8(s, '=');
         write_escape_str(s, t->value);
@@ -88,12 +87,12 @@ static int write_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-const FFOutputFormat ff_ffmetadata_muxer = {
-    .p.name        = "ffmetadata",
-    .p.long_name   = NULL_IF_CONFIG_SMALL("FFmpeg metadata in text"),
-    .p.extensions  = "ffmeta",
+const AVOutputFormat ff_ffmetadata_muxer = {
+    .name          = "ffmetadata",
+    .long_name     = NULL_IF_CONFIG_SMALL("FFmpeg metadata in text"),
+    .extensions    = "ffmeta",
     .write_header  = write_header,
     .write_packet  = write_packet,
     .write_trailer = write_trailer,
-    .p.flags       = AVFMT_NOTIMESTAMPS | AVFMT_NOSTREAMS,
+    .flags         = AVFMT_NOTIMESTAMPS | AVFMT_NOSTREAMS,
 };

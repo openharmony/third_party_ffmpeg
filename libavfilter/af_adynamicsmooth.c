@@ -20,7 +20,7 @@
 #include "libavutil/opt.h"
 #include "avfilter.h"
 #include "audio.h"
-#include "filters.h"
+#include "formats.h"
 
 typedef struct AudioDynamicSmoothContext {
     const AVClass *class;
@@ -121,6 +121,13 @@ static const AVFilterPad inputs[] = {
     },
 };
 
+static const AVFilterPad outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_AUDIO,
+    },
+};
+
 const AVFilter ff_af_adynamicsmooth = {
     .name            = "adynamicsmooth",
     .description     = NULL_IF_CONFIG_SMALL("Apply Dynamic Smoothing of input audio."),
@@ -128,7 +135,7 @@ const AVFilter ff_af_adynamicsmooth = {
     .priv_class      = &adynamicsmooth_class,
     .uninit          = uninit,
     FILTER_INPUTS(inputs),
-    FILTER_OUTPUTS(ff_audio_default_filterpad),
+    FILTER_OUTPUTS(outputs),
     FILTER_SINGLE_SAMPLEFMT(AV_SAMPLE_FMT_DBLP),
     .flags           = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
     .process_command = ff_filter_process_command,

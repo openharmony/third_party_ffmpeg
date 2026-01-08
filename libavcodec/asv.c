@@ -25,8 +25,6 @@
 
 #include <stdint.h>
 
-#include "libavutil/attributes.h"
-
 #include "asv.h"
 #include "avcodec.h"
 #include "bswapdsp.h"
@@ -90,7 +88,7 @@ const uint16_t ff_asv2_level_tab[63][2] = {
 
 av_cold void ff_asv_common_init(AVCodecContext *avctx)
 {
-    ASVCommonContext *const a = avctx->priv_data;
+    ASV1Context *const a = avctx->priv_data;
 
     ff_bswapdsp_init(&a->bbdsp);
 

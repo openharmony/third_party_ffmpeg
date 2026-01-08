@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 
 #include "avcodec.h"
@@ -97,7 +96,7 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     SgiContext *s = avctx->priv_data;
     const AVFrame * const p = frame;
     PutByteContext pbc;
-    uint8_t *encode_buf;
+    uint8_t *in_buf, *encode_buf;
     int x, y, z, length, tablesize, ret, i;
     unsigned int width, height, depth, dimension;
     unsigned int bytes_per_channel, pixmax, put_be;
@@ -201,7 +200,7 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             return AVERROR(ENOMEM);
 
         for (z = 0; z < depth; z++) {
-            const uint8_t *in_buf = p->data[0] + p->linesize[0] * (height - 1) + z * bytes_per_channel;
+            in_buf = p->data[0] + p->linesize[0] * (height - 1) + z * bytes_per_channel;
 
             for (y = 0; y < height; y++) {
                 bytestream2_put_be32(&taboff_pcb, bytestream2_tell_p(&pbc));
@@ -232,7 +231,7 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
         av_free(encode_buf);
     } else {
         for (z = 0; z < depth; z++) {
-            const uint8_t *in_buf = p->data[0] + p->linesize[0] * (height - 1) + z * bytes_per_channel;
+            in_buf = p->data[0] + p->linesize[0] * (height - 1) + z * bytes_per_channel;
 
             for (y = 0; y < height; y++) {
                 for (x = 0; x < width * depth; x += depth)
@@ -273,10 +272,9 @@ static const AVClass sgi_class = {
 
 const FFCodec ff_sgi_encoder = {
     .p.name    = "sgi",
-    CODEC_LONG_NAME("SGI image"),
+    .p.long_name = NULL_IF_CONFIG_SMALL("SGI image"),
     .p.type    = AVMEDIA_TYPE_VIDEO,
     .p.id      = AV_CODEC_ID_SGI,
-    .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_ENCODER_REORDERED_OPAQUE,
     .priv_data_size = sizeof(SgiContext),
     .p.priv_class = &sgi_class,
     .init      = encode_init,
@@ -288,4 +286,5 @@ const FFCodec ff_sgi_encoder = {
         AV_PIX_FMT_GRAY16LE, AV_PIX_FMT_GRAY16BE, AV_PIX_FMT_GRAY8,
         AV_PIX_FMT_NONE
     },
+    .caps_internal = FF_CODEC_CAP_INIT_THREADSAFE,
 };

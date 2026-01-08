@@ -20,16 +20,13 @@
  */
 
 #include "avformat.h"
-#include "mux.h"
+#include "internal.h"
 #include "libavutil/opt.h"
-#include "libavutil/thread.h"
 #include <chromaprint.h>
 
 #define CPR_VERSION_INT AV_VERSION_INT(CHROMAPRINT_VERSION_MAJOR, \
                                        CHROMAPRINT_VERSION_MINOR, \
                                        CHROMAPRINT_VERSION_PATCH)
-
-static AVMutex chromaprint_mutex = AV_MUTEX_INITIALIZER;
 
 typedef enum FingerprintFormat {
     FINGERPRINT_RAW,
@@ -54,20 +51,20 @@ static void deinit(AVFormatContext *s)
     ChromaprintMuxContext *const cpr = s->priv_data;
 
     if (cpr->ctx) {
-        ff_mutex_lock(&chromaprint_mutex);
+        ff_lock_avformat();
         chromaprint_free(cpr->ctx);
-        ff_mutex_unlock(&chromaprint_mutex);
+        ff_unlock_avformat();
     }
 }
 
-static av_cold int init(AVFormatContext *s)
+static int write_header(AVFormatContext *s)
 {
     ChromaprintMuxContext *cpr = s->priv_data;
     AVStream *st;
 
-    ff_mutex_lock(&chromaprint_mutex);
+    ff_lock_avformat();
     cpr->ctx = chromaprint_new(cpr->algorithm);
-    ff_mutex_unlock(&chromaprint_mutex);
+    ff_unlock_avformat();
 
     if (!cpr->ctx) {
         av_log(s, AV_LOG_ERROR, "Failed to create chromaprint context.\n");
@@ -85,6 +82,11 @@ static av_cold int init(AVFormatContext *s)
                                 "version 0.7.0 or later.\n");
         return AVERROR(ENOSYS);
 #endif
+    }
+
+    if (s->nb_streams != 1) {
+        av_log(s, AV_LOG_ERROR, "Only one stream is supported\n");
+        return AVERROR(EINVAL);
     }
 
     st = s->streams[0];
@@ -160,10 +162,10 @@ fail:
 static const AVOption options[] = {
     { "silence_threshold", "threshold for detecting silence", OFFSET(silence_threshold), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 32767, FLAGS },
     { "algorithm", "version of the fingerprint algorithm", OFFSET(algorithm), AV_OPT_TYPE_INT, { .i64 = CHROMAPRINT_ALGORITHM_DEFAULT }, CHROMAPRINT_ALGORITHM_TEST1, INT_MAX, FLAGS },
-    { "fp_format", "fingerprint format to write", OFFSET(fp_format), AV_OPT_TYPE_INT, { .i64 = FINGERPRINT_BASE64 }, FINGERPRINT_RAW, FINGERPRINT_BASE64, FLAGS, .unit = "fp_format" },
-    { "raw", "binary raw fingerprint", 0, AV_OPT_TYPE_CONST, {.i64 = FINGERPRINT_RAW }, INT_MIN, INT_MAX, FLAGS, .unit = "fp_format"},
-    { "compressed", "binary compressed fingerprint", 0, AV_OPT_TYPE_CONST, {.i64 = FINGERPRINT_COMPRESSED }, INT_MIN, INT_MAX, FLAGS, .unit = "fp_format"},
-    { "base64", "Base64 compressed fingerprint", 0, AV_OPT_TYPE_CONST, {.i64 = FINGERPRINT_BASE64 }, INT_MIN, INT_MAX, FLAGS, .unit = "fp_format"},
+    { "fp_format", "fingerprint format to write", OFFSET(fp_format), AV_OPT_TYPE_INT, { .i64 = FINGERPRINT_BASE64 }, FINGERPRINT_RAW, FINGERPRINT_BASE64, FLAGS, "fp_format" },
+    { "raw", "binary raw fingerprint", 0, AV_OPT_TYPE_CONST, {.i64 = FINGERPRINT_RAW }, INT_MIN, INT_MAX, FLAGS, "fp_format"},
+    { "compressed", "binary compressed fingerprint", 0, AV_OPT_TYPE_CONST, {.i64 = FINGERPRINT_COMPRESSED }, INT_MIN, INT_MAX, FLAGS, "fp_format"},
+    { "base64", "Base64 compressed fingerprint", 0, AV_OPT_TYPE_CONST, {.i64 = FINGERPRINT_BASE64 }, INT_MIN, INT_MAX, FLAGS, "fp_format"},
     { NULL },
 };
 
@@ -174,19 +176,15 @@ static const AVClass chromaprint_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const FFOutputFormat ff_chromaprint_muxer = {
-    .p.name            = "chromaprint",
-    .p.long_name       = NULL_IF_CONFIG_SMALL("Chromaprint"),
+const AVOutputFormat ff_chromaprint_muxer = {
+    .name              = "chromaprint",
+    .long_name         = NULL_IF_CONFIG_SMALL("Chromaprint"),
     .priv_data_size    = sizeof(ChromaprintMuxContext),
-    .p.audio_codec     = AV_NE(AV_CODEC_ID_PCM_S16BE, AV_CODEC_ID_PCM_S16LE),
-    .p.video_codec     = AV_CODEC_ID_NONE,
-    .p.subtitle_codec  = AV_CODEC_ID_NONE,
-    .flags_internal    = FF_OFMT_FLAG_MAX_ONE_OF_EACH |
-                         FF_OFMT_FLAG_ONLY_DEFAULT_CODECS,
-    .init              = init,
+    .audio_codec       = AV_NE(AV_CODEC_ID_PCM_S16BE, AV_CODEC_ID_PCM_S16LE),
+    .write_header      = write_header,
     .write_packet      = write_packet,
     .write_trailer     = write_trailer,
     .deinit            = deinit,
-    .p.flags           = AVFMT_NOTIMESTAMPS,
-    .p.priv_class      = &chromaprint_class,
+    .flags             = AVFMT_NOTIMESTAMPS,
+    .priv_class        = &chromaprint_class,
 };

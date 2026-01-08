@@ -19,8 +19,6 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <lzo/lzo1x.h>
 
 #include "libavutil/log.h"

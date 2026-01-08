@@ -21,7 +21,6 @@
 
 #include "libavutil/attributes.h"
 #include "libavutil/common.h"
-#include "libavutil/log.h"
 #include "dirac_dwt.h"
 
 #define TEMPLATE_8bit
@@ -46,11 +45,11 @@ int ff_spatial_idwt_init(DWTContext *d, DWTPlane *p, enum dwt_type type,
     d->decomposition_count = decomposition_count;
 
     if (bit_depth == 8)
-        ret = spatial_idwt_init_8bit(d, type);
+        ret = ff_spatial_idwt_init_8bit(d, type);
     else if (bit_depth == 10)
-        ret = spatial_idwt_init_10bit(d, type);
+        ret = ff_spatial_idwt_init_10bit(d, type);
     else if (bit_depth == 12)
-        ret = spatial_idwt_init_12bit(d, type);
+        ret = ff_spatial_idwt_init_12bit(d, type);
     else
         av_log(NULL, AV_LOG_WARNING, "Unsupported bit depth = %i\n", bit_depth);
 

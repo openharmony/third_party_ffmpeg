@@ -21,7 +21,6 @@
 
 #include "libavutil/bprint.h"
 #include "libavutil/mathematics.h"
-#include "libavutil/mem.h"
 #include "avformat.h"
 #include "demux.h"
 #include "ffmeta.h"
@@ -223,9 +222,9 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
     return AVERROR_EOF;
 }
 
-const FFInputFormat ff_ffmetadata_demuxer = {
-    .p.name      = "ffmetadata",
-    .p.long_name = NULL_IF_CONFIG_SMALL("FFmpeg metadata in text"),
+const AVInputFormat ff_ffmetadata_demuxer = {
+    .name        = "ffmetadata",
+    .long_name   = NULL_IF_CONFIG_SMALL("FFmpeg metadata in text"),
     .read_probe  = probe,
     .read_header = read_header,
     .read_packet = read_packet,

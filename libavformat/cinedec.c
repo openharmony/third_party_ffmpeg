@@ -26,11 +26,9 @@
  */
 
 #include "libavutil/intreadwrite.h"
-#include "libavutil/mem.h"
 #include "libavcodec/bmp.h"
 #include "libavutil/intfloat.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 
 typedef struct {
@@ -338,9 +336,9 @@ static int cine_read_seek(AVFormatContext *avctx, int stream_index, int64_t time
     return 0;
 }
 
-const FFInputFormat ff_cine_demuxer = {
-    .p.name         = "cine",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Phantom Cine"),
+const AVInputFormat ff_cine_demuxer = {
+    .name           = "cine",
+    .long_name      = NULL_IF_CONFIG_SMALL("Phantom Cine"),
     .priv_data_size = sizeof(CineDemuxContext),
     .read_probe     = cine_read_probe,
     .read_header    = cine_read_header,

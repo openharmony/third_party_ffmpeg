@@ -22,13 +22,16 @@
 
 SECTION_RODATA
 
+         ; 0.85..^1    0.85..^2    0.85..^3    0.85..^4
+tab_st: dd 0x3f599a00, 0x3f38f671, 0x3f1d382a, 0x3f05a32f
+
 SECTION .text
 
 INIT_XMM fma3
 %if UNIX64
-cglobal opus_deemphasis, 4, 4, 8, out, in, weights, len
+cglobal opus_deemphasis, 3, 3, 8, out, in, len
 %else
-cglobal opus_deemphasis, 5, 5, 8, out, in, coeff, weights, len
+cglobal opus_deemphasis, 4, 4, 8, out, in, coeff, len
 %endif
 %if ARCH_X86_32
     VBROADCASTSS m0, coeffm
@@ -38,7 +41,7 @@ cglobal opus_deemphasis, 5, 5, 8, out, in, coeff, weights, len
     shufps m0, m0, 0
 %endif
 
-    movaps m4, [weightsq]
+    movaps m4, [tab_st]
     VBROADCASTSS m5, m4
     shufps m6, m4, m4, q1111
     shufps m7, m4, m4, q2222

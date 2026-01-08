@@ -34,7 +34,6 @@
 #include "avdevice.h"
 #include "libavutil/avassert.h"
 #include "libavutil/channel_layout.h"
-#include "libavutil/mem.h"
 
 #include "alsa.h"
 

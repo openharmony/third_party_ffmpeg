@@ -22,10 +22,8 @@
 
 #include "libavutil/opt.h"
 #include "libavutil/time.h"
-#include "audio.h"
 #include "avfilter.h"
-#include "filters.h"
-#include "video.h"
+#include "internal.h"
 #include <float.h>
 
 typedef struct RealtimeContext {
@@ -87,6 +85,13 @@ static const AVFilterPad avfilter_vf_realtime_inputs[] = {
     },
 };
 
+static const AVFilterPad avfilter_vf_realtime_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 const AVFilter ff_vf_realtime = {
     .name        = "realtime",
     .description = NULL_IF_CONFIG_SMALL("Slow down filtering to match realtime."),
@@ -94,7 +99,7 @@ const AVFilter ff_vf_realtime = {
     .priv_class  = &realtime_class,
     .flags       = AVFILTER_FLAG_METADATA_ONLY,
     FILTER_INPUTS(avfilter_vf_realtime_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(avfilter_vf_realtime_outputs),
     .process_command = ff_filter_process_command,
 };
 #endif /* CONFIG_REALTIME_FILTER */
@@ -109,6 +114,13 @@ static const AVFilterPad arealtime_inputs[] = {
     },
 };
 
+static const AVFilterPad arealtime_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_AUDIO,
+    },
+};
+
 const AVFilter ff_af_arealtime = {
     .name        = "arealtime",
     .description = NULL_IF_CONFIG_SMALL("Slow down filtering to match realtime."),
@@ -116,7 +128,7 @@ const AVFilter ff_af_arealtime = {
     .priv_size   = sizeof(RealtimeContext),
     .flags       = AVFILTER_FLAG_METADATA_ONLY,
     FILTER_INPUTS(arealtime_inputs),
-    FILTER_OUTPUTS(ff_audio_default_filterpad),
+    FILTER_OUTPUTS(arealtime_outputs),
     .process_command = ff_filter_process_command,
 };
 #endif /* CONFIG_AREALTIME_FILTER */

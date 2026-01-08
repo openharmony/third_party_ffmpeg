@@ -22,15 +22,14 @@
 #include "config_components.h"
 
 #include "libavutil/avstring.h"
-#include "libavutil/mem.h"
+#include "libavutil/bprint.h"
 #include "libavutil/opt.h"
+#include "libavutil/thread.h"
 
 #include "avio_internal.h"
 #include "avformat.h"
-#include "demux.h"
 #include "id3v2.h"
 #include "internal.h"
-#include "url.h"
 
 
 /**
@@ -49,31 +48,6 @@ int av_match_ext(const char *filename, const char *extensions)
     if (ext)
         return av_match_name(ext + 1, extensions);
     return 0;
-}
-
-int ff_match_url_ext(const char *url, const char *extensions)
-{
-    const char *ext;
-    URLComponents uc;
-    int ret;
-    char scratchpad[128];
-
-    if (!url)
-        return 0;
-
-    ret = ff_url_decompose(&uc, url, NULL);
-    if (ret < 0 || !URL_COMPONENT_HAVE(uc, scheme))
-        return ret;
-    for (ext = uc.query; *ext != '.' && ext > uc.path; ext--)
-        ;
-
-    if (*ext != '.')
-        return 0;
-    if (uc.query - ext > sizeof(scratchpad))
-        return AVERROR(ENOMEM); //not enough memory in our scratchpad
-    av_strlcpy(scratchpad, ext + 1, uc.query - ext);
-
-    return av_match_name(scratchpad, extensions);
 }
 
 const AVOutputFormat *av_guess_format(const char *short_name, const char *filename,
@@ -137,6 +111,8 @@ enum AVCodecID av_guess_codec(const AVOutputFormat *fmt, const char *short_name,
         return fmt->audio_codec;
     else if (type == AVMEDIA_TYPE_SUBTITLE)
         return fmt->subtitle_codec;
+    else if (type == AVMEDIA_TYPE_DATA)
+        return fmt->data_codec;
     else
         return AV_CODEC_ID_NONE;
 }
@@ -189,8 +165,8 @@ const AVInputFormat *av_probe_input_format3(const AVProbeData *pd,
         if (!is_opened == !(fmt1->flags & AVFMT_NOFILE) && strcmp(fmt1->name, "image2"))
             continue;
         score = 0;
-        if (ffifmt(fmt1)->read_probe) {
-            score = ffifmt(fmt1)->read_probe(&lpd);
+        if (fmt1->read_probe) {
+            score = fmt1->read_probe(&lpd);
             if (score)
                 av_log(NULL, AV_LOG_TRACE, "Probing %s score:%d size:%d\n", fmt1->name, score, lpd.buf_size);
             if (fmt1->extensions && av_match_ext(lpd.filename, fmt1->extensions)) {

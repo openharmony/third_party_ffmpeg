@@ -312,7 +312,8 @@ static void dct_unquantize_mpeg2_intra_mmx(MpegEncContext *s,
     if (s->q_scale_type) qscale = ff_mpeg2_non_linear_qscale[qscale];
     else                 qscale <<= 1;
 
-    nCoeffs= s->intra_scantable.raster_end[ s->block_last_index[n] ];
+    if(s->alternate_scan) nCoeffs= 63; //FIXME
+    else nCoeffs= s->intra_scantable.raster_end[ s->block_last_index[n] ];
 
     if (n < 4)
         block0 = block[0] * s->y_dc_scale;
@@ -379,7 +380,8 @@ static void dct_unquantize_mpeg2_inter_mmx(MpegEncContext *s,
     if (s->q_scale_type) qscale = ff_mpeg2_non_linear_qscale[qscale];
     else                 qscale <<= 1;
 
-    nCoeffs= s->intra_scantable.raster_end[ s->block_last_index[n] ];
+    if(s->alternate_scan) nCoeffs= 63; //FIXME
+    else nCoeffs= s->intra_scantable.raster_end[ s->block_last_index[n] ];
 
         quant_matrix = s->inter_matrix;
 __asm__ volatile(

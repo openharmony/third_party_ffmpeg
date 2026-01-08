@@ -26,7 +26,6 @@
  */
 
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "subtitles.h"
 
@@ -106,14 +105,14 @@ static int pjs_read_header(AVFormatContext *s)
     return 0;
 }
 
-const FFInputFormat ff_pjs_demuxer = {
-    .p.name         = "pjs",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("PJS (Phoenix Japanimation Society) subtitles"),
-    .p.extensions   = "pjs",
+const AVInputFormat ff_pjs_demuxer = {
+    .name           = "pjs",
+    .long_name      = NULL_IF_CONFIG_SMALL("PJS (Phoenix Japanimation Society) subtitles"),
     .priv_data_size = sizeof(PJSContext),
-    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
+    .flags_internal = FF_FMT_INIT_CLEANUP,
     .read_probe     = pjs_probe,
     .read_header    = pjs_read_header,
+    .extensions     = "pjs",
     .read_packet    = ff_subtitles_read_packet,
     .read_seek2     = ff_subtitles_read_seek,
     .read_close     = ff_subtitles_read_close,

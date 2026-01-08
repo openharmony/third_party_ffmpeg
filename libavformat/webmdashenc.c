@@ -29,15 +29,12 @@
 #include <float.h>
 #include <stdint.h>
 #include <string.h>
-#include <time.h>
 
 #include "avformat.h"
 #include "matroska.h"
-#include "mux.h"
 
 #include "libavutil/avstring.h"
 #include "libavutil/dict.h"
-#include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/time_internal.h"
 
@@ -543,13 +540,13 @@ static const AVClass webm_dash_class = {
     .version    = LIBAVUTIL_VERSION_INT,
 };
 
-const FFOutputFormat ff_webm_dash_manifest_muxer = {
-    .p.name            = "webm_dash_manifest",
-    .p.long_name       = NULL_IF_CONFIG_SMALL("WebM DASH Manifest"),
-    .p.mime_type       = "application/xml",
-    .p.extensions      = "xml",
+const AVOutputFormat ff_webm_dash_manifest_muxer = {
+    .name              = "webm_dash_manifest",
+    .long_name         = NULL_IF_CONFIG_SMALL("WebM DASH Manifest"),
+    .mime_type         = "application/xml",
+    .extensions        = "xml",
     .priv_data_size    = sizeof(WebMDashMuxContext),
     .write_header      = webm_dash_manifest_write_header,
     .write_packet      = webm_dash_manifest_write_packet,
-    .p.priv_class      = &webm_dash_class,
+    .priv_class        = &webm_dash_class,
 };

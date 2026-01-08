@@ -19,11 +19,9 @@
  */
 
 #include <string.h>
-#include <time.h>
 
 #include "libavutil/avstring.h"
 #include "libavutil/internal.h"
-#include "libavutil/mem.h"
 #include "libavutil/parseutils.h"
 #include "avformat.h"
 #include "internal.h"

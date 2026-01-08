@@ -22,7 +22,6 @@
 #include "libavutil/avassert.h"
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 
 static int musx_probe(const AVProbeData *p)
@@ -179,11 +178,11 @@ static int musx_read_packet(AVFormatContext *s, AVPacket *pkt)
     return av_get_packet(s->pb, pkt, par->block_align);
 }
 
-const FFInputFormat ff_musx_demuxer = {
-    .p.name         = "musx",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Eurocom MUSX"),
-    .p.extensions   = "musx",
+const AVInputFormat ff_musx_demuxer = {
+    .name           = "musx",
+    .long_name      = NULL_IF_CONFIG_SMALL("Eurocom MUSX"),
     .read_probe     = musx_probe,
     .read_header    = musx_read_header,
     .read_packet    = musx_read_packet,
+    .extensions     = "musx",
 };

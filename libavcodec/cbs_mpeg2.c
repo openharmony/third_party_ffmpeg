@@ -40,6 +40,8 @@
 
 #define SUBSCRIPTS(subs, ...) (subs > 0 ? ((int[subs + 1]){ subs, __VA_ARGS__ }) : NULL)
 
+#define ui(width, name) \
+        xui(width, name, current->name, 0, MAX_UINT_BITS(width), 0, )
 #define uir(width, name) \
         xui(width, name, current->name, 1, MAX_UINT_BITS(width), 0, )
 #define uis(width, name, subs, ...) \
@@ -63,12 +65,6 @@
 #define READWRITE read
 #define RWContext GetBitContext
 
-#define ui(width, name) do { \
-        uint32_t value; \
-        CHECK(ff_cbs_read_simple_unsigned(ctx, rw, width, #name, \
-                                          &value)); \
-        current->name = value; \
-    } while (0)
 #define xuia(width, string, var, range_min, range_max, subs, ...) do { \
         uint32_t value; \
         CHECK(ff_cbs_read_unsigned(ctx, rw, width, string, \
@@ -99,7 +95,6 @@
 #undef READ
 #undef READWRITE
 #undef RWContext
-#undef ui
 #undef xuia
 #undef xsi
 #undef nextbits
@@ -109,11 +104,6 @@
 #define WRITE
 #define READWRITE write
 #define RWContext PutBitContext
-
-#define ui(width, name) do { \
-        CHECK(ff_cbs_write_simple_unsigned(ctx, rw, width, #name, \
-                                           current->name)); \
-    } while (0)
 
 #define xuia(width, string, var, range_min, range_max, subs, ...) do { \
         CHECK(ff_cbs_write_unsigned(ctx, rw, width, string, \
@@ -144,7 +134,6 @@
 #undef WRITE
 #undef READWRITE
 #undef RWContext
-#undef ui
 #undef xuia
 #undef xsi
 #undef nextbits
@@ -215,7 +204,7 @@ static int cbs_mpeg2_read_unit(CodedBitstreamContext *ctx,
     if (err < 0)
         return err;
 
-    err = ff_cbs_alloc_unit_content(ctx, unit);
+    err = ff_cbs_alloc_unit_content2(ctx, unit);
     if (err < 0)
         return err;
 
@@ -403,14 +392,14 @@ static const CodedBitstreamUnitTypeDescriptor cbs_mpeg2_unit_types[] = {
 
     {
         .nb_unit_types         = CBS_UNIT_TYPE_RANGE,
-        .unit_type.range.start = 0x01,
-        .unit_type.range.end   = 0xaf,
+        .unit_type_range_start = 0x01,
+        .unit_type_range_end   = 0xaf,
 
         .content_type   = CBS_CONTENT_TYPE_INTERNAL_REFS,
         .content_size   = sizeof(MPEG2RawSlice),
-        .type.ref = { .nb_offsets = 2,
-                      .offsets    = { offsetof(MPEG2RawSlice, header.extra_information_slice.extra_information),
-                                      offsetof(MPEG2RawSlice, data) } },
+        .nb_ref_offsets = 2,
+        .ref_offsets    = { offsetof(MPEG2RawSlice, header.extra_information_slice.extra_information),
+                            offsetof(MPEG2RawSlice, data) },
     },
 
     CBS_UNIT_TYPE_INTERNAL_REF(MPEG2_START_USER_DATA, MPEG2RawUserData,

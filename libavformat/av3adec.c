@@ -376,7 +376,7 @@ static int av3a_read_header(AVFormatContext *s)
     stream->start_time             = 0;
     ffstream(stream)->need_parsing = AVSTREAM_PARSE_FULL_RAW;
     stream->codecpar->codec_type   = AVMEDIA_TYPE_AUDIO;
-    // stream->codecpar->codec_id     = s->iformat->raw_codec_id;    // fixme update ffmpeg
+    stream->codecpar->codec_id     = s->iformat->raw_codec_id;
     stream->codecpar->codec_tag    = MKTAG('a', 'v', '3', 'a');
 
     if ((ret = avio_read(s->pb, header, AV3A_MAX_NBYTES_HEADER)) != AV3A_MAX_NBYTES_HEADER) {
@@ -467,15 +467,15 @@ static int av3a_read_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-const FFInputFormat ff_av3a_demuxer = {
-    .p.name           = "av3a",
-    .p.long_name      = NULL_IF_CONFIG_SMALL("Audio Vivid"),
+const AVInputFormat ff_av3a_demuxer = {
+    .name           = "av3a",
+    .long_name      = NULL_IF_CONFIG_SMALL("Audio Vivid"),
     .raw_codec_id   = AV_CODEC_ID_AVS3DA,
     .priv_data_size = sizeof(FFRawDemuxerContext),
     .read_probe     = av3a_probe,
     .read_header    = av3a_read_header,
     .read_packet    = av3a_read_packet,
-    .p.flags          = AVFMT_GENERIC_INDEX,
-    .p.extensions     = "av3a",
-    .p.mime_type      = "audio/av3a",
+    .flags          = AVFMT_GENERIC_INDEX,
+    .extensions     = "av3a",
+    .mime_type      = "audio/av3a",
 };

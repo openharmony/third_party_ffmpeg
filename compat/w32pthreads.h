@@ -35,6 +35,7 @@
  * As most functions here are used without checking return values,
  * only implement return values as necessary. */
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <process.h>
 #include <time.h>
@@ -65,14 +66,7 @@ typedef CONDITION_VARIABLE pthread_cond_t;
 #define PTHREAD_CANCEL_ENABLE 1
 #define PTHREAD_CANCEL_DISABLE 0
 
-#if HAVE_WINRT
-#define THREADFUNC_RETTYPE DWORD
-#else
-#define THREADFUNC_RETTYPE unsigned
-#endif
-
-static av_unused THREADFUNC_RETTYPE
-__stdcall attribute_align_arg win32thread_worker(void *arg)
+static av_unused unsigned __stdcall attribute_align_arg win32thread_worker(void *arg)
 {
     pthread_t *h = (pthread_t*)arg;
     h->ret = h->func(h->arg);

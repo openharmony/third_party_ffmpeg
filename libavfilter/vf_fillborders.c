@@ -25,7 +25,8 @@
 #include "libavutil/pixdesc.h"
 #include "avfilter.h"
 #include "drawutils.h"
-#include "filters.h"
+#include "formats.h"
+#include "internal.h"
 #include "video.h"
 
 enum { Y, U, V, A };
@@ -82,7 +83,7 @@ static void smear_borders8(FillBordersContext *s, AVFrame *frame)
 
     for (p = 0; p < s->nb_planes; p++) {
         uint8_t *ptr = frame->data[p];
-        ptrdiff_t linesize = frame->linesize[p];
+        int linesize = frame->linesize[p];
 
         for (y = s->borders[p].top; y < s->planeheight[p] - s->borders[p].bottom; y++) {
             memset(ptr + y * linesize,
@@ -112,7 +113,7 @@ static void smear_borders16(FillBordersContext *s, AVFrame *frame)
 
     for (p = 0; p < s->nb_planes; p++) {
         uint16_t *ptr = (uint16_t *)frame->data[p];
-        ptrdiff_t linesize = frame->linesize[p] / 2;
+        int linesize = frame->linesize[p] / 2;
 
         for (y = s->borders[p].top; y < s->planeheight[p] - s->borders[p].bottom; y++) {
             for (x = 0; x < s->borders[p].left; x++) {
@@ -144,7 +145,7 @@ static void mirror_borders8(FillBordersContext *s, AVFrame *frame)
 
     for (p = 0; p < s->nb_planes; p++) {
         uint8_t *ptr = frame->data[p];
-        ptrdiff_t linesize = frame->linesize[p];
+        int linesize = frame->linesize[p];
 
         for (y = s->borders[p].top; y < s->planeheight[p] - s->borders[p].bottom; y++) {
             for (x = 0; x < s->borders[p].left; x++) {
@@ -177,7 +178,7 @@ static void mirror_borders16(FillBordersContext *s, AVFrame *frame)
 
     for (p = 0; p < s->nb_planes; p++) {
         uint16_t *ptr = (uint16_t *)frame->data[p];
-        ptrdiff_t linesize = frame->linesize[p] / 2;
+        int linesize = frame->linesize[p] / 2;
 
         for (y = s->borders[p].top; y < s->planeheight[p] - s->borders[p].bottom; y++) {
             for (x = 0; x < s->borders[p].left; x++) {
@@ -211,7 +212,7 @@ static void fixed_borders8(FillBordersContext *s, AVFrame *frame)
     for (p = 0; p < s->nb_planes; p++) {
         uint8_t *ptr = frame->data[p];
         uint8_t fill = s->fill[p];
-        ptrdiff_t linesize = frame->linesize[p];
+        int linesize = frame->linesize[p];
 
         for (y = s->borders[p].top; y < s->planeheight[p] - s->borders[p].bottom; y++) {
             memset(ptr + y * linesize, fill, s->borders[p].left);
@@ -236,7 +237,7 @@ static void fixed_borders16(FillBordersContext *s, AVFrame *frame)
     for (p = 0; p < s->nb_planes; p++) {
         uint16_t *ptr = (uint16_t *)frame->data[p];
         uint16_t fill = s->fill[p] << (s->depth - 8);
-        ptrdiff_t linesize = frame->linesize[p] / 2;
+        int linesize = frame->linesize[p] / 2;
 
         for (y = s->borders[p].top; y < s->planeheight[p] - s->borders[p].bottom; y++) {
             for (x = 0; x < s->borders[p].left; x++) {
@@ -268,7 +269,7 @@ static void reflect_borders8(FillBordersContext *s, AVFrame *frame)
 
     for (p = 0; p < s->nb_planes; p++) {
         uint8_t *ptr = frame->data[p];
-        ptrdiff_t linesize = frame->linesize[p];
+        int linesize = frame->linesize[p];
 
         for (y = s->borders[p].top; y < s->planeheight[p] - s->borders[p].bottom; y++) {
             for (x = 0; x < s->borders[p].left; x++) {
@@ -301,7 +302,7 @@ static void reflect_borders16(FillBordersContext *s, AVFrame *frame)
 
     for (p = 0; p < s->nb_planes; p++) {
         uint16_t *ptr = (uint16_t *)frame->data[p];
-        ptrdiff_t linesize = frame->linesize[p] / 2;
+        int linesize = frame->linesize[p] / 2;
 
         for (y = s->borders[p].top; y < s->planeheight[p] - s->borders[p].bottom; y++) {
             for (x = 0; x < s->borders[p].left; x++) {
@@ -334,7 +335,7 @@ static void wrap_borders8(FillBordersContext *s, AVFrame *frame)
 
     for (p = 0; p < s->nb_planes; p++) {
         uint8_t *ptr = frame->data[p];
-        ptrdiff_t linesize = frame->linesize[p];
+        int linesize = frame->linesize[p];
 
         for (y = s->borders[p].top; y < s->planeheight[p] - s->borders[p].bottom; y++) {
             for (x = 0; x < s->borders[p].left; x++) {
@@ -367,7 +368,7 @@ static void wrap_borders16(FillBordersContext *s, AVFrame *frame)
 
     for (p = 0; p < s->nb_planes; p++) {
         uint16_t *ptr = (uint16_t *)frame->data[p];
-        ptrdiff_t linesize = frame->linesize[p] / 2;
+        int linesize = frame->linesize[p] / 2;
 
         for (y = s->borders[p].top; y < s->planeheight[p] - s->borders[p].bottom; y++) {
             for (x = 0; x < s->borders[p].left; x++) {
@@ -411,7 +412,7 @@ static void fade_borders8(FillBordersContext *s, AVFrame *frame)
     for (p = 0; p < s->nb_planes; p++) {
         uint8_t *ptr = frame->data[p];
         const uint8_t fill = s->fill[p];
-        const ptrdiff_t linesize = frame->linesize[p];
+        const int linesize = frame->linesize[p];
         const int start_left = s->borders[p].left;
         const int start_right = s->planewidth[p] - s->borders[p].right;
         const int start_top = s->borders[p].top;
@@ -453,7 +454,7 @@ static void fade_borders16(FillBordersContext *s, AVFrame *frame)
     for (p = 0; p < s->nb_planes; p++) {
         uint16_t *ptr = (uint16_t *)frame->data[p];
         const uint16_t fill = s->fill[p] << (depth - 8);
-        const ptrdiff_t linesize = frame->linesize[p] / 2;
+        const int linesize = frame->linesize[p] / 2;
         const int start_left = s->borders[p].left;
         const int start_right = s->planewidth[p] - s->borders[p].right;
         const int start_top = s->borders[p].top;
@@ -491,7 +492,7 @@ static void margins_borders8(FillBordersContext *s, AVFrame *frame)
 {
     for (int p = 0; p < s->nb_planes; p++) {
         uint8_t *ptr = (uint8_t *)frame->data[p];
-        const ptrdiff_t linesize = frame->linesize[p];
+        const int linesize = frame->linesize[p];
         const int left = s->borders[p].left;
         const int right = s->borders[p].right;
         const int top = s->borders[p].top;
@@ -536,7 +537,7 @@ static void margins_borders16(FillBordersContext *s, AVFrame *frame)
 {
     for (int p = 0; p < s->nb_planes; p++) {
         uint16_t *ptr = (uint16_t *)frame->data[p];
-        const ptrdiff_t linesize = frame->linesize[p] / 2;
+        const int linesize = frame->linesize[p] / 2;
         const int left = s->borders[p].left;
         const int right = s->borders[p].right;
         const int top = s->borders[p].top;
@@ -682,14 +683,14 @@ static const AVOption fillborders_options[] = {
     { "right",  "set the right fill border",  OFFSET(right),  AV_OPT_TYPE_INT, {.i64=0}, 0, INT_MAX,    FLAGS },
     { "top",    "set the top fill border",    OFFSET(top),    AV_OPT_TYPE_INT, {.i64=0}, 0, INT_MAX,    FLAGS },
     { "bottom", "set the bottom fill border", OFFSET(bottom), AV_OPT_TYPE_INT, {.i64=0}, 0, INT_MAX,    FLAGS },
-    { "mode",   "set the fill borders mode",  OFFSET(mode),   AV_OPT_TYPE_INT, {.i64=FM_SMEAR}, 0, FM_NB_MODES-1, FLAGS, .unit = "mode" },
-        { "smear",  NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_SMEAR},  0, 0, FLAGS, .unit = "mode" },
-        { "mirror", NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_MIRROR}, 0, 0, FLAGS, .unit = "mode" },
-        { "fixed",  NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_FIXED},  0, 0, FLAGS, .unit = "mode" },
-        { "reflect",NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_REFLECT},0, 0, FLAGS, .unit = "mode" },
-        { "wrap",   NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_WRAP},   0, 0, FLAGS, .unit = "mode" },
-        { "fade",   NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_FADE},   0, 0, FLAGS, .unit = "mode" },
-        { "margins",NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_MARGINS},0, 0, FLAGS, .unit = "mode" },
+    { "mode",   "set the fill borders mode",  OFFSET(mode),   AV_OPT_TYPE_INT, {.i64=FM_SMEAR}, 0, FM_NB_MODES-1, FLAGS, "mode" },
+        { "smear",  NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_SMEAR},  0, 0, FLAGS, "mode" },
+        { "mirror", NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_MIRROR}, 0, 0, FLAGS, "mode" },
+        { "fixed",  NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_FIXED},  0, 0, FLAGS, "mode" },
+        { "reflect",NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_REFLECT},0, 0, FLAGS, "mode" },
+        { "wrap",   NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_WRAP},   0, 0, FLAGS, "mode" },
+        { "fade",   NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_FADE},   0, 0, FLAGS, "mode" },
+        { "margins",NULL, 0, AV_OPT_TYPE_CONST, {.i64=FM_MARGINS},0, 0, FLAGS, "mode" },
     { "color",  "set the color for the fixed/fade mode", OFFSET(rgba_color), AV_OPT_TYPE_COLOR, {.str = "black"}, .flags = FLAGS },
     { NULL }
 };
@@ -706,13 +707,20 @@ static const AVFilterPad fillborders_inputs[] = {
     },
 };
 
+static const AVFilterPad fillborders_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 const AVFilter ff_vf_fillborders = {
     .name          = "fillborders",
     .description   = NULL_IF_CONFIG_SMALL("Fill borders of the input video."),
     .priv_size     = sizeof(FillBordersContext),
     .priv_class    = &fillborders_class,
     FILTER_INPUTS(fillborders_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(fillborders_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC,
     .process_command = process_command,

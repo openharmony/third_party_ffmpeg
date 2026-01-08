@@ -24,9 +24,6 @@
 #include "libavutil/x86/cpu.h"
 #include "libavcodec/audiodsp.h"
 
-int32_t ff_scalarproduct_int16_avx2(const int16_t *v1, const int16_t *v2,
-                                    int order);
-
 int32_t ff_scalarproduct_int16_sse2(const int16_t *v1, const int16_t *v2,
                                     int order);
 
@@ -56,7 +53,4 @@ av_cold void ff_audiodsp_init_x86(AudioDSPContext *c)
 
     if (EXTERNAL_SSE4(cpu_flags))
         c->vector_clip_int32 = ff_vector_clip_int32_sse4;
-
-    if (EXTERNAL_AVX2_FAST(cpu_flags))
-        c->scalarproduct_int16 = ff_scalarproduct_int16_avx2;
 }

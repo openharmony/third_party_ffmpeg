@@ -22,6 +22,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <stdio.h>
+
 #include "idctdsp.h"
 #include "mathops.h"
 #include "cavsdsp.h"
@@ -425,14 +427,13 @@ static void OPNAME ## cavs_filt8_hv_ ## NAME(uint8_t *dst, const uint8_t *src1, 
 \
 static void OPNAME ## cavs_filt16_hv_ ## NAME(uint8_t *dst, const uint8_t *src1, const uint8_t *src2, ptrdiff_t dstStride, ptrdiff_t srcStride)\
 {                                                                       \
-    OPNAME ## cavs_filt8_hv_ ## NAME(dst  , src1,   FULL ? src2     : NULL, dstStride, srcStride); \
-    OPNAME ## cavs_filt8_hv_ ## NAME(dst+8, src1+8, FULL ? src2 + 8 : NULL, dstStride, srcStride); \
+    OPNAME ## cavs_filt8_hv_ ## NAME(dst  , src1,   src2  , dstStride, srcStride); \
+    OPNAME ## cavs_filt8_hv_ ## NAME(dst+8, src1+8, src2+8, dstStride, srcStride); \
     src1 += 8*srcStride;\
-    if (FULL) \
-        src2 += 8*srcStride;\
+    src2 += 8*srcStride;\
     dst += 8*dstStride;\
-    OPNAME ## cavs_filt8_hv_ ## NAME(dst  , src1,   FULL ? src2     : NULL, dstStride, srcStride); \
-    OPNAME ## cavs_filt8_hv_ ## NAME(dst+8, src1+8, FULL ? src2 + 8 : NULL, dstStride, srcStride); \
+    OPNAME ## cavs_filt8_hv_ ## NAME(dst  , src1,   src2  , dstStride, srcStride); \
+    OPNAME ## cavs_filt8_hv_ ## NAME(dst+8, src1+8, src2+8, dstStride, srcStride); \
 }\
 
 #define CAVS_MC(OPNAME, SIZE) \
@@ -493,22 +494,22 @@ static void OPNAME ## cavs_qpel ## SIZE ## _mc33_c(uint8_t *dst, const uint8_t *
 \
 static void OPNAME ## cavs_qpel ## SIZE ## _mc21_c(uint8_t *dst, const uint8_t *src, ptrdiff_t stride)\
 {\
-  OPNAME ## cavs_filt ## SIZE ## _hv_ff(dst, src, NULL, stride, stride); \
+  OPNAME ## cavs_filt ## SIZE ## _hv_ff(dst, src, src+stride+1,stride, stride); \
 }\
 \
 static void OPNAME ## cavs_qpel ## SIZE ## _mc12_c(uint8_t *dst, const uint8_t *src, ptrdiff_t stride)\
 {\
-  OPNAME ## cavs_filt ## SIZE ## _hv_ii(dst, src, NULL, stride, stride); \
+  OPNAME ## cavs_filt ## SIZE ## _hv_ii(dst, src, src+stride+1,stride, stride); \
 }\
 \
 static void OPNAME ## cavs_qpel ## SIZE ## _mc32_c(uint8_t *dst, const uint8_t *src, ptrdiff_t stride)\
 {\
-  OPNAME ## cavs_filt ## SIZE ## _hv_kk(dst, src, NULL, stride, stride); \
+  OPNAME ## cavs_filt ## SIZE ## _hv_kk(dst, src, src+stride+1,stride, stride); \
 }\
 \
 static void OPNAME ## cavs_qpel ## SIZE ## _mc23_c(uint8_t *dst, const uint8_t *src, ptrdiff_t stride)\
 {\
-  OPNAME ## cavs_filt ## SIZE ## _hv_qq(dst, src, NULL, stride, stride); \
+  OPNAME ## cavs_filt ## SIZE ## _hv_qq(dst, src, src+stride+1,stride, stride); \
 }\
 
 #define op_put1(a, b)  a = cm[((b)+4)>>3]
@@ -547,8 +548,7 @@ CAVS_MC(avg_, 16)
 #define put_cavs_qpel16_mc00_c ff_put_pixels16x16_c
 #define avg_cavs_qpel16_mc00_c ff_avg_pixels16x16_c
 
-av_cold void ff_cavsdsp_init(CAVSDSPContext* c)
-{
+av_cold void ff_cavsdsp_init(CAVSDSPContext* c, AVCodecContext *avctx) {
 #define dspfunc(PFX, IDX, NUM) \
     c->PFX ## _pixels_tab[IDX][ 0] = PFX ## NUM ## _mc00_c; \
     c->PFX ## _pixels_tab[IDX][ 1] = PFX ## NUM ## _mc10_c; \
@@ -578,6 +578,6 @@ av_cold void ff_cavsdsp_init(CAVSDSPContext* c)
     c->idct_perm = FF_IDCT_PERM_NONE;
 
 #if ARCH_X86
-    ff_cavsdsp_init_x86(c);
+    ff_cavsdsp_init_x86(c, avctx);
 #endif
 }

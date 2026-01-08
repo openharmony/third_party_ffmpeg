@@ -23,7 +23,6 @@
 
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "riff.h"
 
@@ -232,9 +231,9 @@ static int dxa_read_packet(AVFormatContext *s, AVPacket *pkt)
     return AVERROR_EOF;
 }
 
-const FFInputFormat ff_dxa_demuxer = {
-    .p.name         = "dxa",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("DXA"),
+const AVInputFormat ff_dxa_demuxer = {
+    .name           = "dxa",
+    .long_name      = NULL_IF_CONFIG_SMALL("DXA"),
     .priv_data_size = sizeof(DXAContext),
     .read_probe     = dxa_probe,
     .read_header    = dxa_read_header,

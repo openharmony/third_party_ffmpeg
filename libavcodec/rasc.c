@@ -21,15 +21,16 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "libavutil/mem.h"
+#include "libavutil/imgutils.h"
 #include "libavutil/opt.h"
 
 #include "avcodec.h"
 #include "bytestream.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 #include "zlib_wrapper.h"
 
 #include <zlib.h>
@@ -380,8 +381,8 @@ static int decode_dlta(AVCodecContext *avctx,
     if (!s->frame2->data[0] || !s->frame1->data[0])
         return AVERROR_INVALIDDATA;
 
-    b1  = s->frame1->data[0] + s->frame1->linesize[0] * (int)(y + h - 1) + ((int)x) * s->bpp;
-    b2  = s->frame2->data[0] + s->frame2->linesize[0] * (int)(y + h - 1) + ((int)x) * s->bpp;
+    b1  = s->frame1->data[0] + s->frame1->linesize[0] * (y + h - 1) + x * s->bpp;
+    b2  = s->frame2->data[0] + s->frame2->linesize[0] * (y + h - 1) + x * s->bpp;
     cx = 0, cy = h;
     while (bytestream2_get_bytes_left(&dc) > 0) {
         int type = bytestream2_get_byte(&dc);
@@ -621,7 +622,7 @@ static void draw_cursor(AVCodecContext *avctx)
                 if (cr == s->cursor[0] && cg == s->cursor[1] && cb == s->cursor[2])
                     continue;
 
-                dst = s->frame->data[0] + s->frame->linesize[0] * (int)(s->cursor_y + i) + (int)(s->cursor_x + j);
+                dst = s->frame->data[0] + s->frame->linesize[0] * (s->cursor_y + i) + (s->cursor_x + j);
                 for (int k = 0; k < 256; k++) {
                     int pr = pal[k * 4 + 0];
                     int pg = pal[k * 4 + 1];
@@ -647,7 +648,7 @@ static void draw_cursor(AVCodecContext *avctx)
                     continue;
 
                 cr >>= 3; cg >>=3; cb >>= 3;
-                dst = s->frame->data[0] + s->frame->linesize[0] * (int)(s->cursor_y + i) + 2 * (s->cursor_x + j);
+                dst = s->frame->data[0] + s->frame->linesize[0] * (s->cursor_y + i) + 2 * (s->cursor_x + j);
                 AV_WL16(dst, cr | cg << 5 | cb << 10);
             }
         }
@@ -661,7 +662,7 @@ static void draw_cursor(AVCodecContext *avctx)
                 if (cr == s->cursor[0] && cg == s->cursor[1] && cb == s->cursor[2])
                     continue;
 
-                dst = s->frame->data[0] + s->frame->linesize[0] * (int)(s->cursor_y + i) + 4 * (s->cursor_x + j);
+                dst = s->frame->data[0] + s->frame->linesize[0] * (s->cursor_y + i) + 4 * (s->cursor_x + j);
                 dst[0] = cb;
                 dst[1] = cg;
                 dst[2] = cr;
@@ -741,10 +742,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
     if (!s->skip_cursor)
         draw_cursor(avctx);
 
-    if (intra)
-        s->frame->flags |= AV_FRAME_FLAG_KEY;
-    else
-        s->frame->flags &= ~AV_FRAME_FLAG_KEY;
+    s->frame->key_frame = intra;
     s->frame->pict_type = intra ? AV_PICTURE_TYPE_I : AV_PICTURE_TYPE_P;
 
     *got_frame = 1;
@@ -801,7 +799,7 @@ static const AVClass rasc_decoder_class = {
 
 const FFCodec ff_rasc_decoder = {
     .p.name           = "rasc",
-    CODEC_LONG_NAME("RemotelyAnywhere Screen Capture"),
+    .p.long_name      = NULL_IF_CONFIG_SMALL("RemotelyAnywhere Screen Capture"),
     .p.type           = AVMEDIA_TYPE_VIDEO,
     .p.id             = AV_CODEC_ID_RASC,
     .priv_data_size   = sizeof(RASCContext),
@@ -810,6 +808,7 @@ const FFCodec ff_rasc_decoder = {
     FF_CODEC_DECODE_CB(decode_frame),
     .flush            = decode_flush,
     .p.capabilities   = AV_CODEC_CAP_DR1,
-    .caps_internal    = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal    = FF_CODEC_CAP_INIT_THREADSAFE |
+                        FF_CODEC_CAP_INIT_CLEANUP,
     .p.priv_class     = &rasc_decoder_class,
 };

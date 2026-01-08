@@ -18,11 +18,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include "libavutil/imgutils.h"
 #include "libavutil/pixdesc.h"
 #include "libavutil/opt.h"
 #include "avfilter.h"
-#include "filters.h"
+#include "formats.h"
 #include "framesync.h"
+#include "internal.h"
 #include "video.h"
 
 enum EdgeMode {
@@ -43,18 +45,19 @@ typedef struct DisplaceContext {
     uint8_t blank[4];
     FFFrameSync fs;
 
-    int (*displace_slice)(AVFilterContext *ctx, void *arg, int jobnr, int nb_jobs);
+    void (*displace)(struct DisplaceContext *s, const AVFrame *in,
+                     const AVFrame *xpic, const AVFrame *ypic, AVFrame *out);
 } DisplaceContext;
 
 #define OFFSET(x) offsetof(DisplaceContext, x)
-#define FLAGS AV_OPT_FLAG_FILTERING_PARAM|AV_OPT_FLAG_VIDEO_PARAM|AV_OPT_FLAG_RUNTIME_PARAM
+#define FLAGS AV_OPT_FLAG_FILTERING_PARAM|AV_OPT_FLAG_VIDEO_PARAM
 
 static const AVOption displace_options[] = {
-    { "edge", "set edge mode", OFFSET(edge), AV_OPT_TYPE_INT, {.i64=EDGE_SMEAR}, 0, EDGE_NB-1, FLAGS, .unit = "edge" },
-    {   "blank",   "", 0, AV_OPT_TYPE_CONST, {.i64=EDGE_BLANK},  0, 0, FLAGS, .unit = "edge" },
-    {   "smear",   "", 0, AV_OPT_TYPE_CONST, {.i64=EDGE_SMEAR},  0, 0, FLAGS, .unit = "edge" },
-    {   "wrap" ,   "", 0, AV_OPT_TYPE_CONST, {.i64=EDGE_WRAP},   0, 0, FLAGS, .unit = "edge" },
-    {   "mirror" , "", 0, AV_OPT_TYPE_CONST, {.i64=EDGE_MIRROR}, 0, 0, FLAGS, .unit = "edge" },
+    { "edge", "set edge mode", OFFSET(edge), AV_OPT_TYPE_INT, {.i64=EDGE_SMEAR}, 0, EDGE_NB-1, FLAGS, "edge" },
+    {   "blank",   "", 0, AV_OPT_TYPE_CONST, {.i64=EDGE_BLANK},  0, 0, FLAGS, "edge" },
+    {   "smear",   "", 0, AV_OPT_TYPE_CONST, {.i64=EDGE_SMEAR},  0, 0, FLAGS, "edge" },
+    {   "wrap" ,   "", 0, AV_OPT_TYPE_CONST, {.i64=EDGE_WRAP},   0, 0, FLAGS, "edge" },
+    {   "mirror" , "", 0, AV_OPT_TYPE_CONST, {.i64=EDGE_MIRROR}, 0, 0, FLAGS, "edge" },
     { NULL }
 };
 
@@ -73,38 +76,29 @@ static const enum AVPixelFormat pix_fmts[] = {
     AV_PIX_FMT_GRAY8, AV_PIX_FMT_NONE
 };
 
-typedef struct ThreadData {
-    AVFrame *in, *xin, *yin, *out;
-} ThreadData;
-
-static int displace_planar(AVFilterContext *ctx, void *arg, int jobnr, int nb_jobs)
+static void displace_planar(DisplaceContext *s, const AVFrame *in,
+                            const AVFrame *xpic, const AVFrame *ypic,
+                            AVFrame *out)
 {
-    DisplaceContext *s = ctx->priv;
-    const ThreadData *td = arg;
-    const AVFrame *in  = td->in;
-    const AVFrame *xin = td->xin;
-    const AVFrame *yin = td->yin;
-    const AVFrame *out = td->out;
+    int plane, x, y;
 
-    for (int plane = 0; plane < s->nb_planes; plane++) {
+    for (plane = 0; plane < s->nb_planes; plane++) {
         const int h = s->height[plane];
         const int w = s->width[plane];
-        const int slice_start = (h *  jobnr   ) / nb_jobs;
-        const int slice_end   = (h * (jobnr+1)) / nb_jobs;
         const int dlinesize = out->linesize[plane];
         const int slinesize = in->linesize[plane];
-        const int xlinesize = xin->linesize[plane];
-        const int ylinesize = yin->linesize[plane];
+        const int xlinesize = xpic->linesize[plane];
+        const int ylinesize = ypic->linesize[plane];
         const uint8_t *src = in->data[plane];
-        const uint8_t *ysrc = yin->data[plane] + slice_start * ylinesize;
-        const uint8_t *xsrc = xin->data[plane] + slice_start * xlinesize;
-        uint8_t *dst = out->data[plane] + slice_start * dlinesize;
+        const uint8_t *ysrc = ypic->data[plane];
+        const uint8_t *xsrc = xpic->data[plane];
+        uint8_t *dst = out->data[plane];
         const uint8_t blank = s->blank[plane];
 
-        for (int y = slice_start; y < slice_end; y++) {
+        for (y = 0; y < h; y++) {
             switch (s->edge) {
             case EDGE_BLANK:
-                for (int x = 0; x < w; x++) {
+                for (x = 0; x < w; x++) {
                     int Y = y + ysrc[x] - 128;
                     int X = x + xsrc[x] - 128;
 
@@ -115,14 +109,14 @@ static int displace_planar(AVFilterContext *ctx, void *arg, int jobnr, int nb_jo
                 }
                 break;
             case EDGE_SMEAR:
-                for (int x = 0; x < w; x++) {
+                for (x = 0; x < w; x++) {
                     int Y = av_clip(y + ysrc[x] - 128, 0, h - 1);
                     int X = av_clip(x + xsrc[x] - 128, 0, w - 1);
                     dst[x] = src[Y * slinesize + X];
                 }
                 break;
             case EDGE_WRAP:
-                for (int x = 0; x < w; x++) {
+                for (x = 0; x < w; x++) {
                     int Y = (y + ysrc[x] - 128) % h;
                     int X = (x + xsrc[x] - 128) % w;
 
@@ -134,7 +128,7 @@ static int displace_planar(AVFilterContext *ctx, void *arg, int jobnr, int nb_jo
                 }
                 break;
             case EDGE_MIRROR:
-                for (int x = 0; x < w; x++) {
+                for (x = 0; x < w; x++) {
                     int Y = y + ysrc[x] - 128;
                     int X = x + xsrc[x] - 128;
 
@@ -156,37 +150,31 @@ static int displace_planar(AVFilterContext *ctx, void *arg, int jobnr, int nb_jo
             dst  += dlinesize;
         }
     }
-    return 0;
 }
 
-static int displace_packed(AVFilterContext *ctx, void *arg, int jobnr, int nb_jobs)
+static void displace_packed(DisplaceContext *s, const AVFrame *in,
+                            const AVFrame *xpic, const AVFrame *ypic,
+                            AVFrame *out)
 {
-    DisplaceContext *s = ctx->priv;
-    const ThreadData *td = arg;
-    const AVFrame *in  = td->in;
-    const AVFrame *xin = td->xin;
-    const AVFrame *yin = td->yin;
-    const AVFrame *out = td->out;
     const int step = s->step;
     const int h = s->height[0];
     const int w = s->width[0];
-    const int slice_start = (h *  jobnr   ) / nb_jobs;
-    const int slice_end   = (h * (jobnr+1)) / nb_jobs;
     const int dlinesize = out->linesize[0];
     const int slinesize = in->linesize[0];
-    const int xlinesize = xin->linesize[0];
-    const int ylinesize = yin->linesize[0];
+    const int xlinesize = xpic->linesize[0];
+    const int ylinesize = ypic->linesize[0];
     const uint8_t *src = in->data[0];
-    const uint8_t *ysrc = yin->data[0] + slice_start * ylinesize;
-    const uint8_t *xsrc = xin->data[0] + slice_start * xlinesize;
-    uint8_t *dst = out->data[0] + slice_start * dlinesize;
+    const uint8_t *ysrc = ypic->data[0];
+    const uint8_t *xsrc = xpic->data[0];
     const uint8_t *blank = s->blank;
+    uint8_t *dst = out->data[0];
+    int c, x, y;
 
-    for (int y = slice_start; y < slice_end; y++) {
+    for (y = 0; y < h; y++) {
         switch (s->edge) {
         case EDGE_BLANK:
-            for (int x = 0; x < w; x++) {
-                for (int c = 0; c < s->nb_components; c++) {
+            for (x = 0; x < w; x++) {
+                for (c = 0; c < s->nb_components; c++) {
                     int Y = y + (ysrc[x * step + c] - 128);
                     int X = x + (xsrc[x * step + c] - 128);
 
@@ -198,8 +186,8 @@ static int displace_packed(AVFilterContext *ctx, void *arg, int jobnr, int nb_jo
             }
             break;
         case EDGE_SMEAR:
-            for (int x = 0; x < w; x++) {
-                for (int c = 0; c < s->nb_components; c++) {
+            for (x = 0; x < w; x++) {
+                for (c = 0; c < s->nb_components; c++) {
                     int Y = av_clip(y + (ysrc[x * step + c] - 128), 0, h - 1);
                     int X = av_clip(x + (xsrc[x * step + c] - 128), 0, w - 1);
 
@@ -208,8 +196,8 @@ static int displace_packed(AVFilterContext *ctx, void *arg, int jobnr, int nb_jo
             }
             break;
         case EDGE_WRAP:
-            for (int x = 0; x < w; x++) {
-                for (int c = 0; c < s->nb_components; c++) {
+            for (x = 0; x < w; x++) {
+                for (c = 0; c < s->nb_components; c++) {
                     int Y = (y + (ysrc[x * step + c] - 128)) % h;
                     int X = (x + (xsrc[x * step + c] - 128)) % w;
 
@@ -222,8 +210,8 @@ static int displace_packed(AVFilterContext *ctx, void *arg, int jobnr, int nb_jo
             }
             break;
         case EDGE_MIRROR:
-            for (int x = 0; x < w; x++) {
-                for (int c = 0; c < s->nb_components; c++) {
+            for (x = 0; x < w; x++) {
+                for (c = 0; c < s->nb_components; c++) {
                     int Y = y + ysrc[x * step + c] - 128;
                     int X = x + xsrc[x * step + c] - 128;
 
@@ -245,7 +233,6 @@ static int displace_packed(AVFilterContext *ctx, void *arg, int jobnr, int nb_jo
         xsrc += xlinesize;
         dst  += dlinesize;
     }
-    return 0;
 }
 
 static int process_frame(FFFrameSync *fs)
@@ -253,12 +240,12 @@ static int process_frame(FFFrameSync *fs)
     AVFilterContext *ctx = fs->parent;
     DisplaceContext *s = fs->opaque;
     AVFilterLink *outlink = ctx->outputs[0];
-    AVFrame *out, *in, *xin, *yin;
+    AVFrame *out, *in, *xpic, *ypic;
     int ret;
 
-    if ((ret = ff_framesync_get_frame(&s->fs, 0, &in,  0)) < 0 ||
-        (ret = ff_framesync_get_frame(&s->fs, 1, &xin, 0)) < 0 ||
-        (ret = ff_framesync_get_frame(&s->fs, 2, &yin, 0)) < 0)
+    if ((ret = ff_framesync_get_frame(&s->fs, 0, &in,   0)) < 0 ||
+        (ret = ff_framesync_get_frame(&s->fs, 1, &xpic, 0)) < 0 ||
+        (ret = ff_framesync_get_frame(&s->fs, 2, &ypic, 0)) < 0)
         return ret;
 
     if (ctx->is_disabled) {
@@ -266,19 +253,12 @@ static int process_frame(FFFrameSync *fs)
         if (!out)
             return AVERROR(ENOMEM);
     } else {
-        ThreadData td;
-
         out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
         if (!out)
             return AVERROR(ENOMEM);
         av_frame_copy_props(out, in);
 
-        td.in  = in;
-        td.xin = xin;
-        td.yin = yin;
-        td.out = out;
-        ff_filter_execute(ctx, s->displace_slice, &td, NULL,
-                          FFMIN(outlink->h, ff_filter_get_nb_threads(ctx)));
+        s->displace(s, in, xpic, ypic, out);
     }
     out->pts = av_rescale_q(s->fs.pts, s->fs.time_base, outlink->time_base);
 
@@ -296,9 +276,9 @@ static int config_input(AVFilterLink *inlink)
     s->nb_components = desc->nb_components;
 
     if (s->nb_planes > 1 || s->nb_components == 1)
-        s->displace_slice = displace_planar;
+        s->displace = displace_planar;
     else
-        s->displace_slice = displace_packed;
+        s->displace = displace_packed;
 
     if (!(desc->flags & AV_PIX_FMT_FLAG_RGB)) {
         s->blank[1] = s->blank[2] = 128;
@@ -318,11 +298,9 @@ static int config_input(AVFilterLink *inlink)
 
 static int config_output(AVFilterLink *outlink)
 {
-    FilterLink     *outl = ff_filter_link(outlink);
     AVFilterContext *ctx = outlink->src;
     DisplaceContext *s = ctx->priv;
     AVFilterLink *srclink = ctx->inputs[0];
-    FilterLink        *sl = ff_filter_link(srclink);
     AVFilterLink *xlink = ctx->inputs[1];
     AVFilterLink *ylink = ctx->inputs[2];
     FFFrameSyncIn *in;
@@ -345,7 +323,7 @@ static int config_output(AVFilterLink *outlink)
     outlink->w = srclink->w;
     outlink->h = srclink->h;
     outlink->sample_aspect_ratio = srclink->sample_aspect_ratio;
-    outl->frame_rate = sl->frame_rate;
+    outlink->frame_rate = srclink->frame_rate;
 
     ret = ff_framesync_init(&s->fs, ctx, 3);
     if (ret < 0)
@@ -420,7 +398,5 @@ const AVFilter ff_vf_displace = {
     FILTER_OUTPUTS(displace_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .priv_class    = &displace_class,
-    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL |
-                     AVFILTER_FLAG_SLICE_THREADS,
-    .process_command = ff_filter_process_command,
+    .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_INTERNAL,
 };

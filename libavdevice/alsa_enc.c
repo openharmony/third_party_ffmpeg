@@ -39,7 +39,6 @@
 
 #include <alsa/asoundlib.h>
 
-#include "libavutil/frame.h"
 #include "libavutil/internal.h"
 #include "libavutil/time.h"
 
@@ -132,7 +131,7 @@ static int audio_write_frame(AVFormatContext *s1, int stream_index,
     pkt.data     = (*frame)->data[0];
     pkt.size     = (*frame)->nb_samples * s->frame_size;
     pkt.dts      = (*frame)->pkt_dts;
-    pkt.duration = (*frame)->duration;
+    pkt.duration = (*frame)->pkt_duration;
     return audio_write_packet(s1, &pkt);
 }
 
@@ -159,18 +158,18 @@ static const AVClass alsa_muxer_class = {
     .category       = AV_CLASS_CATEGORY_DEVICE_AUDIO_OUTPUT,
 };
 
-const FFOutputFormat ff_alsa_muxer = {
-    .p.name         = "alsa",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("ALSA audio output"),
+const AVOutputFormat ff_alsa_muxer = {
+    .name           = "alsa",
+    .long_name      = NULL_IF_CONFIG_SMALL("ALSA audio output"),
     .priv_data_size = sizeof(AlsaData),
-    .p.audio_codec  = DEFAULT_CODEC_ID,
-    .p.video_codec  = AV_CODEC_ID_NONE,
+    .audio_codec    = DEFAULT_CODEC_ID,
+    .video_codec    = AV_CODEC_ID_NONE,
     .write_header   = audio_write_header,
     .write_packet   = audio_write_packet,
     .write_trailer  = ff_alsa_close,
     .write_uncoded_frame = audio_write_frame,
     .get_device_list = audio_get_device_list,
     .get_output_timestamp = audio_get_output_timestamp,
-    .p.flags        = AVFMT_NOFILE,
-    .p.priv_class   = &alsa_muxer_class,
+    .flags          = AVFMT_NOFILE,
+    .priv_class     = &alsa_muxer_class,
 };

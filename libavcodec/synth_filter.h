@@ -21,20 +21,19 @@
 #ifndef AVCODEC_SYNTH_FILTER_H
 #define AVCODEC_SYNTH_FILTER_H
 
-#include "libavutil/tx.h"
+#include "fft.h"
 #include "dcadct.h"
 
 typedef struct SynthFilterContext {
-    void (*synth_filter_float)(AVTXContext *imdct,
+    void (*synth_filter_float)(FFTContext *imdct,
                                float *synth_buf_ptr, int *synth_buf_offset,
                                float synth_buf2[32], const float window[512],
-                               float out[32], float in[32],
-                               float scale, av_tx_fn imdct_fn);
-    void (*synth_filter_float_64)(AVTXContext *imdct,
+                               float out[32], const float in[32],
+                               float scale);
+    void (*synth_filter_float_64)(FFTContext *imdct,
                                   float *synth_buf_ptr, int *synth_buf_offset,
                                   float synth_buf2[64], const float window[1024],
-                                  float out[64], float in[64], float scale,
-                                  av_tx_fn imdct_fn);
+                                  float out[64], const float in[64], float scale);
     void (*synth_filter_fixed)(DCADCTContext *imdct,
                                int32_t *synth_buf_ptr, int *synth_buf_offset,
                                int32_t synth_buf2[32], const int32_t window[512],

@@ -20,27 +20,25 @@
  */
 
 #include "avformat.h"
+#include "internal.h"
 #include "network.h"
 #include "os_support.h"
 #include "url.h"
 #include "tls.h"
 #include "libavutil/avstring.h"
 #include "libavutil/getenv_utf8.h"
-#include "libavutil/mem.h"
+#include "libavutil/opt.h"
 #include "libavutil/parseutils.h"
 
-static int set_options(TLSShared *c, const char *uri)
+static void set_options(TLSShared *c, const char *uri)
 {
     char buf[1024];
     const char *p = strchr(uri, '?');
     if (!p)
-        return 0;
+        return;
 
-    if (!c->ca_file && av_find_info_tag(buf, sizeof(buf), "cafile", p)) {
+    if (!c->ca_file && av_find_info_tag(buf, sizeof(buf), "cafile", p))
         c->ca_file = av_strdup(buf);
-        if (!c->ca_file)
-            return AVERROR(ENOMEM);
-    }
 
     if (!c->verify && av_find_info_tag(buf, sizeof(buf), "verify", p)) {
         char *endptr = NULL;
@@ -49,19 +47,11 @@ static int set_options(TLSShared *c, const char *uri)
             c->verify = 1;
     }
 
-    if (!c->cert_file && av_find_info_tag(buf, sizeof(buf), "cert", p)) {
+    if (!c->cert_file && av_find_info_tag(buf, sizeof(buf), "cert", p))
         c->cert_file = av_strdup(buf);
-        if (!c->cert_file)
-            return AVERROR(ENOMEM);
-    }
 
-    if (!c->key_file && av_find_info_tag(buf, sizeof(buf), "key", p)) {
+    if (!c->key_file && av_find_info_tag(buf, sizeof(buf), "key", p))
         c->key_file = av_strdup(buf);
-        if (!c->key_file)
-            return AVERROR(ENOMEM);
-    }
-
-    return 0;
 }
 
 int ff_tls_open_underlying(TLSShared *c, URLContext *parent, const char *uri, AVDictionary **options)
@@ -73,11 +63,8 @@ int ff_tls_open_underlying(TLSShared *c, URLContext *parent, const char *uri, AV
     const char *proxy_path;
     char *env_http_proxy, *env_no_proxy;
     int use_proxy;
-    int ret;
 
-    ret = set_options(c, uri);
-    if (ret < 0)
-        return ret;
+    set_options(c, uri);
 
     if (c->listen)
         snprintf(opts, sizeof(opts), "?listen=1");

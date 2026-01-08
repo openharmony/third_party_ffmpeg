@@ -28,6 +28,7 @@
 
 #include "avcodec.h"
 #include "codec_internal.h"
+#include "get_bits.h"
 #include "libavutil/imgutils.h"
 #include "thread.h"
 
@@ -64,7 +65,7 @@ static int bitpacked_decode_yuv422p10(AVCodecContext *avctx, AVFrame *frame,
 {
     uint64_t frame_size = (uint64_t)avctx->width * (uint64_t)avctx->height * 20;
     uint64_t packet_size = (uint64_t)avpkt->size * 8;
-    uint8_t *src;
+    GetBitContext bc;
     uint16_t *y, *u, *v;
     int ret, i, j;
 
@@ -78,18 +79,20 @@ static int bitpacked_decode_yuv422p10(AVCodecContext *avctx, AVFrame *frame,
     if (avctx->width % 2)
         return AVERROR_PATCHWELCOME;
 
-    src = avpkt->data;
+    ret = init_get_bits(&bc, avpkt->data, avctx->width * avctx->height * 20);
+    if (ret)
+        return ret;
+
     for (i = 0; i < avctx->height; i++) {
         y = (uint16_t*)(frame->data[0] + i * frame->linesize[0]);
         u = (uint16_t*)(frame->data[1] + i * frame->linesize[1]);
         v = (uint16_t*)(frame->data[2] + i * frame->linesize[2]);
 
         for (j = 0; j < avctx->width; j += 2) {
-            *u++ = (src[0] << 2) | (src[1] >> 6);
-            *v++ = ((src[2] << 6) | (src[3] >> 2)) & 0x3ff;
-            *y++ = ((src[1] << 4) | (src[2] >> 4)) & 0x3ff;
-            *y++ = ((src[3] << 8) | (src[4]))      & 0x3ff;
-            src += 5;
+            *u++ = get_bits(&bc, 10);
+            *y++ = get_bits(&bc, 10);
+            *v++ = get_bits(&bc, 10);
+            *y++ = get_bits(&bc, 10);
         }
     }
 
@@ -130,6 +133,9 @@ static int bitpacked_decode(AVCodecContext *avctx, AVFrame *frame,
     if (res)
         return res;
 
+    frame->pict_type = AV_PICTURE_TYPE_I;
+    frame->key_frame = 1;
+
     *got_frame = 1;
     return buf_size;
 
@@ -137,7 +143,7 @@ static int bitpacked_decode(AVCodecContext *avctx, AVFrame *frame,
 
 const FFCodec ff_bitpacked_decoder = {
     .p.name          = "bitpacked",
-    CODEC_LONG_NAME("Bitpacked"),
+    .p.long_name     = NULL_IF_CONFIG_SMALL("Bitpacked"),
     .p.type          = AVMEDIA_TYPE_VIDEO,
     .p.id            = AV_CODEC_ID_BITPACKED,
     .p.capabilities  = AV_CODEC_CAP_FRAME_THREADS,
@@ -148,4 +154,5 @@ const FFCodec ff_bitpacked_decoder = {
         MKTAG('U', 'Y', 'V', 'Y'),
         FF_CODEC_TAGS_END,
     },
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

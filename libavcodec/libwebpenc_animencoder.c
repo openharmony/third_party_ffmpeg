@@ -24,9 +24,7 @@
  * WebP encoder using libwebp (WebPAnimEncoder API)
  */
 
-#include "libavutil/buffer.h"
-#include "libavutil/mem.h"
-
+#include "config.h"
 #include "codec_internal.h"
 #include "encode.h"
 #include "libwebpenc_common.h"
@@ -37,11 +35,6 @@ typedef struct LibWebPAnimContext {
     LibWebPContextCommon cc;
     WebPAnimEncoder *enc;     // the main AnimEncoder object
     int64_t first_frame_pts;  // pts of the first encoded frame.
-    int64_t end_pts;          // pts + duration of the last frame
-
-    void           *first_frame_opaque;
-    AVBufferRef    *first_frame_opaque_ref;
-
     int done;                 // If true, we have assembled the bitstream already
 } LibWebPAnimContext;
 
@@ -84,17 +77,7 @@ static int libwebp_anim_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                 memcpy(pkt->data, assembled_data.bytes, assembled_data.size);
                 WebPDataClear(&assembled_data);
                 s->done = 1;
-                pkt->pts = s->first_frame_pts;
-
-                if (pkt->pts != AV_NOPTS_VALUE && s->end_pts > pkt->pts)
-                    pkt->duration = s->end_pts - pkt->pts;
-
-                if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
-                    pkt->opaque               = s->first_frame_opaque;
-                    pkt->opaque_ref           = s->first_frame_opaque_ref;
-                    s->first_frame_opaque_ref = NULL;
-                }
-
+                pkt->pts = pkt->dts = s->first_frame_pts;
                 *got_packet = 1;
                 return 0;
             } else {
@@ -124,20 +107,8 @@ static int libwebp_anim_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
             goto end;
         }
 
-        if (!avctx->frame_num) {
+        if (!avctx->frame_number)
             s->first_frame_pts = frame->pts;
-
-            if (avctx->flags & AV_CODEC_FLAG_COPY_OPAQUE) {
-                s->first_frame_opaque = frame->opaque;
-                ret = av_buffer_replace(&s->first_frame_opaque_ref, frame->opaque_ref);
-                if (ret < 0)
-                    goto end;
-            }
-        }
-
-        if (frame->pts != AV_NOPTS_VALUE)
-            s->end_pts = frame->pts + frame->duration;
-
         ret = 0;
         *got_packet = 0;
 
@@ -155,23 +126,18 @@ static int libwebp_anim_encode_close(AVCodecContext *avctx)
     av_frame_free(&s->cc.ref);
     WebPAnimEncoderDelete(s->enc);
 
-    av_buffer_unref(&s->first_frame_opaque_ref);
-
     return 0;
 }
 
 const FFCodec ff_libwebp_anim_encoder = {
     .p.name         = "libwebp_anim",
-    CODEC_LONG_NAME("libwebp WebP image"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("libwebp WebP image"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_WEBP,
-    .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY |
-                      AV_CODEC_CAP_ENCODER_REORDERED_OPAQUE,
+    .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_DELAY,
     .p.pix_fmts     = ff_libwebpenc_pix_fmts,
-    .color_ranges   = AVCOL_RANGE_MPEG,
     .p.priv_class   = &ff_libwebpenc_class,
     .p.wrapper_name = "libwebp",
-    .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE,
     .priv_data_size = sizeof(LibWebPAnimContext),
     .defaults       = ff_libwebp_defaults,
     .init           = libwebp_anim_encode_init,

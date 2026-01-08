@@ -147,7 +147,7 @@ fail:
 }
 
 static int vaapi_encode_mjpeg_write_extra_buffer(AVCodecContext *avctx,
-                                                 FFHWBaseEncodePicture *base,
+                                                 VAAPIEncodePicture *pic,
                                                  int index, int *type,
                                                  char *data, size_t *data_len)
 {
@@ -220,23 +220,21 @@ static int vaapi_encode_mjpeg_write_extra_buffer(AVCodecContext *avctx,
 }
 
 static int vaapi_encode_mjpeg_init_picture_params(AVCodecContext *avctx,
-                                                  FFHWBaseEncodePicture *pic)
+                                                  VAAPIEncodePicture *pic)
 {
-    FFHWBaseEncodeContext       *base_ctx = avctx->priv_data;
     VAAPIEncodeMJPEGContext         *priv = avctx->priv_data;
-    VAAPIEncodePicture         *vaapi_pic = pic->priv;
     JPEGRawFrameHeader                *fh = &priv->frame_header;
     JPEGRawScanHeader                 *sh = &priv->scan.header;
-    VAEncPictureParameterBufferJPEG *vpic = vaapi_pic->codec_picture_params;
+    VAEncPictureParameterBufferJPEG *vpic = pic->codec_picture_params;
     const AVPixFmtDescriptor *desc;
     const uint8_t components_rgb[3] = { 'R', 'G', 'B' };
     const uint8_t components_yuv[3] = {  1,   2,   3  };
     const uint8_t *components;
     int t, i, quant_scale, len;
 
-    av_assert0(pic->type == FF_HW_PICTURE_TYPE_IDR);
+    av_assert0(pic->type == PICTURE_TYPE_IDR);
 
-    desc = av_pix_fmt_desc_get(base_ctx->input_frames->sw_format);
+    desc = av_pix_fmt_desc_get(priv->common.input_frames->sw_format);
     av_assert0(desc);
     if (desc->flags & AV_PIX_FMT_FLAG_RGB)
         components = components_rgb;
@@ -379,8 +377,8 @@ static int vaapi_encode_mjpeg_init_picture_params(AVCodecContext *avctx,
 
 
     *vpic = (VAEncPictureParameterBufferJPEG) {
-        .reconstructed_picture = vaapi_pic->recon_surface,
-        .coded_buf             = vaapi_pic->output_buffer,
+        .reconstructed_picture = pic->recon_surface,
+        .coded_buf             = pic->output_buffer,
 
         .picture_width  = fh->X,
         .picture_height = fh->Y,
@@ -408,13 +406,13 @@ static int vaapi_encode_mjpeg_init_picture_params(AVCodecContext *avctx,
         vpic->quantiser_table_selector[i] = fh->Tq[i];
     }
 
-    vaapi_pic->nb_slices = 1;
+    pic->nb_slices = 1;
 
     return 0;
 }
 
 static int vaapi_encode_mjpeg_init_slice_params(AVCodecContext *avctx,
-                                                FFHWBaseEncodePicture *base,
+                                                VAAPIEncodePicture *pic,
                                                 VAAPIEncodeSlice *slice)
 {
     VAAPIEncodeMJPEGContext         *priv = avctx->priv_data;
@@ -438,14 +436,14 @@ static int vaapi_encode_mjpeg_init_slice_params(AVCodecContext *avctx,
 
 static av_cold int vaapi_encode_mjpeg_get_encoder_caps(AVCodecContext *avctx)
 {
-    FFHWBaseEncodeContext *base_ctx = avctx->priv_data;
+    VAAPIEncodeContext *ctx = avctx->priv_data;
     const AVPixFmtDescriptor *desc;
 
-    desc = av_pix_fmt_desc_get(base_ctx->input_frames->sw_format);
+    desc = av_pix_fmt_desc_get(ctx->input_frames->sw_format);
     av_assert0(desc);
 
-    base_ctx->surface_width  = FFALIGN(avctx->width,  8 << desc->log2_chroma_w);
-    base_ctx->surface_height = FFALIGN(avctx->height, 8 << desc->log2_chroma_h);
+    ctx->surface_width  = FFALIGN(avctx->width,  8 << desc->log2_chroma_w);
+    ctx->surface_height = FFALIGN(avctx->height, 8 << desc->log2_chroma_h);
 
     return 0;
 }
@@ -482,22 +480,22 @@ static av_cold int vaapi_encode_mjpeg_configure(AVCodecContext *avctx)
 }
 
 static const VAAPIEncodeProfile vaapi_encode_mjpeg_profiles[] = {
-    { AV_PROFILE_MJPEG_HUFFMAN_BASELINE_DCT,
+    { FF_PROFILE_MJPEG_HUFFMAN_BASELINE_DCT,
             8, 1, 0, 0, VAProfileJPEGBaseline },
-    { AV_PROFILE_MJPEG_HUFFMAN_BASELINE_DCT,
+    { FF_PROFILE_MJPEG_HUFFMAN_BASELINE_DCT,
             8, 3, 1, 1, VAProfileJPEGBaseline },
-    { AV_PROFILE_MJPEG_HUFFMAN_BASELINE_DCT,
+    { FF_PROFILE_MJPEG_HUFFMAN_BASELINE_DCT,
             8, 3, 1, 0, VAProfileJPEGBaseline },
-    { AV_PROFILE_MJPEG_HUFFMAN_BASELINE_DCT,
+    { FF_PROFILE_MJPEG_HUFFMAN_BASELINE_DCT,
             8, 3, 0, 0, VAProfileJPEGBaseline },
-    { AV_PROFILE_UNKNOWN }
+    { FF_PROFILE_UNKNOWN }
 };
 
 static const VAAPIEncodeType vaapi_encode_type_mjpeg = {
     .profiles              = vaapi_encode_mjpeg_profiles,
 
-    .flags                 = FF_HW_FLAG_CONSTANT_QUALITY_ONLY |
-                             FF_HW_FLAG_INTRA_ONLY,
+    .flags                 = FLAG_CONSTANT_QUALITY_ONLY |
+                             FLAG_INTRA_ONLY,
 
     .get_encoder_caps      = &vaapi_encode_mjpeg_get_encoder_caps,
     .configure             = &vaapi_encode_mjpeg_configure,
@@ -542,7 +540,6 @@ static av_cold int vaapi_encode_mjpeg_close(AVCodecContext *avctx)
 #define OFFSET(x) offsetof(VAAPIEncodeMJPEGContext, x)
 #define FLAGS (AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM)
 static const AVOption vaapi_encode_mjpeg_options[] = {
-    HW_BASE_ENCODE_COMMON_OPTIONS,
     VAAPI_ENCODE_COMMON_OPTIONS,
 
     { "jfif", "Include JFIF header",
@@ -569,7 +566,7 @@ static const AVClass vaapi_encode_mjpeg_class = {
 
 const FFCodec ff_mjpeg_vaapi_encoder = {
     .p.name         = "mjpeg_vaapi",
-    CODEC_LONG_NAME("MJPEG (VAAPI)"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("MJPEG (VAAPI)"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_MJPEG,
     .priv_data_size = sizeof(VAAPIEncodeMJPEGContext),
@@ -577,16 +574,13 @@ const FFCodec ff_mjpeg_vaapi_encoder = {
     FF_CODEC_RECEIVE_PACKET_CB(&ff_vaapi_encode_receive_packet),
     .close          = &vaapi_encode_mjpeg_close,
     .p.priv_class   = &vaapi_encode_mjpeg_class,
-    .p.capabilities = AV_CODEC_CAP_HARDWARE | AV_CODEC_CAP_DR1 |
-                      AV_CODEC_CAP_ENCODER_REORDERED_OPAQUE,
-    .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE |
-                      FF_CODEC_CAP_INIT_CLEANUP,
+    .p.capabilities = AV_CODEC_CAP_HARDWARE | AV_CODEC_CAP_DR1,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
     .defaults       = vaapi_encode_mjpeg_defaults,
     .p.pix_fmts = (const enum AVPixelFormat[]) {
         AV_PIX_FMT_VAAPI,
         AV_PIX_FMT_NONE,
     },
-    .color_ranges   = AVCOL_RANGE_MPEG, /* FIXME: implement tagging */
     .hw_configs     = ff_vaapi_encode_hw_configs,
     .p.wrapper_name = "vaapi",
 };

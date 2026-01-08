@@ -26,13 +26,12 @@
 
 #include <inttypes.h>
 
-#include "libavutil/mem.h"
 #include "avcodec.h"
 #include "bswapdsp.h"
 #include "bytestream.h"
 #include "codec_internal.h"
-#include "decode.h"
 #include "get_bits.h"
+#include "internal.h"
 
 #define TM2_ESCAPE 0x80000000
 #define TM2_DELTAS 64
@@ -199,7 +198,7 @@ static int tm2_build_huff_table(TM2Context *ctx, TM2Codes *code)
 
     /* convert codes to vlc_table */
     if (res >= 0) {
-        res = ff_vlc_init_from_lengths(&code->vlc, huff.max_bits, huff.max_num,
+        res = ff_init_vlc_from_lengths(&code->vlc, huff.max_bits, huff.max_num,
                                        huff.lens, sizeof(huff.lens[0]),
                                        NULL, 0, 0, 0, 0, ctx->avctx);
         if (res < 0)
@@ -223,7 +222,8 @@ out:
 static void tm2_free_codes(TM2Codes *code)
 {
     av_free(code->recode);
-    ff_vlc_free(&code->vlc);
+    if (code->vlc.table)
+        ff_free_vlc(&code->vlc);
 }
 
 static inline int tm2_get_token(GetBitContext *gb, TM2Codes *code)
@@ -930,13 +930,11 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *rframe,
         }
         offset += t;
     }
-    if (tm2_decode_blocks(l, p)) {
-        p->flags |= AV_FRAME_FLAG_KEY;
+    p->key_frame = tm2_decode_blocks(l, p);
+    if (p->key_frame)
         p->pict_type = AV_PICTURE_TYPE_I;
-    } else {
-        p->flags &= ~AV_FRAME_FLAG_KEY;
+    else
         p->pict_type = AV_PICTURE_TYPE_P;
-    }
 
     l->cur = !l->cur;
     *got_frame      = 1;
@@ -1012,7 +1010,7 @@ static av_cold int decode_end(AVCodecContext *avctx)
 
 const FFCodec ff_truemotion2_decoder = {
     .p.name         = "truemotion2",
-    CODEC_LONG_NAME("Duck TrueMotion 2.0"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Duck TrueMotion 2.0"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_TRUEMOTION2,
     .priv_data_size = sizeof(TM2Context),
@@ -1020,5 +1018,5 @@ const FFCodec ff_truemotion2_decoder = {
     .close          = decode_end,
     FF_CODEC_DECODE_CB(decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP | FF_CODEC_CAP_INIT_THREADSAFE,
 };

@@ -114,8 +114,7 @@ static void lfe_x96_float_c(float *dst, const float *src,
 }
 
 static void sub_qmf32_float_c(SynthFilterContext *synth,
-                              AVTXContext *imdct,
-                              av_tx_fn imdct_fn,
+                              FFTContext *imdct,
                               float *pcm_samples,
                               int32_t **subband_samples_lo,
                               int32_t **subband_samples_hi,
@@ -138,14 +137,13 @@ static void sub_qmf32_float_c(SynthFilterContext *synth,
         // One subband sample generates 32 interpolated ones
         synth->synth_filter_float(imdct, hist1, offset,
                                   hist2, filter_coeff,
-                                  pcm_samples, input, scale, imdct_fn);
+                                  pcm_samples, input, scale);
         pcm_samples += 32;
     }
 }
 
 static void sub_qmf64_float_c(SynthFilterContext *synth,
-                              AVTXContext *imdct,
-                              av_tx_fn imdct_fn,
+                              FFTContext *imdct,
                               float *pcm_samples,
                               int32_t **subband_samples_lo,
                               int32_t **subband_samples_hi,
@@ -188,7 +186,7 @@ static void sub_qmf64_float_c(SynthFilterContext *synth,
         // One subband sample generates 64 interpolated ones
         synth->synth_filter_float_64(imdct, hist1, offset,
                                      hist2, filter_coeff,
-                                     pcm_samples, input, scale, imdct_fn);
+                                     pcm_samples, input, scale);
         pcm_samples += 64;
     }
 }

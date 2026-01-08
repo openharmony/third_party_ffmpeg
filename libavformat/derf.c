@@ -22,7 +22,6 @@
 #include "libavutil/channel_layout.h"
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "pcm.h"
 
@@ -68,12 +67,12 @@ static int derf_read_header(AVFormatContext *s)
     return 0;
 }
 
-const FFInputFormat ff_derf_demuxer = {
-    .p.name         = "derf",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Xilam DERF"),
-    .p.extensions   = "adp",
+const AVInputFormat ff_derf_demuxer = {
+    .name           = "derf",
+    .long_name      = NULL_IF_CONFIG_SMALL("Xilam DERF"),
     .read_probe     = derf_probe,
     .read_header    = derf_read_header,
     .read_packet    = ff_pcm_read_packet,
     .read_seek      = ff_pcm_read_seek,
+    .extensions     = "adp",
 };

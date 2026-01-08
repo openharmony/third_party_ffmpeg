@@ -40,7 +40,7 @@
 
 #include "avcodec.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 #include "gsm.h"
 
 typedef struct LibGSMDecodeContext {
@@ -127,12 +127,11 @@ static void libgsm_flush(AVCodecContext *avctx) {
 #if CONFIG_LIBGSM_DECODER
 const FFCodec ff_libgsm_decoder = {
     .p.name         = "libgsm",
-    CODEC_LONG_NAME("libgsm GSM"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("libgsm GSM"),
     .p.type         = AVMEDIA_TYPE_AUDIO,
     .p.id           = AV_CODEC_ID_GSM,
     .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_CHANNEL_CONF,
     .p.wrapper_name = "libgsm",
-    .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE,
     .priv_data_size = sizeof(LibGSMDecodeContext),
     .init           = libgsm_decode_init,
     .close          = libgsm_decode_close,
@@ -143,12 +142,11 @@ const FFCodec ff_libgsm_decoder = {
 #if CONFIG_LIBGSM_MS_DECODER
 const FFCodec ff_libgsm_ms_decoder = {
     .p.name         = "libgsm_ms",
-    CODEC_LONG_NAME("libgsm GSM Microsoft variant"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("libgsm GSM Microsoft variant"),
     .p.type         = AVMEDIA_TYPE_AUDIO,
     .p.id           = AV_CODEC_ID_GSM_MS,
     .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_CHANNEL_CONF,
     .p.wrapper_name = "libgsm",
-    .caps_internal  = FF_CODEC_CAP_NOT_INIT_THREADSAFE,
     .priv_data_size = sizeof(LibGSMDecodeContext),
     .init           = libgsm_decode_init,
     .close          = libgsm_decode_close,

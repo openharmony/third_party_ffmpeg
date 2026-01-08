@@ -73,7 +73,7 @@ SECTION .text
     jl .loop
 
 .end:
-    RET
+    REP_RET
 %endmacro
 
 %macro LOWPASS_LINE 0
@@ -146,7 +146,7 @@ cglobal lowpass_line_complex, 5, 5, 8, dst, h, src, mref, pref
     add srcq, mmsize
     sub hd, mmsize
     jg .loop
-RET
+REP_RET
 
 cglobal lowpass_line_complex_12, 5, 5, 8, 16, dst, h, src, mref, pref, clip_max
     movd m7, DWORD clip_maxm
@@ -208,7 +208,7 @@ cglobal lowpass_line_complex_12, 5, 5, 8, 16, dst, h, src, mref, pref, clip_max
     add srcq, 2*mmsize
     sub hd, mmsize
     jg .loop
-RET
+REP_RET
 %endmacro
 
 INIT_XMM sse2

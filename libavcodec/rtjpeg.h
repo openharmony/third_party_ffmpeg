@@ -24,7 +24,6 @@
 
 #include <stdint.h>
 
-#include "libavutil/frame.h"
 #include "libavutil/mem_internal.h"
 #include "idctdsp.h"
 
@@ -40,8 +39,7 @@ typedef struct RTJpegContext {
     DECLARE_ALIGNED(16, int16_t, block)[64];
 } RTJpegContext;
 
-struct AVCodecContext;
-void ff_rtjpeg_init(RTJpegContext *c, struct AVCodecContext *avctx);
+void ff_rtjpeg_init(RTJpegContext *c, AVCodecContext *avctx);
 
 void ff_rtjpeg_decode_init(RTJpegContext *c, int width, int height,
                            const uint32_t *lquant, const uint32_t *cquant);

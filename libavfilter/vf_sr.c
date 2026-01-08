@@ -26,10 +26,11 @@
  */
 
 #include "avfilter.h"
-#include "filters.h"
-#include "video.h"
+#include "formats.h"
+#include "internal.h"
 #include "libavutil/opt.h"
 #include "libavutil/pixdesc.h"
+#include "libavformat/avio.h"
 #include "libswscale/swscale.h"
 #include "dnn_filter_common.h"
 
@@ -45,15 +46,19 @@ typedef struct SRContext {
 #define OFFSET(x) offsetof(SRContext, x)
 #define FLAGS AV_OPT_FLAG_FILTERING_PARAM | AV_OPT_FLAG_VIDEO_PARAM
 static const AVOption sr_options[] = {
-    { "dnn_backend", "DNN backend used for model execution", OFFSET(dnnctx.backend_type), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, 1, FLAGS, .unit = "backend" },
+    { "dnn_backend", "DNN backend used for model execution", OFFSET(dnnctx.backend_type), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, FLAGS, "backend" },
+    { "native", "native backend flag", 0, AV_OPT_TYPE_CONST, { .i64 = 0 }, 0, 0, FLAGS, "backend" },
 #if (CONFIG_LIBTENSORFLOW == 1)
-    { "tensorflow", "tensorflow backend flag", 0, AV_OPT_TYPE_CONST, { .i64 = 1 }, 0, 0, FLAGS, .unit = "backend" },
+    { "tensorflow", "tensorflow backend flag", 0, AV_OPT_TYPE_CONST, { .i64 = 1 }, 0, 0, FLAGS, "backend" },
 #endif
     { "scale_factor", "scale factor for SRCNN model", OFFSET(scale_factor), AV_OPT_TYPE_INT, { .i64 = 2 }, 2, 4, FLAGS },
+    { "model", "path to model file specifying network architecture and its parameters", OFFSET(dnnctx.model_filename), AV_OPT_TYPE_STRING, {.str=NULL}, 0, 0, FLAGS },
+    { "input",       "input name of the model",     OFFSET(dnnctx.model_inputname),  AV_OPT_TYPE_STRING,    { .str = "x" },  0, 0, FLAGS },
+    { "output",      "output name of the model",    OFFSET(dnnctx.model_outputnames_string), AV_OPT_TYPE_STRING,    { .str = "y" },  0, 0, FLAGS },
     { NULL }
 };
 
-AVFILTER_DNN_DEFINE_CLASS(sr, DNN_TF);
+AVFILTER_DEFINE_CLASS(sr);
 
 static av_cold int init(AVFilterContext *context)
 {
@@ -154,9 +159,8 @@ static int filter_frame(AVFilterLink *inlink, AVFrame *in)
         sws_scale(ctx->sws_uv_scale, (const uint8_t **)(in->data + 2), in->linesize + 2,
                   0, ctx->sws_uv_height, out->data + 2, out->linesize + 2);
     }
-    if (in != out) {
-        av_frame_free(&in);
-    }
+
+    av_frame_free(&in);
     return ff_filter_frame(outlink, out);
 }
 
@@ -189,7 +193,6 @@ const AVFilter ff_vf_sr = {
     .name          = "sr",
     .description   = NULL_IF_CONFIG_SMALL("Apply DNN-based image super resolution to the input."),
     .priv_size     = sizeof(SRContext),
-    .preinit       = ff_dnn_filter_init_child_class,
     .init          = init,
     .uninit        = uninit,
     FILTER_INPUTS(sr_inputs),

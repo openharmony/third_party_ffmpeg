@@ -24,7 +24,6 @@
 #include "libavutil/hmac.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/log.h"
-#include "libavutil/mem.h"
 #include "rtp.h"
 #include "rtpdec.h"
 #include "srtp.h"

@@ -26,13 +26,14 @@
  * @see http://wiki.multimedia.cx/index.php?title=BFI
  */
 
-#include "libavutil/mem.h"
+#include "libavutil/common.h"
 #include "avcodec.h"
 #include "bytestream.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 
 typedef struct BFIContext {
+    AVCodecContext *avctx;
     uint8_t *dst;
     uint32_t pal[256];
 } BFIContext;
@@ -65,9 +66,9 @@ static int bfi_decode_frame(AVCodecContext *avctx, AVFrame *frame,
     bytestream2_init(&g, avpkt->data, buf_size);
 
     /* Set frame parameters and palette, if necessary */
-    if (!avctx->frame_num) {
+    if (!avctx->frame_number) {
         frame->pict_type = AV_PICTURE_TYPE_I;
-        frame->flags |= AV_FRAME_FLAG_KEY;
+        frame->key_frame = 1;
         /* Setting the palette */
         if (avctx->extradata_size > 768) {
             av_log(avctx, AV_LOG_ERROR, "Palette is too large.\n");
@@ -83,19 +84,11 @@ static int bfi_decode_frame(AVCodecContext *avctx, AVFrame *frame,
             pal++;
         }
         memcpy(bfi->pal, frame->data[1], sizeof(bfi->pal));
-#if FF_API_PALETTE_HAS_CHANGED
-FF_DISABLE_DEPRECATION_WARNINGS
         frame->palette_has_changed = 1;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
     } else {
         frame->pict_type = AV_PICTURE_TYPE_P;
-        frame->flags &= ~AV_FRAME_FLAG_KEY;
-#if FF_API_PALETTE_HAS_CHANGED
-FF_DISABLE_DEPRECATION_WARNINGS
+        frame->key_frame = 0;
         frame->palette_has_changed = 0;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
         memcpy(frame->data[1], bfi->pal, sizeof(bfi->pal));
     }
 
@@ -184,7 +177,7 @@ static av_cold int bfi_decode_close(AVCodecContext *avctx)
 
 const FFCodec ff_bfi_decoder = {
     .p.name         = "bfi",
-    CODEC_LONG_NAME("Brute Force & Ignorance"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Brute Force & Ignorance"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_BFI,
     .priv_data_size = sizeof(BFIContext),
@@ -192,4 +185,5 @@ const FFCodec ff_bfi_decoder = {
     .close          = bfi_decode_close,
     FF_CODEC_DECODE_CB(bfi_decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

@@ -38,7 +38,7 @@ static int decode_read(DecodeContext *dc, int flush)
     int ret = 0;
 
     while (ret >= 0 &&
-           (dc->max_frames == 0 || dc->decoder->frame_num < dc->max_frames)) {
+           (dc->max_frames == 0 || dc->decoder->frame_number < dc->max_frames)) {
         ret = avcodec_receive_frame(dc->decoder, dc->frame);
         if (ret < 0) {
             if (ret == AVERROR_EOF) {
@@ -55,11 +55,11 @@ static int decode_read(DecodeContext *dc, int flush)
         if (ret < 0)
             return ret;
 
-        if (dc->max_frames && dc->decoder->frame_num == dc->max_frames)
+        if (dc->max_frames && dc->decoder->frame_number == dc->max_frames)
             return 1;
     }
 
-    return (dc->max_frames == 0 || dc->decoder->frame_num < dc->max_frames) ? 0 : 1;
+    return (dc->max_frames == 0 || dc->decoder->frame_number < dc->max_frames) ? 0 : 1;
 }
 
 int ds_run(DecodeContext *dc)
@@ -73,7 +73,7 @@ int ds_run(DecodeContext *dc)
     while (ret >= 0) {
         ret = av_read_frame(dc->demuxer, dc->pkt);
         if (ret < 0)
-            break;
+            goto flush;
         if (dc->pkt->stream_index != dc->stream->index) {
             av_packet_unref(dc->pkt);
             continue;
@@ -91,19 +91,18 @@ int ds_run(DecodeContext *dc)
             fprintf(stderr, "Error decoding: %d\n", ret);
             return ret;
         } else if (ret > 0)
-            goto finish;
+            return 0;
     }
 
-    ret = avcodec_send_packet(dc->decoder, NULL);
-    if (ret >= 0)
-        ret = decode_read(dc, 1);
+flush:
+    avcodec_send_packet(dc->decoder, NULL);
+    ret = decode_read(dc, 1);
     if (ret < 0) {
         fprintf(stderr, "Error flushing: %d\n", ret);
         return ret;
     }
 
-finish:
-    return dc->process_frame(dc, NULL);
+    return 0;
 }
 
 void ds_free(DecodeContext *dc)
@@ -149,10 +148,6 @@ int ds_open(DecodeContext *dc, const char *url, int stream_idx)
     dc->decoder = avcodec_alloc_context3(codec);
     if (!dc->decoder)
         return AVERROR(ENOMEM);
-
-    ret = avcodec_parameters_to_context(dc->decoder, dc->stream->codecpar);
-    if (ret < 0)
-        goto fail;
 
     return 0;
 

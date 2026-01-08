@@ -28,8 +28,7 @@ static int pam_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
                             const AVFrame *p, int *got_packet)
 {
     int i, h, w, n, linesize, depth, maxval, ret, header_size;
-    uint8_t *bytestream;
-    const uint8_t *ptr;
+    uint8_t *bytestream, *ptr;
     const char *tuple_type;
     char header[100];
 
@@ -130,10 +129,10 @@ static int pam_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
 const FFCodec ff_pam_encoder = {
     .p.name         = "pam",
-    CODEC_LONG_NAME("PAM (Portable AnyMap) image"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("PAM (Portable AnyMap) image"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_PAM,
-    .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_ENCODER_REORDERED_OPAQUE,
+    .p.capabilities = AV_CODEC_CAP_DR1,
     FF_CODEC_ENCODE_CB(pam_encode_frame),
     .p.pix_fmts     = (const enum AVPixelFormat[]){
         AV_PIX_FMT_RGB24, AV_PIX_FMT_RGBA,
@@ -142,4 +141,5 @@ const FFCodec ff_pam_encoder = {
         AV_PIX_FMT_GRAY16BE, AV_PIX_FMT_YA16BE,
         AV_PIX_FMT_MONOBLACK, AV_PIX_FMT_NONE
     },
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
 };

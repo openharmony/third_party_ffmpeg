@@ -23,7 +23,6 @@
 #include "rtpdec_formats.h"
 #include "internal.h"
 #include "libavutil/avstring.h"
-#include "libavutil/mem.h"
 #include "libavcodec/get_bits.h"
 
 struct PayloadContext {

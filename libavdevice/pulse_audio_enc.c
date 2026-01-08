@@ -26,7 +26,6 @@
 #include "libavformat/mux.h"
 #include "libavformat/version.h"
 #include "libavutil/channel_layout.h"
-#include "libavutil/frame.h"
 #include "libavutil/internal.h"
 #include "libavutil/opt.h"
 #include "libavutil/time.h"
@@ -471,11 +470,10 @@ static av_cold int pulse_write_header(AVFormatContext *h)
     s->nonblocking = (h->flags & AVFMT_FLAG_NONBLOCK);
 
     if (s->buffer_duration) {
-        int64_t bytes = av_rescale(s->buffer_duration,
-                                   st->codecpar->ch_layout.nb_channels *
-                                    (int64_t)st->codecpar->sample_rate *
-                                    av_get_bytes_per_sample(st->codecpar->format),
-                                   1000);
+        int64_t bytes = s->buffer_duration;
+        bytes *= st->codecpar->ch_layout.nb_channels * st->codecpar->sample_rate *
+                 av_get_bytes_per_sample(st->codecpar->format);
+        bytes /= 1000;
         buffer_attributes.tlength = FFMAX(s->buffer_size, av_clip64(bytes, 0, UINT32_MAX - 1));
         av_log(s, AV_LOG_DEBUG,
                "Buffer duration: %ums recalculated into %"PRId64" bytes buffer.\n",
@@ -505,7 +503,7 @@ static av_cold int pulse_write_header(AVFormatContext *h)
         pulse_map_channels_to_pulse(&st->codecpar->ch_layout, &channel_map);
         /* Unknown channel is present in channel_layout, let PulseAudio use its default. */
         if (channel_map.channels != sample_spec.channels) {
-            av_log(s, AV_LOG_WARNING, "Unknown channel. Using default channel map.\n");
+            av_log(s, AV_LOG_WARNING, "Unknown channel. Using defaul channel map.\n");
             channel_map.channels = 0;
         }
     } else
@@ -688,7 +686,7 @@ static int pulse_write_frame(AVFormatContext *h, int stream_index,
     pkt.data     = (*frame)->data[0];
     pkt.size     = (*frame)->nb_samples * av_get_bytes_per_sample((*frame)->format) * (*frame)->ch_layout.nb_channels;
     pkt.dts      = (*frame)->pkt_dts;
-    pkt.duration = (*frame)->duration;
+    pkt.duration = (*frame)->pkt_duration;
     return pulse_write_packet(h, &pkt);
 }
 
@@ -783,12 +781,12 @@ static const AVClass pulse_muxer_class = {
     .category       = AV_CLASS_CATEGORY_DEVICE_AUDIO_OUTPUT,
 };
 
-const FFOutputFormat ff_pulse_muxer = {
-    .p.name               = "pulse",
-    .p.long_name          = NULL_IF_CONFIG_SMALL("Pulse audio output"),
+const AVOutputFormat ff_pulse_muxer = {
+    .name                 = "pulse",
+    .long_name            = NULL_IF_CONFIG_SMALL("Pulse audio output"),
     .priv_data_size       = sizeof(PulseData),
-    .p.audio_codec        = AV_NE(AV_CODEC_ID_PCM_S16BE, AV_CODEC_ID_PCM_S16LE),
-    .p.video_codec        = AV_CODEC_ID_NONE,
+    .audio_codec          = AV_NE(AV_CODEC_ID_PCM_S16BE, AV_CODEC_ID_PCM_S16LE),
+    .video_codec          = AV_CODEC_ID_NONE,
     .write_header         = pulse_write_header,
     .write_packet         = pulse_write_packet,
     .write_uncoded_frame  = pulse_write_frame,
@@ -796,11 +794,6 @@ const FFOutputFormat ff_pulse_muxer = {
     .get_output_timestamp = pulse_get_output_timestamp,
     .get_device_list      = pulse_get_device_list,
     .control_message      = pulse_control_message,
-#if FF_API_ALLOW_FLUSH
-    .p.flags              = AVFMT_NOFILE | AVFMT_ALLOW_FLUSH,
-#else
-    .p.flags              = AVFMT_NOFILE,
-#endif
-    .p.priv_class         = &pulse_muxer_class,
-    .flags_internal       = FF_OFMT_FLAG_ALLOW_FLUSH,
+    .flags                = AVFMT_NOFILE | AVFMT_ALLOW_FLUSH,
+    .priv_class           = &pulse_muxer_class,
 };

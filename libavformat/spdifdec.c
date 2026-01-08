@@ -31,8 +31,6 @@
 #include "libavcodec/adts_parser.h"
 
 #include "avformat.h"
-#include "demux.h"
-#include "internal.h"
 #include "spdif.h"
 
 static int spdif_get_offset_and_codec(AVFormatContext *s,
@@ -94,10 +92,6 @@ static int spdif_get_offset_and_codec(AVFormatContext *s,
     case IEC61937_DTS3:
         *offset = 8192;
         *codec = AV_CODEC_ID_DTS;
-        break;
-    case IEC61937_EAC3:
-        *offset = 24576;
-        *codec = AV_CODEC_ID_EAC3;
         break;
     default:
         if (s) { /* be silent during a probe */
@@ -176,16 +170,6 @@ static int spdif_read_header(AVFormatContext *s)
     return 0;
 }
 
-static int spdif_get_pkt_size_bits(int type, int code)
-{
-    switch (type & 0xff) {
-    case IEC61937_EAC3:
-        return code << 3;
-    default:
-        return code;
-    }
-}
-
 int ff_spdif_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     AVIOContext *pb = s->pb;
@@ -201,7 +185,7 @@ int ff_spdif_read_packet(AVFormatContext *s, AVPacket *pkt)
     }
 
     data_type = avio_rl16(pb);
-    pkt_size_bits = spdif_get_pkt_size_bits(data_type, avio_rl16(pb));
+    pkt_size_bits = avio_rl16(pb);
 
     if (pkt_size_bits % 16)
         avpriv_request_sample(s, "Packet not ending at a 16-bit boundary");
@@ -234,10 +218,6 @@ int ff_spdif_read_packet(AVFormatContext *s, AVPacket *pkt)
         }
         st->codecpar->codec_type = AVMEDIA_TYPE_AUDIO;
         st->codecpar->codec_id = codec_id;
-        if (codec_id == AV_CODEC_ID_EAC3)
-            ffstream(st)->need_parsing = AVSTREAM_PARSE_FULL;
-        else
-            ffstream(st)->need_parsing = AVSTREAM_PARSE_HEADERS;
     } else if (codec_id != s->streams[0]->codecpar->codec_id) {
         avpriv_report_missing_feature(s, "Codec change in IEC 61937");
         return AVERROR_PATCHWELCOME;
@@ -251,11 +231,11 @@ int ff_spdif_read_packet(AVFormatContext *s, AVPacket *pkt)
     return 0;
 }
 
-const FFInputFormat ff_spdif_demuxer = {
-    .p.name         = "spdif",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("IEC 61937 (compressed data in S/PDIF)"),
-    .p.flags        = AVFMT_GENERIC_INDEX,
+const AVInputFormat ff_spdif_demuxer = {
+    .name           = "spdif",
+    .long_name      = NULL_IF_CONFIG_SMALL("IEC 61937 (compressed data in S/PDIF)"),
     .read_probe     = spdif_probe,
     .read_header    = spdif_read_header,
     .read_packet    = ff_spdif_read_packet,
+    .flags          = AVFMT_GENERIC_INDEX,
 };

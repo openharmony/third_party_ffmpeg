@@ -22,7 +22,6 @@
 #include "libavutil/channel_layout.h"
 #include "libavutil/intreadwrite.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 
 static int adp_probe(const AVProbeData *p)
@@ -83,11 +82,11 @@ static int adp_read_packet(AVFormatContext *s, AVPacket *pkt)
     return ret;
 }
 
-const FFInputFormat ff_adp_demuxer = {
-    .p.name         = "adp",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("ADP"),
-    .p.extensions   = "adp,dtk",
+const AVInputFormat ff_adp_demuxer = {
+    .name           = "adp",
+    .long_name      = NULL_IF_CONFIG_SMALL("ADP"),
     .read_probe     = adp_probe,
     .read_header    = adp_read_header,
     .read_packet    = adp_read_packet,
+    .extensions     = "adp,dtk",
 };

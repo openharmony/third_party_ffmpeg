@@ -30,7 +30,6 @@
 #include "avcodec.h"
 #include "codec_internal.h"
 #include "encode.h"
-#include "mathops.h"
 #include "put_bits.h"
 
 typedef struct RpzaContext {
@@ -66,7 +65,7 @@ typedef struct rgb {
 #define SQR(x) ((x) * (x))
 
 /* 15 bit components */
-#define GET_CHAN(color, chan) (((color) >> ((chan) * 5) & 0x1F))
+#define GET_CHAN(color, chan) (((color) >> ((chan) * 5) & 0x1F) * 8)
 #define R(color) GET_CHAN(color, RED)
 #define G(color) GET_CHAN(color, GREEN)
 #define B(color) GET_CHAN(color, BLUE)
@@ -81,12 +80,11 @@ typedef struct BlockInfo {
     int block_index;
     uint16_t start;
     int rowstride;
-    int prev_rowstride;
     int blocks_per_row;
     int total_blocks;
 } BlockInfo;
 
-static void get_colors(const uint8_t *min, const uint8_t *max, uint8_t color4[4][3])
+static void get_colors(uint8_t *min, uint8_t *max, uint8_t color4[4][3])
 {
     uint8_t step;
 
@@ -115,7 +113,7 @@ static void get_colors(const uint8_t *min, const uint8_t *max, uint8_t color4[4]
 }
 
 /* Fill BlockInfo struct with information about a 4x4 block of the image */
-static int get_block_info(BlockInfo *bi, int block, int prev_frame)
+static int get_block_info(BlockInfo *bi, int block)
 {
     bi->row = block / bi->blocks_per_row;
     bi->col = block % bi->blocks_per_row;
@@ -134,17 +132,17 @@ static int get_block_info(BlockInfo *bi, int block, int prev_frame)
         bi->block_height = 4;
     }
 
-    return block ? (bi->col * 4) + (bi->row * (prev_frame ? bi->prev_rowstride : bi->rowstride) * 4) : 0;
+    return block ? (bi->col * 4) + (bi->row * bi->rowstride * 4) : 0;
 }
 
-static uint16_t rgb24_to_rgb555(const uint8_t *rgb24)
+static uint16_t rgb24_to_rgb555(uint8_t *rgb24)
 {
     uint16_t rgb555 = 0;
     uint32_t r, g, b;
 
-    r = rgb24[0];
-    g = rgb24[1];
-    b = rgb24[2];
+    r = rgb24[0] >> 3;
+    g = rgb24[1] >> 3;
+    b = rgb24[2] >> 3;
 
     rgb555 |= (r << 10);
     rgb555 |= (g << 5);
@@ -156,7 +154,7 @@ static uint16_t rgb24_to_rgb555(const uint8_t *rgb24)
 /*
  * Returns the total difference between two 24 bit color values
  */
-static int diff_colors(const uint8_t *colorA, const uint8_t *colorB)
+static int diff_colors(uint8_t *colorA, uint8_t *colorB)
 {
     int tot;
 
@@ -170,7 +168,7 @@ static int diff_colors(const uint8_t *colorA, const uint8_t *colorB)
 /*
  * Returns the maximum channel difference
  */
-static int max_component_diff(const uint16_t *colorA, const uint16_t *colorB)
+static int max_component_diff(uint16_t *colorA, uint16_t *colorB)
 {
     int diff, max = 0;
 
@@ -186,7 +184,7 @@ static int max_component_diff(const uint16_t *colorA, const uint16_t *colorB)
     if (diff > max) {
         max = diff;
     }
-    return max;
+    return max * 8;
 }
 
 /*
@@ -194,7 +192,7 @@ static int max_component_diff(const uint16_t *colorA, const uint16_t *colorB)
  * color values. Put the minimum value in min, maximum in max and the channel
  * in chan.
  */
-static void get_max_component_diff(const BlockInfo *bi, const uint16_t *block_ptr,
+static void get_max_component_diff(BlockInfo *bi, uint16_t *block_ptr,
                                    uint8_t *min, uint8_t *max, channel_offset *chan)
 {
     int x, y;
@@ -244,8 +242,7 @@ static void get_max_component_diff(const BlockInfo *bi, const uint16_t *block_pt
  * blocks is greater than the thresh parameter. Returns -1 if difference
  * exceeds threshold or zero otherwise.
  */
-static int compare_blocks(const uint16_t *block1, const uint16_t *block2,
-                          const BlockInfo *bi, int thresh)
+static int compare_blocks(uint16_t *block1, uint16_t *block2, BlockInfo *bi, int thresh)
 {
     int x, y, diff = 0;
     for (y = 0; y < bi->block_height; y++) {
@@ -255,7 +252,7 @@ static int compare_blocks(const uint16_t *block1, const uint16_t *block2,
                 return -1;
             }
         }
-        block1 += bi->prev_rowstride;
+        block1 += bi->rowstride;
         block2 += bi->rowstride;
     }
     return 0;
@@ -265,11 +262,11 @@ static int compare_blocks(const uint16_t *block1, const uint16_t *block2,
  * Determine the fit of one channel to another within a 4x4 block. This
  * is used to determine the best palette choices for 4-color encoding.
  */
-static int leastsquares(const uint16_t *block_ptr, const BlockInfo *bi,
+static int leastsquares(uint16_t *block_ptr, BlockInfo *bi,
                         channel_offset xchannel, channel_offset ychannel,
-                        int *slope, int *y_intercept, int *correlation_coef)
+                        double *slope, double *y_intercept, double *correlation_coef)
 {
-    int sumx = 0, sumy = 0, sumx2 = 0, sumy2 = 0, sumxy = 0,
+    double sumx = 0, sumy = 0, sumx2 = 0, sumy2 = 0, sumxy = 0,
            sumx_sq = 0, sumy_sq = 0, tmp, tmp2;
     int i, j, count;
     uint8_t x, y;
@@ -306,10 +303,10 @@ static int leastsquares(const uint16_t *block_ptr, const BlockInfo *bi,
 
     tmp2 = count * sumy2 - sumy_sq;
     if (tmp2 == 0) {
-        *correlation_coef = 0;
+        *correlation_coef = 0.0;
     } else {
         *correlation_coef = (count * sumxy - sumx * sumy) /
-            ff_sqrt((unsigned)tmp * tmp2);
+            sqrt(tmp * tmp2);
     }
 
     return 0; // success
@@ -318,7 +315,7 @@ static int leastsquares(const uint16_t *block_ptr, const BlockInfo *bi,
 /*
  * Determine the amount of error in the leastsquares fit.
  */
-static int calc_lsq_max_fit_error(const uint16_t *block_ptr, const BlockInfo *bi,
+static int calc_lsq_max_fit_error(uint16_t *block_ptr, BlockInfo *bi,
                                   int min, int max, int tmp_min, int tmp_max,
                                   channel_offset xchannel, channel_offset ychannel)
 {
@@ -333,18 +330,18 @@ static int calc_lsq_max_fit_error(const uint16_t *block_ptr, const BlockInfo *bi
             y = GET_CHAN(block_ptr[j], ychannel);
 
             /* calculate x_inc as the 4-color index (0..3) */
-            x_inc = (x - min) * 3 / (max - min) + 1;
+            x_inc = floor( (x - min) * 3.0 / (max - min) + 0.5);
             x_inc = FFMAX(FFMIN(3, x_inc), 0);
 
             /* calculate lin_y corresponding to x_inc */
-            lin_y = tmp_min + (tmp_max - tmp_min) * x_inc / 3 + 1;
+            lin_y = (int)(tmp_min + (tmp_max - tmp_min) * x_inc / 3.0 + 0.5);
 
             err = FFABS(lin_y - y);
             if (err > max_err)
                 max_err = err;
 
             /* calculate lin_x corresponding to x_inc */
-            lin_x = min + (max - min) * x_inc / 3 + 1;
+            lin_x = (int)(min + (max - min) * x_inc / 3.0 + 0.5);
 
             err = FFABS(lin_x - x);
             if (err > max_err)
@@ -359,7 +356,7 @@ static int calc_lsq_max_fit_error(const uint16_t *block_ptr, const BlockInfo *bi
 /*
  * Find the closest match to a color within the 4-color palette
  */
-static int match_color(const uint16_t *color, uint8_t colors[4][3])
+static int match_color(uint16_t *color, uint8_t colors[4][3])
 {
     int ret = 0;
     int smallest_variance = INT_MAX;
@@ -386,14 +383,12 @@ static int match_color(const uint16_t *color, uint8_t colors[4][3])
  * blocks encoded (until we implement multi-block 4 color runs this will
  * always be 1)
  */
-static int encode_four_color_block(const uint8_t *min_color, const uint8_t *max_color,
-                                   PutBitContext *pb, const uint16_t *block_ptr, const BlockInfo *bi)
+static int encode_four_color_block(uint8_t *min_color, uint8_t *max_color,
+                                   PutBitContext *pb, uint16_t *block_ptr, BlockInfo *bi)
 {
-    const int y_size = FFMIN(4, bi->image_height - bi->row * 4);
-    const int x_size = FFMIN(4, bi->image_width  - bi->col * 4);
+    int x, y, idx;
     uint8_t color4[4][3];
     uint16_t rounded_max, rounded_min;
-    int idx;
 
     // round min and max wider
     rounded_min = rgb24_to_rgb555(min_color);
@@ -407,20 +402,12 @@ static int encode_four_color_block(const uint8_t *min_color, const uint8_t *max_
 
     get_colors(min_color, max_color, color4);
 
-    for (int y = 0; y < y_size; y++) {
-        for (int x = 0; x < x_size; x++) {
+    for (y = 0; y < 4; y++) {
+        for (x = 0; x < 4; x++) {
             idx = match_color(&block_ptr[x], color4);
             put_bits(pb, 2, idx);
         }
-
-        for (int x = x_size; x < 4; x++)
-            put_bits(pb, 2, idx);
         block_ptr += bi->rowstride;
-    }
-
-    for (int y = y_size; y < 4; y++) {
-        for (int x = 0; x < 4; x++)
-            put_bits(pb, 2, 0);
     }
     return 1; // num blocks encoded
 }
@@ -433,11 +420,10 @@ static void update_block_in_prev_frame(const uint16_t *src_pixels,
                                        const BlockInfo *bi, int block_counter)
 {
     const int y_size = FFMIN(4, bi->image_height - bi->row * 4);
-    const int x_size = FFMIN(4, bi->image_width  - bi->col * 4) * 2;
 
     for (int y = 0; y < y_size; y++) {
-        memcpy(dest_pixels, src_pixels, x_size);
-        dest_pixels += bi->prev_rowstride;
+        memcpy(dest_pixels, src_pixels, 8);
+        dest_pixels += bi->rowstride;
         src_pixels += bi->rowstride;
     }
 }
@@ -457,7 +443,7 @@ static void update_block_in_prev_frame(const uint16_t *src_pixels,
  * the statistics of this block. Otherwise, the stats are unchanged
  * and don't include the current block.
  */
-static int update_block_stats(RpzaContext *s, const BlockInfo *bi, const uint16_t *block,
+static int update_block_stats(RpzaContext *s, BlockInfo *bi, uint16_t *block,
                               uint8_t min_color[3], uint8_t max_color[3],
                               int *total_rgb, int *total_pixels,
                               uint8_t avg_color[3], int first_block)
@@ -569,7 +555,6 @@ static void rpza_encode_stream(RpzaContext *s, const AVFrame *pict)
     int total_blocks;
     int prev_block_offset;
     int block_offset = 0;
-    int pblock_offset = 0;
     uint8_t min = 0, max = 0;
     channel_offset chan;
     int i;
@@ -578,8 +563,8 @@ static void rpza_encode_stream(RpzaContext *s, const AVFrame *pict)
     uint8_t avg_color[3];
     int pixel_count;
     uint8_t min_color[3], max_color[3];
-    int slope, y_intercept, correlation_coef;
-    const uint16_t *src_pixels = (const uint16_t *)pict->data[0];
+    double slope, y_intercept, correlation_coef;
+    uint16_t *src_pixels = (uint16_t *)pict->data[0];
     uint16_t *prev_pixels = (uint16_t *)s->prev_frame->data[0];
 
     /* Number of 4x4 blocks in frame. */
@@ -588,7 +573,6 @@ static void rpza_encode_stream(RpzaContext *s, const AVFrame *pict)
     bi.image_width = s->frame_width;
     bi.image_height = s->frame_height;
     bi.rowstride = pict->linesize[0] / 2;
-    bi.prev_rowstride = s->prev_frame->linesize[0] / 2;
 
     bi.blocks_per_row = (s->frame_width + 3) / 4;
 
@@ -601,8 +585,8 @@ static void rpza_encode_stream(RpzaContext *s, const AVFrame *pict)
             prev_block_offset = 0;
 
             while (n_blocks < 32 && block_counter + n_blocks < total_blocks) {
-                block_offset  = get_block_info(&bi, block_counter + n_blocks, 0);
-                pblock_offset = get_block_info(&bi, block_counter + n_blocks, 1);
+
+                block_offset = get_block_info(&bi, block_counter + n_blocks);
 
                 // multi-block opcodes cannot span multiple rows.
                 // If we're starting a new row, break out and write the opcode
@@ -617,7 +601,7 @@ static void rpza_encode_stream(RpzaContext *s, const AVFrame *pict)
 
                 prev_block_offset = block_offset;
 
-                if (compare_blocks(&prev_pixels[pblock_offset],
+                if (compare_blocks(&prev_pixels[block_offset],
                                    &src_pixels[block_offset], &bi, s->skip_frame_thresh) != 0) {
                     // write out skipable blocks
                     if (n_blocks) {
@@ -638,7 +622,7 @@ static void rpza_encode_stream(RpzaContext *s, const AVFrame *pict)
                  */
 
                 // update_block_in_prev_frame(&src_pixels[block_offset],
-                //   &prev_pixels[pblock_offset], &bi, block_counter + n_blocks);
+                //   &prev_pixels[block_offset], &bi, block_counter + n_blocks);
 
                 n_blocks++;
             }
@@ -654,8 +638,7 @@ static void rpza_encode_stream(RpzaContext *s, const AVFrame *pict)
             }
 
         } else {
-            block_offset  = get_block_info(&bi, block_counter, 0);
-            pblock_offset = get_block_info(&bi, block_counter, 1);
+            block_offset = get_block_info(&bi, block_counter);
         }
 post_skip :
 
@@ -669,12 +652,11 @@ post_skip :
 
             /* update this block in the previous frame buffer */
             update_block_in_prev_frame(&src_pixels[block_offset],
-                                       &prev_pixels[pblock_offset], &bi, block_counter + n_blocks);
+                                       &prev_pixels[block_offset], &bi, block_counter + n_blocks);
 
             // check for subsequent blocks with the same color
             while (n_blocks < 32 && block_counter + n_blocks < total_blocks) {
-                block_offset  = get_block_info(&bi, block_counter + n_blocks, 0);
-                pblock_offset = get_block_info(&bi, block_counter + n_blocks, 1);
+                block_offset = get_block_info(&bi, block_counter + n_blocks);
 
                 // multi-block opcodes cannot span multiple rows.
                 // If we've hit end of a row, break out and write the opcode
@@ -692,7 +674,7 @@ post_skip :
 
                 /* update this block in the previous frame buffer */
                 update_block_in_prev_frame(&src_pixels[block_offset],
-                                           &prev_pixels[pblock_offset], &bi, block_counter + n_blocks);
+                                           &prev_pixels[block_offset], &bi, block_counter + n_blocks);
 
                 n_blocks++;
             }
@@ -731,8 +713,8 @@ post_skip :
                     min_color[i] = GET_CHAN(src_pixels[block_offset], i);
                     max_color[i] = GET_CHAN(src_pixels[block_offset], i);
                 } else {
-                    tmp_min = 1 + min * slope + y_intercept;
-                    tmp_max = 1 + max * slope + y_intercept;
+                    tmp_min = (int)(0.5 + min * slope + y_intercept);
+                    tmp_max = (int)(0.5 + max * slope + y_intercept);
 
                     av_assert0(tmp_min <= tmp_max);
                     // clamp min and max color values
@@ -748,11 +730,10 @@ post_skip :
             }
 
             if (err > s->sixteen_color_thresh) { // DO SIXTEEN COLOR BLOCK
-                const uint16_t *row_ptr;
+                uint16_t *row_ptr;
                 int y_size, x_size, rgb555;
 
-                block_offset  = get_block_info(&bi, block_counter, 0);
-                pblock_offset = get_block_info(&bi, block_counter, 1);
+                block_offset = get_block_info(&bi, block_counter);
 
                 row_ptr = &src_pixels[block_offset];
                 y_size = FFMIN(4, bi.image_height - bi.row * 4);
@@ -766,7 +747,6 @@ post_skip :
                     }
                     for (int x = x_size; x < 4; x++)
                         put_bits(&s->pb, 16, 0);
-
                     row_ptr += bi.rowstride;
                 }
 
@@ -783,7 +763,7 @@ post_skip :
 
             /* update this block in the previous frame buffer */
             update_block_in_prev_frame(&src_pixels[block_offset],
-                                       &prev_pixels[pblock_offset], &bi, block_counter);
+                                       &prev_pixels[block_offset], &bi, block_counter);
         }
     }
 }
@@ -803,11 +783,12 @@ static int rpza_encode_init(AVCodecContext *avctx)
 }
 
 static int rpza_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
-                             const AVFrame *pict, int *got_packet)
+                                const AVFrame *frame, int *got_packet)
 {
     RpzaContext *s = avctx->priv_data;
+    const AVFrame *pict = frame;
     uint8_t *buf;
-    int ret = ff_alloc_packet(avctx, pkt, 4LL + 6LL * FFMAX(avctx->height, 4) * FFMAX(avctx->width, 4));
+    int ret = ff_alloc_packet(avctx, pkt, 6LL * avctx->height * avctx->width);
 
     if (ret < 0)
         return ret;
@@ -875,15 +856,15 @@ static const AVClass rpza_class = {
 
 const FFCodec ff_rpza_encoder = {
     .p.name         = "rpza",
-    CODEC_LONG_NAME("QuickTime video (RPZA)"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("QuickTime video (RPZA)"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_RPZA,
-    .p.capabilities = AV_CODEC_CAP_DR1 | AV_CODEC_CAP_ENCODER_REORDERED_OPAQUE,
     .priv_data_size = sizeof(RpzaContext),
     .p.priv_class   = &rpza_class,
     .init           = rpza_encode_init,
     FF_CODEC_ENCODE_CB(rpza_encode_frame),
     .close          = rpza_encode_end,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE,
     .p.pix_fmts     = (const enum AVPixelFormat[]) { AV_PIX_FMT_RGB555,
                                                      AV_PIX_FMT_NONE},
 };

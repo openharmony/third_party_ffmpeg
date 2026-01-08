@@ -20,9 +20,7 @@
  */
 
 #include "libavutil/intreadwrite.h"
-#include "libavutil/mem.h"
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 
 typedef struct {
@@ -185,9 +183,9 @@ static int pmp_close(AVFormatContext *s)
     return 0;
 }
 
-const FFInputFormat ff_pmp_demuxer = {
-    .p.name         = "pmp",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("Playstation Portable PMP"),
+const AVInputFormat ff_pmp_demuxer = {
+    .name           = "pmp",
+    .long_name      = NULL_IF_CONFIG_SMALL("Playstation Portable PMP"),
     .priv_data_size = sizeof(PMPContext),
     .read_probe     = pmp_probe,
     .read_header    = pmp_header,

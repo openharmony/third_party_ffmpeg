@@ -22,7 +22,7 @@
 #include "avcodec.h"
 #include "bytestream.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 
 typedef struct C93DecoderContext {
     AVFrame *pictures[2];
@@ -130,8 +130,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *rframe,
     AVFrame * const oldpic = c93->pictures[c93->currentpic^1];
     GetByteContext gb;
     uint8_t *out;
-    int ret, i, x, y, b, bt = 0;
-    ptrdiff_t stride;
+    int stride, ret, i, x, y, b, bt = 0;
 
     if ((ret = ff_set_dimensions(avctx, WIDTH, HEIGHT)) < 0)
         return ret;
@@ -147,16 +146,17 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *rframe,
     b = bytestream2_get_byte(&gb);
     if (b & C93_FIRST_FRAME) {
         newpic->pict_type = AV_PICTURE_TYPE_I;
-        newpic->flags |= AV_FRAME_FLAG_KEY;
+        newpic->key_frame = 1;
     } else {
         newpic->pict_type = AV_PICTURE_TYPE_P;
-        newpic->flags &= ~AV_FRAME_FLAG_KEY;
+        newpic->key_frame = 0;
     }
 
     for (y = 0; y < HEIGHT; y += 8) {
         out = newpic->data[0] + y * stride;
         for (x = 0; x < WIDTH; x += 8) {
             uint8_t *copy_from = oldpic->data[0];
+            unsigned int offset, j;
             uint8_t cols[4], grps[4];
             C93BlockType block_type;
 
@@ -165,17 +165,16 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *rframe,
 
             block_type= bt & 0x0F;
             switch (block_type) {
-            case C93_8X8_FROM_PREV: {
-                int offset = bytestream2_get_le16(&gb);
+            case C93_8X8_FROM_PREV:
+                offset = bytestream2_get_le16(&gb);
                 if ((ret = copy_block(avctx, out, copy_from, offset, 8, stride)) < 0)
                     return ret;
                 break;
-            }
 
             case C93_4X4_FROM_CURR:
                 copy_from = newpic->data[0];
             case C93_4X4_FROM_PREV:
-                for (int j = 0; j < 8; j += 4) {
+                for (j = 0; j < 8; j += 4) {
                     for (i = 0; i < 8; i += 4) {
                         int offset = bytestream2_get_le16(&gb);
                         int from_x = offset % WIDTH;
@@ -204,7 +203,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *rframe,
             case C93_4X4_2COLOR:
             case C93_4X4_4COLOR:
             case C93_4X4_4COLOR_GRP:
-                for (int j = 0; j < 8; j += 4) {
+                for (j = 0; j < 8; j += 4) {
                     for (i = 0; i < 8; i += 4) {
                         if (block_type == C93_4X4_2COLOR) {
                             bytestream2_get_buffer(&gb, cols, 2);
@@ -227,7 +226,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *rframe,
                 break;
 
             case C93_8X8_INTRA:
-                for (int j = 0; j < 8; j++)
+                for (j = 0; j < 8; j++)
                     bytestream2_get_buffer(&gb, out + j*stride, 8);
                 break;
 
@@ -246,11 +245,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *rframe,
         for (i = 0; i < 256; i++) {
             palette[i] = 0xFFU << 24 | bytestream2_get_be24(&gb);
         }
-#if FF_API_PALETTE_HAS_CHANGED
-FF_DISABLE_DEPRECATION_WARNINGS
         newpic->palette_has_changed = 1;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
     } else {
         if (oldpic->data[1])
             memcpy(newpic->data[1], oldpic->data[1], 256 * 4);
@@ -265,7 +260,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
 const FFCodec ff_c93_decoder = {
     .p.name         = "c93",
-    CODEC_LONG_NAME("Interplay C93"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Interplay C93"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_C93,
     .priv_data_size = sizeof(C93DecoderContext),
@@ -273,5 +268,5 @@ const FFCodec ff_c93_decoder = {
     .close          = decode_end,
     FF_CODEC_DECODE_CB(decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
 };

@@ -28,11 +28,9 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include "libavcodec/avcodec.h"
-#include "libavutil/mem.h"
 #include "libavutil/pixdesc.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/pixfmt.h"
-#include "refstruct.h"
 #include "v4l2_context.h"
 #include "v4l2_fmt.h"
 #include "v4l2_m2m.h"
@@ -150,15 +148,13 @@ static int v4l2_configure_contexts(V4L2m2mContext *s)
 
     ofmt = s->output.format;
     cfmt = s->capture.format;
-    av_log(log_ctx, AV_LOG_INFO, "requesting formats: output=%s/%s capture=%s/%s\n",
+    av_log(log_ctx, AV_LOG_INFO, "requesting formats: output=%s capture=%s\n",
                                  av_fourcc2str(V4L2_TYPE_IS_MULTIPLANAR(ofmt.type) ?
                                                ofmt.fmt.pix_mp.pixelformat :
                                                ofmt.fmt.pix.pixelformat),
-                                 av_get_pix_fmt_name(s->output.av_pix_fmt) ?: "none",
                                  av_fourcc2str(V4L2_TYPE_IS_MULTIPLANAR(cfmt.type) ?
                                                cfmt.fmt.pix_mp.pixelformat :
-                                               cfmt.fmt.pix.pixelformat),
-                                 av_get_pix_fmt_name(s->capture.av_pix_fmt) ?: "none");
+                                               cfmt.fmt.pix.pixelformat));
 
     ret = ff_v4l2_context_set_format(&s->output);
     if (ret) {
@@ -248,17 +244,20 @@ int ff_v4l2_m2m_codec_reinit(V4L2m2mContext *s)
     return 0;
 }
 
-static void v4l2_m2m_destroy_context(FFRefStructOpaque unused, void *context)
+static void v4l2_m2m_destroy_context(void *opaque, uint8_t *context)
 {
-    V4L2m2mContext *s = context;
+    V4L2m2mContext *s = (V4L2m2mContext*)context;
 
     ff_v4l2_context_release(&s->capture);
     sem_destroy(&s->refsync);
 
     if (s->fd >= 0)
         close(s->fd);
+    av_frame_unref(s->frame);
     av_frame_free(&s->frame);
     av_packet_unref(&s->buf_pkt);
+
+    av_free(s);
 }
 
 int ff_v4l2_m2m_codec_end(V4L2m2mPriv *priv)
@@ -282,7 +281,7 @@ int ff_v4l2_m2m_codec_end(V4L2m2mPriv *priv)
     ff_v4l2_context_release(&s->output);
 
     s->self_ref = NULL;
-    ff_refstruct_unref(&priv->context);
+    av_buffer_unref(&priv->context_ref);
 
     return 0;
 }
@@ -327,10 +326,16 @@ int ff_v4l2_m2m_codec_init(V4L2m2mPriv *priv)
 
 int ff_v4l2_m2m_create_context(V4L2m2mPriv *priv, V4L2m2mContext **s)
 {
-    *s = ff_refstruct_alloc_ext(sizeof(**s), 0, NULL,
-                                &v4l2_m2m_destroy_context);
+    *s = av_mallocz(sizeof(V4L2m2mContext));
     if (!*s)
         return AVERROR(ENOMEM);
+
+    priv->context_ref = av_buffer_create((uint8_t *) *s, sizeof(V4L2m2mContext),
+                                         &v4l2_m2m_destroy_context, NULL, 0);
+    if (!priv->context_ref) {
+        av_freep(s);
+        return AVERROR(ENOMEM);
+    }
 
     /* assign the context */
     priv->context = *s;
@@ -339,13 +344,13 @@ int ff_v4l2_m2m_create_context(V4L2m2mPriv *priv, V4L2m2mContext **s)
     /* populate it */
     priv->context->capture.num_buffers = priv->num_capture_buffers;
     priv->context->output.num_buffers  = priv->num_output_buffers;
-    priv->context->self_ref = priv->context;
+    priv->context->self_ref = priv->context_ref;
     priv->context->fd = -1;
 
     priv->context->frame = av_frame_alloc();
     if (!priv->context->frame) {
-        ff_refstruct_unref(&priv->context);
-        *s = NULL; /* freed when unreferencing context */
+        av_buffer_unref(&priv->context_ref);
+        *s = NULL; /* freed when unreferencing context_ref */
         return AVERROR(ENOMEM);
     }
 

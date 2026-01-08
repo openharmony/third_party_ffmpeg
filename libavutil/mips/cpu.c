@@ -34,7 +34,7 @@
 
 static int cpucfg_available(void)
 {
-    return ff_getauxval(AT_HWCAP) & HWCAP_LOONGSON_CPUCFG;
+    return getauxval(AT_HWCAP) & HWCAP_LOONGSON_CPUCFG;
 }
 
 /* Most toolchains have no CPUCFG support yet */

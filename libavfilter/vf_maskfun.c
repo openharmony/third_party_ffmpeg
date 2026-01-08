@@ -22,7 +22,8 @@
 #include "libavutil/pixdesc.h"
 #include "libavutil/opt.h"
 #include "avfilter.h"
-#include "filters.h"
+#include "formats.h"
+#include "internal.h"
 #include "video.h"
 
 typedef struct MaskFunContext {
@@ -316,13 +317,20 @@ static const AVFilterPad maskfun_inputs[] = {
     },
 };
 
+static const AVFilterPad maskfun_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 const AVFilter ff_vf_maskfun = {
     .name          = "maskfun",
     .description   = NULL_IF_CONFIG_SMALL("Create Mask."),
     .priv_size     = sizeof(MaskFunContext),
     .uninit        = uninit,
     FILTER_INPUTS(maskfun_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(maskfun_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .priv_class    = &maskfun_class,
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,

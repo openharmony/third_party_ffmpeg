@@ -26,7 +26,6 @@
  */
 
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "subtitles.h"
 #include "libavcodec/jacosub.h"
@@ -128,29 +127,29 @@ shift_and_ret:
 static int get_shift(unsigned timeres, const char *buf)
 {
     int sign = 1;
-    int h = 0, m = 0, s = 0, d = 0;
+    int a = 0, b = 0, c = 0, d = 0;
     int64_t ret;
 #define SSEP "%*1[.:]"
-    int n = sscanf(buf, "%d"SSEP"%d"SSEP"%d"SSEP"%d", &h, &m, &s, &d);
+    int n = sscanf(buf, "%d"SSEP"%d"SSEP"%d"SSEP"%d", &a, &b, &c, &d);
 #undef SSEP
 
-    if (h == INT_MIN)
+    if (a == INT_MIN)
         return 0;
 
-    if (*buf == '-' || h < 0) {
+    if (*buf == '-' || a < 0) {
         sign = -1;
-        h = FFABS(h);
+        a = FFABS(a);
     }
 
     ret = 0;
     switch (n) {
-    case 1:        h = 0;                   //clear all in case of a single parameter
-    case 2: s = m; m = h; h = 0;            //shift into second subsecondd
-    case 3: d = s; s = m; m = h; h = 0;     //shift into minute second subsecond
+    case 1:                      a = 0;
+    case 2:        c = b; b = a; a = 0;
+    case 3: d = c; c = b; b = a; a = 0;
     }
 
-    ret = (int64_t)h*3600 + (int64_t)m*60 + s;
-    if (FFABS(ret) > (INT64_MAX - FFABS((int64_t)d)) / timeres)
+    ret = (int64_t)a*3600 + (int64_t)b*60 + c;
+    if (FFABS(ret) > (INT64_MAX - FFABS(d)) / timeres)
         return 0;
     ret = sign * (ret * timeres + d);
 
@@ -257,11 +256,11 @@ static int jacosub_read_header(AVFormatContext *s)
     return 0;
 }
 
-const FFInputFormat ff_jacosub_demuxer = {
-    .p.name         = "jacosub",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("JACOsub subtitle format"),
+const AVInputFormat ff_jacosub_demuxer = {
+    .name           = "jacosub",
+    .long_name      = NULL_IF_CONFIG_SMALL("JACOsub subtitle format"),
     .priv_data_size = sizeof(JACOsubContext),
-    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
+    .flags_internal = FF_FMT_INIT_CLEANUP,
     .read_probe     = jacosub_probe,
     .read_header    = jacosub_read_header,
     .read_packet    = ff_subtitles_read_packet,

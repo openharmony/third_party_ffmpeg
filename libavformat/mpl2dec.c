@@ -26,7 +26,6 @@
 #include "libavutil/intreadwrite.h"
 
 #include "avformat.h"
-#include "demux.h"
 #include "internal.h"
 #include "subtitles.h"
 
@@ -123,14 +122,14 @@ static int mpl2_read_header(AVFormatContext *s)
     return 0;
 }
 
-const FFInputFormat ff_mpl2_demuxer = {
-    .p.name         = "mpl2",
-    .p.long_name    = NULL_IF_CONFIG_SMALL("MPL2 subtitles"),
-    .p.extensions   = "txt,mpl2",
+const AVInputFormat ff_mpl2_demuxer = {
+    .name           = "mpl2",
+    .long_name      = NULL_IF_CONFIG_SMALL("MPL2 subtitles"),
     .priv_data_size = sizeof(MPL2Context),
-    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
+    .flags_internal = FF_FMT_INIT_CLEANUP,
     .read_probe     = mpl2_probe,
     .read_header    = mpl2_read_header,
+    .extensions     = "txt,mpl2",
     .read_packet    = ff_subtitles_read_packet,
     .read_seek2     = ff_subtitles_read_seek,
     .read_close     = ff_subtitles_read_close,

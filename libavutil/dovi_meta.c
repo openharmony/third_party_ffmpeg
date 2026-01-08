@@ -18,8 +18,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <string.h>
-
 #include "dovi_meta.h"
 #include "mem.h"
 
@@ -41,7 +39,6 @@ typedef struct AVDOVIMetadataInternal {
     AVDOVIRpuDataHeader header;
     AVDOVIDataMapping mapping;
     AVDOVIColorMetadata color;
-    AVDOVIDmData ext_blocks[AV_DOVI_MAX_EXT_BLOCKS];
 } AVDOVIMetadataInternal;
 
 AVDOVIMetadata *av_dovi_metadata_alloc(size_t *size)
@@ -54,23 +51,10 @@ AVDOVIMetadata *av_dovi_metadata_alloc(size_t *size)
         *size = sizeof(*dovi);
 
     dovi->metadata = (struct AVDOVIMetadata) {
-        .header_offset      = offsetof(AVDOVIMetadataInternal, header),
-        .mapping_offset     = offsetof(AVDOVIMetadataInternal, mapping),
-        .color_offset       = offsetof(AVDOVIMetadataInternal, color),
-        .ext_block_offset   = offsetof(AVDOVIMetadataInternal, ext_blocks),
-        .ext_block_size     = sizeof(AVDOVIDmData),
+        .header_offset  = offsetof(AVDOVIMetadataInternal, header),
+        .mapping_offset = offsetof(AVDOVIMetadataInternal, mapping),
+        .color_offset   = offsetof(AVDOVIMetadataInternal, color),
     };
 
     return &dovi->metadata;
-}
-
-AVDOVIDmData *av_dovi_find_level(const AVDOVIMetadata *data, uint8_t level)
-{
-    for (int i = 0; i < data->num_ext_blocks; i++) {
-        AVDOVIDmData *ext = av_dovi_get_ext(data, i);
-        if (ext->level == level)
-            return ext;
-    }
-
-    return NULL;
 }

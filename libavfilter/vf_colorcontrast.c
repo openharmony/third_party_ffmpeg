@@ -21,10 +21,11 @@
 #include <float.h>
 
 #include "libavutil/opt.h"
-#include "libavutil/pixdesc.h"
+#include "libavutil/imgutils.h"
 #include "avfilter.h"
 #include "drawutils.h"
-#include "filters.h"
+#include "formats.h"
+#include "internal.h"
 #include "video.h"
 
 #define R 0
@@ -96,9 +97,9 @@ static int colorcontrast_slice8(AVFilterContext *ctx, void *arg, int jobnr, int 
     const int height = frame->height;
     const int slice_start = (height * jobnr) / nb_jobs;
     const int slice_end = (height * (jobnr + 1)) / nb_jobs;
-    const ptrdiff_t glinesize = frame->linesize[0];
-    const ptrdiff_t blinesize = frame->linesize[1];
-    const ptrdiff_t rlinesize = frame->linesize[2];
+    const int glinesize = frame->linesize[0];
+    const int blinesize = frame->linesize[1];
+    const int rlinesize = frame->linesize[2];
     uint8_t *gptr = frame->data[0] + slice_start * glinesize;
     uint8_t *bptr = frame->data[1] + slice_start * blinesize;
     uint8_t *rptr = frame->data[2] + slice_start * rlinesize;
@@ -150,9 +151,9 @@ static int colorcontrast_slice16(AVFilterContext *ctx, void *arg, int jobnr, int
     const int height = frame->height;
     const int slice_start = (height * jobnr) / nb_jobs;
     const int slice_end = (height * (jobnr + 1)) / nb_jobs;
-    const ptrdiff_t glinesize = frame->linesize[0] / 2;
-    const ptrdiff_t blinesize = frame->linesize[1] / 2;
-    const ptrdiff_t rlinesize = frame->linesize[2] / 2;
+    const int glinesize = frame->linesize[0] / 2;
+    const int blinesize = frame->linesize[1] / 2;
+    const int rlinesize = frame->linesize[2] / 2;
     uint16_t *gptr = (uint16_t *)frame->data[0] + slice_start * glinesize;
     uint16_t *bptr = (uint16_t *)frame->data[1] + slice_start * blinesize;
     uint16_t *rptr = (uint16_t *)frame->data[2] + slice_start * rlinesize;
@@ -203,7 +204,7 @@ static int colorcontrast_slice8p(AVFilterContext *ctx, void *arg, int jobnr, int
     const int height = frame->height;
     const int slice_start = (height * jobnr) / nb_jobs;
     const int slice_end = (height * (jobnr + 1)) / nb_jobs;
-    const ptrdiff_t linesize = frame->linesize[0];
+    const int linesize = frame->linesize[0];
     const uint8_t roffset = s->rgba_map[R];
     const uint8_t goffset = s->rgba_map[G];
     const uint8_t boffset = s->rgba_map[B];
@@ -255,7 +256,7 @@ static int colorcontrast_slice16p(AVFilterContext *ctx, void *arg, int jobnr, in
     const int height = frame->height;
     const int slice_start = (height * jobnr) / nb_jobs;
     const int slice_end = (height * (jobnr + 1)) / nb_jobs;
-    const ptrdiff_t linesize = frame->linesize[0] / 2;
+    const int linesize = frame->linesize[0] / 2;
     const uint8_t roffset = s->rgba_map[R];
     const uint8_t goffset = s->rgba_map[G];
     const uint8_t boffset = s->rgba_map[B];
@@ -358,6 +359,13 @@ static const AVFilterPad colorcontrast_inputs[] = {
     },
 };
 
+static const AVFilterPad colorcontrast_outputs[] = {
+    {
+        .name = "default",
+        .type = AVMEDIA_TYPE_VIDEO,
+    },
+};
+
 #define OFFSET(x) offsetof(ColorContrastContext, x)
 #define VF AV_OPT_FLAG_FILTERING_PARAM|AV_OPT_FLAG_VIDEO_PARAM|AV_OPT_FLAG_RUNTIME_PARAM
 
@@ -380,7 +388,7 @@ const AVFilter ff_vf_colorcontrast = {
     .priv_size     = sizeof(ColorContrastContext),
     .priv_class    = &colorcontrast_class,
     FILTER_INPUTS(colorcontrast_inputs),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(colorcontrast_outputs),
     FILTER_PIXFMTS_ARRAY(pixel_fmts),
     .flags         = AVFILTER_FLAG_SUPPORT_TIMELINE_GENERIC | AVFILTER_FLAG_SLICE_THREADS,
     .process_command = ff_filter_process_command,

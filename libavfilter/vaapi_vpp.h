@@ -27,11 +27,6 @@
 
 #include "avfilter.h"
 
-static inline VASurfaceID ff_vaapi_vpp_get_surface_id(const AVFrame *frame)
-{
-    return (uintptr_t)frame->data[3];
-}
-
 // ARGB black, for VAProcPipelineParameterBuffer.output_background_color.
 #define VAAPI_VPP_BACKGROUND_BLACK 0xff000000
 
@@ -55,8 +50,6 @@ typedef struct VAAPIVPPContext {
 
     VABufferID         filter_buffers[VAProcFilterCount];
     int                nb_filter_buffers;
-
-    int passthrough;
 
     int (*build_filter_params)(AVFilterContext *avctx);
 
@@ -89,10 +82,5 @@ int ff_vaapi_vpp_make_param_buffers(AVFilterContext *avctx,
 int ff_vaapi_vpp_render_picture(AVFilterContext *avctx,
                                 VAProcPipelineParameterBuffer *params,
                                 AVFrame *output_frame);
-
-int ff_vaapi_vpp_render_pictures(AVFilterContext *avctx,
-                                 VAProcPipelineParameterBuffer *params_list,
-                                 int count,
-                                 AVFrame *output_frame);
 
 #endif /* AVFILTER_VAAPI_VPP_H */

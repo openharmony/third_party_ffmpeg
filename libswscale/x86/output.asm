@@ -297,7 +297,7 @@ cglobal yuv2planeX_%1, %3, 8, %2, filter, fltsize, src, dst, w, dither, offset
     test          dstq, 15
     jnz .unaligned
     yuv2planeX_mainloop %1, a
-    RET
+    REP_RET
 .unaligned:
     yuv2planeX_mainloop %1, u
 %endif ; mmsize == 8/16
@@ -307,10 +307,10 @@ cglobal yuv2planeX_%1, %3, 8, %2, filter, fltsize, src, dst, w, dither, offset
     ADD             rsp, pad
     RET
 %else ; x86-64
-    RET
+    REP_RET
 %endif ; x86-32/64
 %else ; %1 == 9/10/16
-    RET
+    REP_RET
 %endif ; %1 == 8/9/10/16
 %endmacro
 
@@ -433,10 +433,10 @@ cglobal yuv2plane1_%1, %3, %3, %2, src, dst, w, dither, offset
     test          dstq, 15
     jnz .unaligned
     yuv2plane1_mainloop %1, a
-    RET
+    REP_RET
 .unaligned:
     yuv2plane1_mainloop %1, u
-    RET
+    REP_RET
 %endmacro
 
 INIT_XMM sse2

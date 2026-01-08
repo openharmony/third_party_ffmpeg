@@ -21,18 +21,26 @@
 
 #include <stdint.h>
 #include "cpu.h"
-#include <sys/auxv.h>
 
-#define LA_HWCAP_LSX    (1<<4)
-#define LA_HWCAP_LASX   (1<<5)
-static int cpu_flags_getauxval(void)
+#define LOONGARCH_CFG2 0x2
+#define LOONGARCH_CFG2_LSX    (1 << 6)
+#define LOONGARCH_CFG2_LASX   (1 << 7)
+
+static int cpu_flags_cpucfg(void)
 {
     int flags = 0;
-    int flag  = (int)ff_getauxval(AT_HWCAP);
+    uint32_t cfg2 = 0;
 
-    if (flag & LA_HWCAP_LSX)
+    __asm__ volatile(
+        "cpucfg %0, %1 \n\t"
+        : "+&r"(cfg2)
+        : "r"(LOONGARCH_CFG2)
+    );
+
+    if (cfg2 & LOONGARCH_CFG2_LSX)
         flags |= AV_CPU_FLAG_LSX;
-    if (flag & LA_HWCAP_LASX)
+
+    if (cfg2 & LOONGARCH_CFG2_LASX)
         flags |= AV_CPU_FLAG_LASX;
 
     return flags;
@@ -41,7 +49,7 @@ static int cpu_flags_getauxval(void)
 int ff_get_cpu_flags_loongarch(void)
 {
 #if defined __linux__
-    return cpu_flags_getauxval();
+    return cpu_flags_cpucfg();
 #else
     /* Assume no SIMD ASE supported */
     return 0;

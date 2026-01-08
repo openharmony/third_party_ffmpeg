@@ -68,7 +68,7 @@
 
 #include <stdint.h>
 #include "libavutil/attributes.h"
-#include "fdctdsp.h"
+#include "dct.h"
 
 #define DCTSIZE 8
 #define GLOBAL(x) x

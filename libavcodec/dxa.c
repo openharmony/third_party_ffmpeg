@@ -24,12 +24,15 @@
  * DXA Video decoder
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "libavutil/common.h"
 #include "libavutil/intreadwrite.h"
-#include "libavutil/mem.h"
 #include "bytestream.h"
 #include "avcodec.h"
 #include "codec_internal.h"
-#include "decode.h"
+#include "internal.h"
 
 #include <zlib.h>
 
@@ -45,8 +48,8 @@ typedef struct DxaDecContext {
     uint32_t pal[256];
 } DxaDecContext;
 
-static const uint8_t shift1[6] = { 0, 8, 8, 8, 4, 4 };
-static const uint8_t shift2[6] = { 0, 0, 8, 4, 0, 4 };
+static const int shift1[6] = { 0, 8, 8, 8, 4, 4 };
+static const int shift2[6] = { 0, 0, 8, 4, 0, 4 };
 
 static int decode_13(AVCodecContext *avctx, DxaDecContext *c, uint8_t* dst,
                      int stride, uint8_t *src, int srcsize, uint8_t *ref)
@@ -230,11 +233,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
     if ((ret = ff_get_buffer(avctx, frame, AV_GET_BUFFER_FLAG_REF)) < 0)
         return ret;
     memcpy(frame->data[1], c->pal, AVPALETTE_SIZE);
-#if FF_API_PALETTE_HAS_CHANGED
-FF_DISABLE_DEPRECATION_WARNINGS
     frame->palette_has_changed = pc;
-FF_ENABLE_DEPRECATION_WARNINGS
-#endif
 
     outptr = frame->data[0];
     srcptr = c->decomp_buf;
@@ -262,19 +261,19 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
     switch(compr){
     case -1:
-        frame->flags &= ~AV_FRAME_FLAG_KEY;
+        frame->key_frame = 0;
         frame->pict_type = AV_PICTURE_TYPE_P;
         if (c->prev->data[0])
             memcpy(frame->data[0], c->prev->data[0], frame->linesize[0] * avctx->height);
         else{ // Should happen only when first frame is 'NULL'
             memset(frame->data[0], 0, frame->linesize[0] * avctx->height);
-            frame->flags |= AV_FRAME_FLAG_KEY;
+            frame->key_frame = 1;
             frame->pict_type = AV_PICTURE_TYPE_I;
         }
         break;
     case 2:
     case 4:
-        frame->flags |= AV_FRAME_FLAG_KEY;
+        frame->key_frame = 1;
         frame->pict_type = AV_PICTURE_TYPE_I;
         for (j = 0; j < avctx->height; j++) {
                 memcpy(outptr, srcptr, avctx->width);
@@ -289,7 +288,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             if (!(avctx->flags2 & AV_CODEC_FLAG2_SHOW_ALL))
                 return AVERROR_INVALIDDATA;
         }
-        frame->flags &= ~AV_FRAME_FLAG_KEY;
+        frame->key_frame = 0;
         frame->pict_type = AV_PICTURE_TYPE_P;
         for (j = 0; j < avctx->height; j++) {
             if(tmpptr){
@@ -304,7 +303,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
         break;
     case 12: // ScummVM coding
     case 13:
-        frame->flags &= ~AV_FRAME_FLAG_KEY;
+        frame->key_frame = 0;
         frame->pict_type = AV_PICTURE_TYPE_P;
         if (!c->prev->data[0]) {
             av_log(avctx, AV_LOG_ERROR, "Missing reference frame\n");
@@ -317,7 +316,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
         return AVERROR_INVALIDDATA;
     }
 
-    if ((ret = av_frame_replace(c->prev, frame)) < 0)
+    av_frame_unref(c->prev);
+    if ((ret = av_frame_ref(c->prev, frame)) < 0)
         return ret;
 
     *got_frame = 1;
@@ -363,7 +363,7 @@ static av_cold int decode_end(AVCodecContext *avctx)
 
 const FFCodec ff_dxa_decoder = {
     .p.name         = "dxa",
-    CODEC_LONG_NAME("Feeble Files/ScummVM DXA"),
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Feeble Files/ScummVM DXA"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_DXA,
     .priv_data_size = sizeof(DxaDecContext),
@@ -371,5 +371,5 @@ const FFCodec ff_dxa_decoder = {
     .close          = decode_end,
     FF_CODEC_DECODE_CB(decode_frame),
     .p.capabilities = AV_CODEC_CAP_DR1,
-    .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP,
+    .caps_internal  = FF_CODEC_CAP_INIT_THREADSAFE | FF_CODEC_CAP_INIT_CLEANUP,
 };
