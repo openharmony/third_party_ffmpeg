@@ -199,7 +199,7 @@ ${FFMPEG_PATH}/configure ${FF_CONFIG_OPTIONS}
 
 fi
 
-sed -i 's/HAVE_SYSCTL 1/HAVE_SYSCTL 0/g' config.h	 
+sed -i 's/HAVE_SYSCTL 1/HAVE_SYSCTL 0/g' config.h
 sed -i 's/HAVE_SYSCTL=yes/!HAVE_SYSCTL=yes/g' ./ffbuild/config.mak
 sed -i 's/CONFIG_LIBDRM 1/CONFIG_LIBDRM 0/g' config.h
 sed -i 's/CONFIG_LIBDRM=yes/!CONFIG_LIBDRM=yes/g' ./ffbuild/config.mak
