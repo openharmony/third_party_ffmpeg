@@ -3,8 +3,9 @@
         "Name": "FFmpeg",
         "License": "LGPL V2.1",
         "License File": "COPYING.LGPLv2.1",
-        "Version Number": "5.1.4",
+        "Version Number": "7.1.1",
         "Upstream URL": "http://www.ffmpeg.org/",
-        "Description": "FFmpeg is the leading multimedia framework, able to decode, encode, transcode, mux, demux, stream, filter and play pretty much anything that humans and machines have created."
+        "Description": "FFmpeg is the leading multimedia framework, able to decode, encode, transcode, mux, demux, stream, filter and play pretty much anything that humans and machines have created.",
+        "Dependencies": ""
     }
 ]
