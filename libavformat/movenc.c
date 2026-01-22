@@ -5112,15 +5112,15 @@ static int mov_write_geo_tag(AVFormatContext *s, AVIOContext *pb)
         return 0;
 
     ptr = t->value;
-    longitude = strtof(ptr, &end);
+    latitude = strtof(ptr, &end);
     if (end == ptr) {
-        av_log(s, AV_LOG_WARNING, "malformed location metadata\n");
+        av_log(s, AV_LOG_WARNING, "malformed latitude metadata\n");
         return 0;
     }
     ptr = end;
-    latitude = strtof(ptr, &end);
+    longitude = strtof(ptr, &end);
     if (end == ptr) {
-        av_log(s, AV_LOG_WARNING, "malformed location metadata\n");
+        av_log(s, AV_LOG_WARNING, "malformed longitude metadata\n");
         return 0;
     }
     ptr = end;
