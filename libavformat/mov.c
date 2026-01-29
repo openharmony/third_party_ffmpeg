@@ -3080,7 +3080,7 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     if (id_count == 0) {
         return 0;
     }
-    if (id_count > (UINT32_MAX / sizeof(int32_t))) {
+    if (id_count > 1000) { // Avoid abnormal resource data causing stack overflow
         return AVERROR_INVALIDDATA;
     }
     int track_ids[id_count];
