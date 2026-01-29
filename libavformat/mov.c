@@ -3081,6 +3081,7 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         return 0;
     }
     if (id_count > 1000) { // Avoid abnormal resource data causing stack overflow
+        av_log(c->fc, AV_LOG_ERROR, "Invalid id_count: %d\n", id_count);
         return AVERROR_INVALIDDATA;
     }
     int track_ids[id_count];
