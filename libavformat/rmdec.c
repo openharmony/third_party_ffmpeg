@@ -731,6 +731,13 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
             if(state > (unsigned)0xFFFF || state <= 12)
                 continue;
             len=state - 12;
+#ifdef OHOS_OPT_COMPAT
+            int file_remain_len = avio_size(pb) - avio_tell(pb);
+            if (len < 0 || len > file_remain_len) {
+                av_log(s, AV_LOG_ERROR, "rm_sync error, len=%d, file_remain_len=%d\n", len, file_remain_len);
+                continue;
+            }
+#endif
             state= 0xFFFFFFFF;
 
             num = avio_rb16(pb);
@@ -751,6 +758,31 @@ skip:
             rm->remaining_len = 0;
             continue;
         }
+#ifdef OHOS_OPT_COMPAT
+        if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            int file_remain_len = avio_size(pb) - avio_tell(pb);
+            int original_pos = avio_tell(pb);
+            int len_tmp = len;
+            int type = avio_r8(pb) >> 6;
+            len_tmp--;
+            if(type != 3) {
+                avio_skip(pb, 1);
+                len_tmp--;
+            }
+            if(type != 1) {
+                int len2 = get_num(pb, &len_tmp);
+                (void)get_num(pb, &len_tmp);
+                len_tmp--;
+                if (len2 > file_remain_len || (type == 3 && len2 > len_tmp)) {
+                    av_log(s, AV_LOG_ERROR, "rm_sync err, len2=%d, file_remain_len=%d, type=%d, len_tmp=%d\n",
+                        len2, file_remain_len, type, len_tmp);
+                    avio_seek(pb, original_pos, SEEK_SET);
+                    continue;
+                }
+            }
+            avio_seek(pb, original_pos, SEEK_SET);
+        }
+#endif
         *stream_index= i;
 
         return len;
