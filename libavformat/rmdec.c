@@ -1143,6 +1143,9 @@ static int rm_read_seek(AVFormatContext *s, int stream_index,
     if (ff_seek_frame_binary(s, stream_index, pts, flags) < 0)
         return -1;
     rm->audio_pkt_cnt = 0;
+#ifdef OHOS_OPT_COMPAT
+    rm->remaining_len = 0;
+#endif
     return 0;
 }
 
