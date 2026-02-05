@@ -690,6 +690,9 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
     AVIOContext *pb = s->pb;
     AVStream *st;
     uint32_t state=0xFFFFFFFF;
+#ifdef OHOS_OPT_COMPAT
+    int64_t original_pos = 0;
+#endif
 
     while(!avio_feof(pb)){
         int len, num, i;
@@ -703,6 +706,7 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
             *flags= 0;
         }else{
             state= (state<<8) + avio_r8(pb);
+
 
             if(state == MKBETAG('I', 'N', 'D', 'X')){
                 int n_pkts;
@@ -730,14 +734,10 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
 
             if(state > (unsigned)0xFFFF || state <= 12)
                 continue;
-            len=state - 12;
 #ifdef OHOS_OPT_COMPAT
-            int file_remain_len = avio_size(pb) - avio_tell(pb);
-            if (len < 0 || len > file_remain_len) {
-                av_log(s, AV_LOG_ERROR, "rm_sync error, len=%d, file_remain_len=%d\n", len, file_remain_len);
-                continue;
-            }
+            original_pos = avio_tell(pb);
 #endif
+            len=state - 12;
             state= 0xFFFFFFFF;
 
             num = avio_rb16(pb);
@@ -751,17 +751,18 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
             if (mlti_id + num == st->id)
                 break;
         }
-        if (i == s->nb_streams) {
-skip:
-            /* skip packet if unknown number */
-            avio_skip(pb, len);
-            rm->remaining_len = 0;
-            continue;
-        }
 #ifdef OHOS_OPT_COMPAT
         if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-            int file_remain_len = avio_size(pb) - avio_tell(pb);
-            int original_pos = avio_tell(pb);
+            int64_t current_pos = avio_tell(pb);
+            int64_t file_size = avio_size(pb);
+            int64_t file_remain_len = file_size - current_pos;
+            if (len < 0 || len > file_remain_len) {
+                av_log(s, AV_LOG_ERROR, "rm_sync error, len=%d, cur_pos=%ld, file_size=%ld, file_remain_len=%ld\n",
+                len, avio_tell(pb), file_size, file_remain_len);
+                avio_seek(pb, original_pos, SEEK_SET);
+                continue;
+            }
+
             int len_tmp = len;
             int type = avio_r8(pb) >> 6;
             len_tmp--;
@@ -773,16 +774,25 @@ skip:
                 int len2 = get_num(pb, &len_tmp);
                 (void)get_num(pb, &len_tmp);
                 len_tmp--;
-                if (len2 > file_remain_len || (type == 3 && len2 > len_tmp)) {
-                    av_log(s, AV_LOG_ERROR, "rm_sync err, len2=%d, file_remain_len=%d, type=%d, len_tmp=%d\n",
+                file_remain_len = file_size - avio_tell(pb);
+                if (len2 < 0 || len2 > file_remain_len || (type == 3 && len2 > len_tmp)) {
+                    av_log(s, AV_LOG_ERROR, "rm_sync err, len2=%d, file_remain_len=%ld, type=%d, len_tmp=%d\n",
                         len2, file_remain_len, type, len_tmp);
                     avio_seek(pb, original_pos, SEEK_SET);
                     continue;
                 }
             }
-            avio_seek(pb, original_pos, SEEK_SET);
+            avio_seek(pb, current_pos, SEEK_SET);
         }
 #endif
+
+        if (i == s->nb_streams) {
+skip:
+            /* skip packet if unknown number */
+            avio_skip(pb, len);
+            rm->remaining_len = 0;
+            continue;
+        }
         *stream_index= i;
 
         return len;
