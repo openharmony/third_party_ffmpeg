@@ -707,7 +707,6 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
         }else{
             state= (state<<8) + avio_r8(pb);
 
-
             if(state == MKBETAG('I', 'N', 'D', 'X')){
                 int n_pkts;
                 int64_t expected_len;
