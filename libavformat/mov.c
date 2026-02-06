@@ -11596,7 +11596,8 @@ static int mov_read_packet(AVFormatContext *s, AVPacket *pkt)
                         int64_t temp_size = AV_RB32(payload_data);
                         uint32_t temp_type = AV_RL32(payload_data + 4);
                         if (temp_size < 8) {
-                            av_log(mov->fc, AV_LOG_ERROR, "non-standard vttc, temp_size is %d invalid\n", temp_size);
+                            av_log(mov->fc, AV_LOG_ERROR, "non-standard vttc, temp_size is invalid, "
+                                "temp_size is %"PRId64" less than 8\n", temp_size);
                             break;
                         } else if (temp_type == MKTAG('p', 'a', 'y', 'l')) {
                             payload_data += 8;
