@@ -776,7 +776,7 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
                 len_tmp--;
                 file_remain_len = file_size - avio_tell(pb);
                 if (len2 < 0 || len2 > file_remain_len || (type == 3 && len2 > len_tmp)) {
-                    av_log(s, AV_LOG_ERROR, "rm_sync err, len2=%d, file_remain_len=%ld, type=%d, len_tmp=%d\n",
+                    av_log(s, AV_LOG_ERROR, "rm_sync err, len2=%d, file_remain_len=%"PRId64", type=%d, len_tmp=%d\n",
                         len2, file_remain_len, type, len_tmp);
                     avio_seek(pb, original_pos, SEEK_SET);
                     continue;
