@@ -787,7 +787,11 @@ smv_out:
         if (CONFIG_W64_DEMUXER && wav->w64)
             left = find_guid(s->pb, ff_w64_guid_data) - 24;
         else
+#ifdef OHOS_OPT_COMPAT
+            return AVERROR_EOF;
+#else
             left = find_tag(wav, s->pb, MKTAG('d', 'a', 't', 'a'));
+#endif
         if (left < 0) {
             wav->audio_eof = 1;
             if (wav->smv_data_ofs > 0 && !wav->smv_eof)
