@@ -115,9 +115,12 @@ if (ffmpeg_enable_codec_rv) {
       [ "//third_party/ffmpeg/libavcodec/aarch64/rv40dsp_init_aarch64.c" ]
 }
 
+ffmpeg_version_script =
+  rebase_path("//third_party/ffmpeg/ffmpeg.versionscript", root_build_dir)
+
 # Assembly optimization
 libffmpeg_media_asm_sources = []
-ldflags_asm = []
+ldflags_asm = ["-Wl,--version-script=${ffmpeg_version_script}"]
 if (ffmpeg_selected_platform == "aarch64") {
   libffmpeg_media_asm_sources += libffmpeg_media_aarch64_sources
   ldflags_asm += [ "-Wl,-Bsymbolic" ]
