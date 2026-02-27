@@ -859,6 +859,7 @@ static int get_nb_samples(AVCodecContext *avctx, GetByteContext *gb,
         return 0;
     if (buf_size > INT_MAX / 2)
         return 0;
+
     switch (avctx->codec->id) {
     /* constant, only check buf_size */
     case AV_CODEC_ID_ADPCM_EA_XAS:

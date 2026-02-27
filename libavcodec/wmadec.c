@@ -454,6 +454,7 @@ static int wma_decode_block(WMACodecContext *s)
     av_tx_fn mdct_fn;
 
     av_assert2(channels <= MAX_CHANNELS);
+
 #ifdef TRACE
     ff_tlog(s->avctx, "***decode_block: %d:%d\n",
             s->frame_count - 1, s->block_num);
