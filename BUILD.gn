@@ -11,7 +11,6 @@ declare_args() {
   ffmpeg_enable_demuxer_sami = false
   ffmpeg_enable_demuxer_ass = false
   ffmpeg_enable_demuxer_sup = false
-  ffmpeg_enable_codec_cavs = false
   ffmpeg_enable_demuxer_dtshd = false
   ffmpeg_enable_demuxer_truehd = false
 }
@@ -1804,15 +1803,6 @@ ohos_source_set("ffmpeg_dynamic") {
       "//third_party/ffmpeg/libavformat/rmdec.c",
     ]
   }
-  if (ffmpeg_enable_codec_cavs) {
-    sources += [
-      "//third_party/ffmpeg/libavcodec/cavs.c",
-      "//third_party/ffmpeg/libavcodec/cavs_parser.c",
-      "//third_party/ffmpeg/libavcodec/cavsdata.c",
-      "//third_party/ffmpeg/libavcodec/cavsdec.c",
-      "//third_party/ffmpeg/libavcodec/cavsdsp.c",
-    ]
-  }
   if (ffmpeg_enable_codec_rv) {
     sources += [
       "//third_party/ffmpeg/libavcodec/rv30.c",
@@ -1899,10 +1889,6 @@ action("gen_config_header") {
   if (ffmpeg_enable_codec_vc1) {
     ohos_ffmpeg_enable_parsers += "vc1,"
     ohos_ffmpeg_enable_decoders += "vc1,"
-  }
-  if (ffmpeg_enable_codec_cavs) {
-    ohos_ffmpeg_enable_parsers += "cavs,"
-    ohos_ffmpeg_enable_decoders += "cavs,"
   }
   if (ffmpeg_enable_codec_eac3) {
     ohos_ffmpeg_enable_demuxers += "eac3,"
