@@ -3019,6 +3019,7 @@ static int mov_parse_mebx_keyd(MOVContext *c, AVIOContext *pb, AVStream *st)
     av_freep(&buf);
     return atom_size;
 }
+
 static int mov_parse_mebx_data(MOVContext *c, AVIOContext *pb,
                                AVStream *st, int64_t size)
 {
@@ -3041,6 +3042,7 @@ static int mov_parse_mebx_data(MOVContext *c, AVIOContext *pb,
     }
     return 0;
 }
+
 static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
     AVStream *st;
