@@ -5565,7 +5565,6 @@ static int mov_read_trak(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         sc->pb = c->fc->pb;
         sc->pb_is_copied = 1;
     }
-
 #ifdef OHOS_AUXILIARY_TRACK
     if (need_parse_video_info(st) == 1) {
 #else
@@ -11597,7 +11596,11 @@ static int mov_read_packet(AVFormatContext *s, AVPacket *pkt)
                     while (payload_size >= 8) {
                         int64_t temp_size = AV_RB32(payload_data);
                         uint32_t temp_type = AV_RL32(payload_data + 4);
-                        if (temp_type == MKTAG('p', 'a', 'y', 'l')) {
+                        if (temp_size < 8) {
+                            av_log(mov->fc, AV_LOG_ERROR, "non-standard vttc, temp_size is invalid, "
+                                "temp_size is %"PRId64" less than 8\n", temp_size);
+                            break;
+                        } else if (temp_type == MKTAG('p', 'a', 'y', 'l')) {
                             payload_data += 8;
                             payload_size -= 8;
                             int move_size = payload_size;
