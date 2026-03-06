@@ -7,6 +7,8 @@ declare_args() {
   ffmpeg_enable_codec_rv = true
   ffmpeg_enable_codec_eac3 = false
   ffmpeg_enable_codec_vc1 = false
+  ffmpeg_enable_codec_dts = true
+  ffmpeg_enable_codec_truehd = true
   ffmpeg_enable_demuxer_lrc = false
   ffmpeg_enable_demuxer_sami = false
   ffmpeg_enable_demuxer_ass = false
@@ -1894,6 +1896,12 @@ action("gen_config_header") {
     ohos_ffmpeg_enable_demuxers += "eac3,"
     ohos_ffmpeg_enable_parsers += "ac3,"
     ohos_ffmpeg_enable_decoders += "eac3,"
+  }
+  if (ffmpeg_enable_codec_dts) {
+    ohos_ffmpeg_enable_decoders += "dca,"
+  }
+  if (ffmpeg_enable_codec_truehd) {
+    ohos_ffmpeg_enable_decoders += "truehd,"
   }
   if (ffmpeg_enable_demuxer_lrc) {
     ohos_ffmpeg_enable_demuxers += "lrc,"
