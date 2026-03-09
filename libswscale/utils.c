@@ -1404,7 +1404,7 @@ static av_cold int sws_init_single_context(SwsContext *c, SwsFilter *srcFilter,
         return AVERROR(EINVAL);
     }
     if (flags & SWS_FAST_BILINEAR) {
-        if (srcW < 8 || dstW < 8) {
+        if (srcW < 8 || dstW <= 8) {
             flags ^= SWS_FAST_BILINEAR | SWS_BILINEAR;
             c->flags = flags;
         }
