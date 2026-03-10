@@ -3075,8 +3075,8 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         int err = parse(c, pb, subAtom);
         if (err < 0) {
             c->atom_depth--;
+            return err;
         }
-        return err;
     }
     uint32_t id_count = (subAtom.size - 8) / 4;
     if (id_count == 0) {
