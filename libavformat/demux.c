@@ -1109,6 +1109,9 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
      * We take the conservative approach and discard both.
      * Note: If this is misbehaving for an H.264 file, then possibly
      * presentation_delayed is not set correctly. */
+    if (delay == 1 && pkt->dts == pkt->pts &&
+        pkt->dts != AV_NOPTS_VALUE && presentation_delayed) {
+        av_log(s, AV_LOG_DEBUG, "invalid dts/pts combination %"PRIi64"\n", pkt->dts);
 #ifdef OHOS_MTS_SEEK_COMPAT
         // OpenHarmony: keep dts for mpegts format, same as mov/mp4/flv
         // mpegts/mpegtsraw also need to keep dts for seek to work properly
@@ -1118,7 +1121,6 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
              && strcmp(s->iformat->name, "mpegtsraw"))
             pkt->dts = AV_NOPTS_VALUE;
 #else
-        
         if (    strcmp(s->iformat->name, "mov,mp4,m4a,3gp,3g2,mj2")
              && strcmp(s->iformat->name, "flv")) // otherwise we discard correct timestamps for vc1-wmapro.ism
             pkt->dts = AV_NOPTS_VALUE;
