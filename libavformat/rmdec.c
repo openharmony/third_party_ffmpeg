@@ -765,7 +765,7 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
                 break;
         }
 #ifdef OHOS_OPT_COMPAT
-        if (i < s->nb_streams && st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+        if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             int64_t current_pos = avio_tell(pb);
             int64_t file_size = avio_size(pb);
             int64_t file_remain_len = file_size - current_pos;
