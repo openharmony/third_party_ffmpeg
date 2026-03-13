@@ -65,6 +65,9 @@ typedef struct RMDemuxContext {
     int audio_stream_num; ///< Stream number for audio packets
     int audio_pkt_cnt; ///< Output packet counter
     int data_end;
+#ifdef OHOS_OPT_COMPAT
+    unsigned int max_packet_size;
+#endif
 } RMDemuxContext;
 
 static inline void get_strl(AVIOContext *pb, char *buf, int buf_size, int len)
@@ -555,6 +558,9 @@ static int rm_read_header(AVFormatContext *s)
     int ret;
     unsigned size, v;
     int64_t codec_pos;
+#ifdef OHOS_OPT_COMPAT
+    rm->max_packet_size = 0;
+#endif
 
     tag = avio_rl32(pb);
     if (tag == MKTAG('.', 'r', 'a', 0xfd)) {
@@ -584,7 +590,9 @@ static int rm_read_header(AVFormatContext *s)
             /* file header */
             avio_rb32(pb); /* max bit rate */
             avio_rb32(pb); /* avg bit rate */
-            avio_rb32(pb); /* max packet size */
+#ifdef OHOS_OPT_COMPAT
+            rm->max_packet_size = avio_rb32(pb); /* max packet size */
+#endif
             avio_rb32(pb); /* avg packet size */
             avio_rb32(pb); /* nb packets */
             duration = avio_rb32(pb); /* duration */
@@ -737,6 +745,12 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
             original_pos = avio_tell(pb);
 #endif
             len=state - 12;
+#ifdef OHOS_OPT_COMPAT
+            if (rm->max_packet_size > 0 && (unsigned int)len > rm->max_packet_size) {
+                av_log(s, AV_LOG_WARNING, "rm_sync size check, len=%d max_packet_size %u\n", len, rm->max_packet_size);
+                continue;
+            }
+#endif
             state= 0xFFFFFFFF;
 
             num = avio_rb16(pb);
