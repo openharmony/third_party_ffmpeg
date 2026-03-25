@@ -3090,7 +3090,7 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         return 0;
     }
     int track_ids[id_count];
-    uint32_t total_size = id_count * 11 + 1;
+    uint32_t total_size = id_count * sizeof(int32_t);
     for (uint32_t i = 0; i < id_count; i++) {
         int track_id = (int)avio_rb32(pb);
         track_ids[i] = track_id - 1;
