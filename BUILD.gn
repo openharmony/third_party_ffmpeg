@@ -7,11 +7,12 @@ declare_args() {
   ffmpeg_enable_codec_rv = true
   ffmpeg_enable_codec_eac3 = false
   ffmpeg_enable_codec_vc1 = false
+  ffmpeg_enable_codec_dts = true
+  ffmpeg_enable_codec_truehd = true
   ffmpeg_enable_demuxer_lrc = false
   ffmpeg_enable_demuxer_sami = false
   ffmpeg_enable_demuxer_ass = false
   ffmpeg_enable_demuxer_sup = false
-  ffmpeg_enable_codec_cavs = false
   ffmpeg_enable_demuxer_dtshd = false
   ffmpeg_enable_demuxer_truehd = false
 }
@@ -115,9 +116,12 @@ if (ffmpeg_enable_codec_rv) {
       [ "//third_party/ffmpeg/libavcodec/aarch64/rv40dsp_init_aarch64.c" ]
 }
 
+ffmpeg_version_script =
+  rebase_path("//third_party/ffmpeg/ffmpeg.versionscript", root_build_dir)
+
 # Assembly optimization
 libffmpeg_media_asm_sources = []
-ldflags_asm = []
+ldflags_asm = ["-Wl,--version-script=${ffmpeg_version_script}"]
 if (ffmpeg_selected_platform == "aarch64") {
   libffmpeg_media_asm_sources += libffmpeg_media_aarch64_sources
   ldflags_asm += [ "-Wl,-Bsymbolic" ]
@@ -196,6 +200,7 @@ config("ffmpeg_config") {
     "-DOHOS_VC1_DECODE",
     "-DOHOS_MP4_GLTF_MUXER",
     "-DOHOS_LIVE_FLV",
+    "-DOHOS_MTS_SEEK_COMPAT",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
@@ -1801,15 +1806,6 @@ ohos_source_set("ffmpeg_dynamic") {
       "//third_party/ffmpeg/libavformat/rmdec.c",
     ]
   }
-  if (ffmpeg_enable_codec_cavs) {
-    sources += [
-      "//third_party/ffmpeg/libavcodec/cavs.c",
-      "//third_party/ffmpeg/libavcodec/cavs_parser.c",
-      "//third_party/ffmpeg/libavcodec/cavsdata.c",
-      "//third_party/ffmpeg/libavcodec/cavsdec.c",
-      "//third_party/ffmpeg/libavcodec/cavsdsp.c",
-    ]
-  }
   if (ffmpeg_enable_codec_rv) {
     sources += [
       "//third_party/ffmpeg/libavcodec/rv30.c",
@@ -1897,14 +1893,16 @@ action("gen_config_header") {
     ohos_ffmpeg_enable_parsers += "vc1,"
     ohos_ffmpeg_enable_decoders += "vc1,"
   }
-  if (ffmpeg_enable_codec_cavs) {
-    ohos_ffmpeg_enable_parsers += "cavs,"
-    ohos_ffmpeg_enable_decoders += "cavs,"
-  }
   if (ffmpeg_enable_codec_eac3) {
     ohos_ffmpeg_enable_demuxers += "eac3,"
     ohos_ffmpeg_enable_parsers += "ac3,"
     ohos_ffmpeg_enable_decoders += "eac3,"
+  }
+  if (ffmpeg_enable_codec_dts) {
+    ohos_ffmpeg_enable_decoders += "dca,"
+  }
+  if (ffmpeg_enable_codec_truehd) {
+    ohos_ffmpeg_enable_decoders += "truehd,"
   }
   if (ffmpeg_enable_demuxer_lrc) {
     ohos_ffmpeg_enable_demuxers += "lrc,"

@@ -65,6 +65,9 @@ typedef struct RMDemuxContext {
     int audio_stream_num; ///< Stream number for audio packets
     int audio_pkt_cnt; ///< Output packet counter
     int data_end;
+#ifdef OHOS_OPT_COMPAT
+    unsigned int max_packet_size;
+#endif
 } RMDemuxContext;
 
 static inline void get_strl(AVIOContext *pb, char *buf, int buf_size, int len)
@@ -555,6 +558,9 @@ static int rm_read_header(AVFormatContext *s)
     int ret;
     unsigned size, v;
     int64_t codec_pos;
+#ifdef OHOS_OPT_COMPAT
+    rm->max_packet_size = 0;
+#endif
 
     tag = avio_rl32(pb);
     if (tag == MKTAG('.', 'r', 'a', 0xfd)) {
@@ -584,7 +590,9 @@ static int rm_read_header(AVFormatContext *s)
             /* file header */
             avio_rb32(pb); /* max bit rate */
             avio_rb32(pb); /* avg bit rate */
-            avio_rb32(pb); /* max packet size */
+#ifdef OHOS_OPT_COMPAT
+            rm->max_packet_size = avio_rb32(pb); /* max packet size */
+#endif
             avio_rb32(pb); /* avg packet size */
             avio_rb32(pb); /* nb packets */
             duration = avio_rb32(pb); /* duration */
@@ -690,6 +698,9 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
     AVIOContext *pb = s->pb;
     AVStream *st;
     uint32_t state=0xFFFFFFFF;
+#ifdef OHOS_OPT_COMPAT
+    int64_t original_pos = 0;
+#endif
 
     while(!avio_feof(pb)){
         int len, num, i;
@@ -730,7 +741,16 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
 
             if(state > (unsigned)0xFFFF || state <= 12)
                 continue;
+#ifdef OHOS_OPT_COMPAT
+            original_pos = avio_tell(pb);
+#endif
             len=state - 12;
+#ifdef OHOS_OPT_COMPAT
+            if (rm->max_packet_size > 0 && (unsigned int)len > rm->max_packet_size) {
+                av_log(s, AV_LOG_WARNING, "rm_sync size check, len=%d max_packet_size %u\n", len, rm->max_packet_size);
+                continue;
+            }
+#endif
             state= 0xFFFFFFFF;
 
             num = avio_rb16(pb);
@@ -744,6 +764,42 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
             if (mlti_id + num == st->id)
                 break;
         }
+#ifdef OHOS_OPT_COMPAT
+        if (st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            int64_t current_pos = avio_tell(pb);
+            int64_t file_size = avio_size(pb);
+            int64_t file_remain_len = file_size - current_pos;
+            if (len < 0 || len > file_remain_len) {
+                av_log(s, AV_LOG_ERROR, "rm_sync error, len=%d,"
+                    "cur_pos=%"PRId64", file_size=%"PRId64", file_remain_len=%"PRId64"\n",
+                    len, avio_tell(pb), file_size, file_remain_len);
+                avio_seek(pb, original_pos, SEEK_SET);
+                continue;
+            }
+
+            int len_tmp = len;
+            int type = avio_r8(pb) >> 6;
+            len_tmp--;
+            if(type != 3) {
+                avio_skip(pb, 1);
+                len_tmp--;
+            }
+            if(type != 1) {
+                int len2 = get_num(pb, &len_tmp);
+                (void)get_num(pb, &len_tmp);
+                len_tmp--;
+                file_remain_len = file_size - avio_tell(pb);
+                if (len2 < 0 || len2 > file_remain_len || (type == 3 && len2 > len_tmp)) {
+                    av_log(s, AV_LOG_ERROR, "rm_sync err, len2=%d, file_remain_len=%"PRId64", type=%d, len_tmp=%d\n",
+                        len2, file_remain_len, type, len_tmp);
+                    avio_seek(pb, original_pos, SEEK_SET);
+                    continue;
+                }
+            }
+            avio_seek(pb, current_pos, SEEK_SET);
+        }
+#endif
+
         if (i == s->nb_streams) {
 skip:
             /* skip packet if unknown number */

@@ -3019,6 +3019,7 @@ static int mov_parse_mebx_keyd(MOVContext *c, AVIOContext *pb, AVStream *st)
     av_freep(&buf);
     return atom_size;
 }
+
 static int mov_parse_mebx_data(MOVContext *c, AVIOContext *pb,
                                AVStream *st, int64_t size)
 {
@@ -3041,6 +3042,7 @@ static int mov_parse_mebx_data(MOVContext *c, AVIOContext *pb,
     }
     return 0;
 }
+
 static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
     AVStream *st;
@@ -3073,8 +3075,8 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         int err = parse(c, pb, subAtom);
         if (err < 0) {
             c->atom_depth--;
+            return err;
         }
-        return err;
     }
     uint32_t id_count = (subAtom.size - 8) / 4;
     if (id_count == 0) {
@@ -3473,6 +3475,7 @@ fail:
             av_freep(&sc->extradata[j]);
     }
 
+    sc->stsd_count = 0;
     av_freep(&sc->extradata);
     av_freep(&sc->extradata_size);
     return ret;
