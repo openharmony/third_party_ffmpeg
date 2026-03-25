@@ -3080,31 +3080,38 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     }
     uint32_t id_count = (subAtom.size - 8) / 4;
     if (id_count == 0) {
+        c->atom_depth--;
         return 0;
     }
-    if (id_count > 1000) { // Avoid abnormal resource data causing stack overflow
-        av_log(c->fc, AV_LOG_ERROR, "Invalid id_count: %d\n", id_count);
-        return AVERROR_INVALIDDATA;
+    if (id_count > 1000) {
+        av_log(c->fc, AV_LOG_ERROR, "id_count %d exceeds max, skipping\n", id_count);
+        avio_skip(pb, subAtom.size - 8);
+        c->atom_depth--;
+        return 0;
     }
     int track_ids[id_count];
-    uint32_t total_size = id_count * sizeof(int32_t);
+    uint32_t total_size = id_count * 11 + 1;
     for (uint32_t i = 0; i < id_count; i++) {
         int track_id = (int)avio_rb32(pb);
         track_ids[i] = track_id - 1;
     }
     if (subAtom.type == MKTAG('c','d','s','c')) {
         char *metaKeyStr = av_malloc(16);
-        if (!metaKeyStr)
+        if (!metaKeyStr) {
+            c->atom_depth--;
             return AVERROR(ENOMEM);
+        }
         snprintf(metaKeyStr, 16, "%d", track_ids[0]);
 
         av_dict_set(&st->metadata, "src_track_id", metaKeyStr, 0);
         av_freep(&metaKeyStr);
     }
     char result[total_size];
+    result[0] = '\0';
     for (uint32_t i = 0; i < id_count; i++) {
         int ret = snprintf(result + strlen(result), sizeof(result) - strlen(result), "%d,", track_ids[i]);
         if (ret < 0) {
+            c->atom_depth--;
             return AVERROR(ENOMEM);
         }
     }
