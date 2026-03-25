@@ -3083,7 +3083,7 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         c->atom_depth--;
         return 0;
     }
-    if (id_count > 1000) {
+    if (id_count > 1000) { // Avoid abnormal resource data causing stack overflow
         av_log(c->fc, AV_LOG_ERROR, "id_count %d exceeds max, skipping\n", id_count);
         avio_skip(pb, subAtom.size - 8);
         c->atom_depth--;
