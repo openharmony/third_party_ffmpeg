@@ -26,6 +26,7 @@
 #include "mux.h"
 #include "libavutil/intfloat.h"
 #include "libavutil/dict.h"
+#include "libavutil/mem.h"
 
 #define FRAME_SIZE_OFFSET 40
 
@@ -113,15 +114,10 @@ static int caf_write_header(AVFormatContext *s)
     AVIOContext *pb = s->pb;
     AVCodecParameters *par = s->streams[0]->codecpar;
     CAFContext *caf = s->priv_data;
-    AVDictionaryEntry *t = NULL;
+    const AVDictionaryEntry *t = NULL;
     unsigned int codec_tag = ff_codec_get_tag(ff_codec_caf_tags, par->codec_id);
     int64_t chunk_size = 0;
     int frame_size = par->frame_size, sample_rate = par->sample_rate;
-
-    if (s->nb_streams != 1) {
-        av_log(s, AV_LOG_ERROR, "CAF files have exactly one stream\n");
-        return AVERROR(EINVAL);
-    }
 
     switch (par->codec_id) {
     case AV_CODEC_ID_AAC:
@@ -195,13 +191,13 @@ static int caf_write_header(AVFormatContext *s)
     ff_standardize_creation_time(s);
     if (av_dict_count(s->metadata)) {
         ffio_wfourcc(pb, "info"); //< Information chunk
-        while ((t = av_dict_get(s->metadata, "", t, AV_DICT_IGNORE_SUFFIX))) {
+        while ((t = av_dict_iterate(s->metadata, t))) {
             chunk_size += strlen(t->key) + strlen(t->value) + 2;
         }
         avio_wb64(pb, chunk_size + 4);
         avio_wb32(pb, av_dict_count(s->metadata));
         t = NULL;
-        while ((t = av_dict_get(s->metadata, "", t, AV_DICT_IGNORE_SUFFIX))) {
+        while ((t = av_dict_iterate(s->metadata, t))) {
             avio_put_str(pb, t->key);
             avio_put_str(pb, t->value);
         }
@@ -276,16 +272,18 @@ static int caf_write_trailer(AVFormatContext *s)
     return 0;
 }
 
-const AVOutputFormat ff_caf_muxer = {
-    .name           = "caf",
-    .long_name      = NULL_IF_CONFIG_SMALL("Apple CAF (Core Audio Format)"),
-    .mime_type      = "audio/x-caf",
-    .extensions     = "caf",
+const FFOutputFormat ff_caf_muxer = {
+    .p.name         = "caf",
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Apple CAF (Core Audio Format)"),
+    .p.mime_type    = "audio/x-caf",
+    .p.extensions   = "caf",
     .priv_data_size = sizeof(CAFContext),
-    .audio_codec    = AV_CODEC_ID_PCM_S16BE,
-    .video_codec    = AV_CODEC_ID_NONE,
+    .p.audio_codec  = AV_CODEC_ID_PCM_S16BE,
+    .p.video_codec  = AV_CODEC_ID_NONE,
+    .p.subtitle_codec = AV_CODEC_ID_NONE,
+    .flags_internal   = FF_OFMT_FLAG_MAX_ONE_OF_EACH,
     .write_header   = caf_write_header,
     .write_packet   = caf_write_packet,
     .write_trailer  = caf_write_trailer,
-    .codec_tag      = ff_caf_codec_tags_list,
+    .p.codec_tag    = ff_caf_codec_tags_list,
 };

@@ -20,11 +20,13 @@
  */
 
 #include "avformat.h"
+#include "demux.h"
 #include "internal.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/dict.h"
 #include "libavutil/mathematics.h"
-#include "riff.h"
+#include "libavutil/mem.h"
+#include "metadata.h"
 
 typedef struct VqfContext {
     int frame_bit_len;
@@ -49,23 +51,28 @@ static int vqf_probe(const AVProbeData *probe_packet)
     return AVPROBE_SCORE_EXTENSION;
 }
 
-static void add_metadata(AVFormatContext *s, uint32_t tag,
+static int add_metadata(AVFormatContext *s, uint32_t tag,
                          unsigned int tag_len, unsigned int remaining)
 {
     int len = FFMIN(tag_len, remaining);
     char *buf, key[5] = {0};
+    int ret;
 
     if (len == UINT_MAX)
-        return;
+        return AVERROR_INVALIDDATA;
 
     buf = av_malloc(len+1);
     if (!buf)
-        return;
-    if (len != avio_read(s->pb, buf, len))
-        return;
+        return AVERROR(ENOMEM);
+
+    ret = avio_read(s->pb, buf, len);
+    if (ret < 0)
+        return ret;
+    if (len != ret)
+        return AVERROR_INVALIDDATA;
     buf[len] = 0;
     AV_WL32(key, tag);
-    av_dict_set(&s->metadata, key, buf, AV_DICT_DONT_STRDUP_VAL);
+    return av_dict_set(&s->metadata, key, buf, AV_DICT_DONT_STRDUP_VAL);
 }
 
 static const AVMetadataConv vqf_metadata_conv[] = {
@@ -163,7 +170,9 @@ static int vqf_read_header(AVFormatContext *s)
             avio_skip(s->pb, FFMIN(len, header_size));
             break;
         default:
-            add_metadata(s, chunk_tag, len, header_size);
+            ret = add_metadata(s, chunk_tag, len, header_size);
+            if (ret < 0)
+                return ret;
             break;
         }
 
@@ -259,7 +268,7 @@ static int vqf_read_packet(AVFormatContext *s, AVPacket *pkt)
     c->last_frame_bits = pkt->data[size+1];
     c->remaining_bits  = (size << 3) - c->frame_bit_len + c->remaining_bits;
 
-    return size+2;
+    return 0;
 }
 
 static int vqf_read_seek(AVFormatContext *s,
@@ -288,13 +297,13 @@ static int vqf_read_seek(AVFormatContext *s,
     return 0;
 }
 
-const AVInputFormat ff_vqf_demuxer = {
-    .name           = "vqf",
-    .long_name      = NULL_IF_CONFIG_SMALL("Nippon Telegraph and Telephone Corporation (NTT) TwinVQ"),
+const FFInputFormat ff_vqf_demuxer = {
+    .p.name         = "vqf",
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Nippon Telegraph and Telephone Corporation (NTT) TwinVQ"),
+    .p.extensions   = "vqf,vql,vqe",
     .priv_data_size = sizeof(VqfContext),
     .read_probe     = vqf_probe,
     .read_header    = vqf_read_header,
     .read_packet    = vqf_read_packet,
     .read_seek      = vqf_read_seek,
-    .extensions     = "vqf,vql,vqe",
 };

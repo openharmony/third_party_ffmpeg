@@ -24,8 +24,11 @@
  * Magic Lantern Video (MLV) demuxer
  */
 
+#include <time.h>
+
 #include "libavutil/imgutils.h"
 #include "libavutil/intreadwrite.h"
+#include "libavutil/mem.h"
 #include "libavutil/rational.h"
 #include "avformat.h"
 #include "demux.h"
@@ -79,13 +82,15 @@ static int check_file_header(AVIOContext *pb, uint64_t guid)
 static void read_string(AVFormatContext *avctx, AVIOContext *pb, const char *tag, unsigned size)
 {
     char * value = av_malloc(size + 1);
+    int ret;
+
     if (!value) {
         avio_skip(pb, size);
         return;
     }
 
-    avio_read(pb, value, size);
-    if (!value[0]) {
+    ret = avio_read(pb, value, size);
+    if (ret != size || !value[0]) {
         av_free(value);
         return;
     }
@@ -492,11 +497,11 @@ static int read_close(AVFormatContext *s)
     return 0;
 }
 
-const AVInputFormat ff_mlv_demuxer = {
-    .name           = "mlv",
-    .long_name      = NULL_IF_CONFIG_SMALL("Magic Lantern Video (MLV)"),
+const FFInputFormat ff_mlv_demuxer = {
+    .p.name         = "mlv",
+    .p.long_name    = NULL_IF_CONFIG_SMALL("Magic Lantern Video (MLV)"),
     .priv_data_size = sizeof(MlvContext),
-    .flags_internal = FF_FMT_INIT_CLEANUP,
+    .flags_internal = FF_INFMT_FLAG_INIT_CLEANUP,
     .read_probe     = probe,
     .read_header    = read_header,
     .read_packet    = read_packet,

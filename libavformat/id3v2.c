@@ -36,6 +36,7 @@
 #include "libavutil/bprint.h"
 #include "libavutil/dict.h"
 #include "libavutil/intreadwrite.h"
+#include "libavutil/mem.h"
 #include "libavcodec/png.h"
 #include "avio_internal.h"
 #include "demux.h"
@@ -246,7 +247,7 @@ static int decode_str(AVFormatContext *s, AVIOContext *pb, int encoding,
     int ret;
     uint8_t tmp;
     uint32_t ch = 1;
-    int left = *maxread;
+    int left = *maxread, dynsize;
     unsigned int (*get)(AVIOContext*) = avio_rb16;
     AVIOContext *dynbuf;
 
@@ -334,7 +335,11 @@ static int decode_str(AVFormatContext *s, AVIOContext *pb, int encoding,
     if (ch)
         avio_w8(dynbuf, 0);
 
-    avio_close_dyn_buf(dynbuf, dst);
+    dynsize = avio_close_dyn_buf(dynbuf, dst);
+    if (dynsize <= 0) {
+        av_freep(dst);
+        return AVERROR(ENOMEM);
+    }
     *maxread = left;
 
     return 0;
@@ -356,6 +361,20 @@ static int iso8859_convert_utf8(char *input, size_t inputlen, char *output, size
         iconv_close(cd);
     }
     return resultLen;
+}
+#endif
+
+#ifdef OHOS_ID3_ENCODING_FIX
+static const char *find_generic_field(const char *native_key, const AVMetadataConv *conv)
+{
+    if (!conv || !native_key)
+        return NULL;
+    for (; conv->native || conv->generic; conv++) {
+        if (!av_strcasecmp(native_key, conv->native)) {
+            return conv->generic;
+        }
+    }
+    return NULL;
 }
 #endif
 
@@ -396,7 +415,25 @@ static void read_ttag(AVFormatContext *s, AVIOContext *pb, int taglen,
         dict_flags |= AV_DICT_DONT_STRDUP_KEY;
     } else if (!*dst)
         av_freep(&dst);
-
+#ifdef OHOS_ID3_ENCODING_FIX
+    if (key) {
+        const char *standard_filed = NULL;
+        standard_filed = find_generic_field(key, ff_id3v2_34_metadata_conv);
+        if (!standard_filed) {
+            standard_filed = find_generic_field(key, ff_id3v2_4_metadata_conv);
+        }
+        const char *base_key = standard_filed ? standard_filed : key;
+        char *key_encoding = av_asprintf("%sencoding", base_key);
+        if (!key_encoding) {
+            av_log(s, AV_LOG_ERROR, "Error allocating memory\n");
+            return;
+        }
+        if (av_dict_set_int(metadata, key_encoding, encoding, AV_DICT_DONT_OVERWRITE) < 0) {
+            av_log(s, AV_LOG_ERROR, "Error setting encoding\n");
+        }
+        av_freep(&key_encoding);
+    }
+#endif
 #ifdef OHOS_OPT_COMPAT
     if (dst) {
         if (encoding == ID3v2_ENCODING_ISO8859) {
@@ -436,7 +473,7 @@ static void read_uslt(AVFormatContext *s, AVIOContext *pb, int taglen,
     int encoding;
     int ok = 0;
 
-    if (taglen < 1)
+    if (taglen < 4)
         goto error;
 
     encoding = avio_r8(pb);
@@ -1067,8 +1104,7 @@ static void id3v2_parse(AVIOContext *pb, AVDictionary **metadata,
                         t++;
                 }
 
-                ffio_init_context(&pb_local, buffer, b - buffer, 0, NULL, NULL, NULL,
-                                  NULL);
+                ffio_init_read_context(&pb_local, buffer, b - buffer);
                 tlen = b - buffer;
                 pbx  = &pb_local.pub; // read from sync buffer
             }
@@ -1104,7 +1140,7 @@ static void id3v2_parse(AVIOContext *pb, AVDictionary **metadata,
                         av_log(s, AV_LOG_ERROR, "Failed to uncompress tag: %d\n", err);
                         goto seek;
                     }
-                    ffio_init_context(&pb_local, uncompressed_buffer, dlen, 0, NULL, NULL, NULL, NULL);
+                    ffio_init_read_context(&pb_local, uncompressed_buffer, dlen);
                     tlen = dlen;
                     pbx = &pb_local.pub; // read from sync buffer
                 }

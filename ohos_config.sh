@@ -1,6 +1,6 @@
-# FFmpeg build configure
-
 #!/bin/bash
+
+# FFmpeg build configure
 
 set -ex
 FFMPEG_PATH=$1
@@ -53,16 +53,16 @@ FF_CONFIG_OPTIONS="
     --disable-bzlib
     --disable-lzma
     --disable-vulkan
-    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo,ac3
-    --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a,adts
-    --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo
-    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus,ac3
-    --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
-    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb,ac3
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo,ac3,gsm,gsm_ms,amv,smjpeg,thp,xa,adx,dtk,afc,psxstr,dts,caf,aiff,au
+    --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a,adts,ogg
+    --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo,mjpeg
+    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus,ac3,gsm,gsm_ms,ilbc,cook,dca,dvaudio
+    --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9,wmv3,msvideo1,mjpeg,cinepak,mpeg1video,dvvideo,rawvideo
+    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb,ac3,gsm_ms,wmav1,wmav2,wmapro,adpcm_mtaf,adpcm_ima_wav,adpcm_ms,adpcm_ima_qt,adpcm_ima_dk3,adpcm_ima_dk4,adpcm_ima_ws,adpcm_ima_smjpeg,adpcm_ima_dat4,adpcm_ima_amv,adpcm_ima_apc,adpcm_ima_iss,adpcm_ima_oki,adpcm_ima_rad,adpcm_adx,adpcm_afc,adpcm_aica,adpcm_ct,adpcm_dtk,adpcm_g722,adpcm_g726,adpcm_g726le,adpcm_psx,adpcm_sbpro_2,adpcm_sbpro_3,adpcm_sbpro_4,adpcm_thp,adpcm_thp_le,adpcm_xa,adpcm_yamaha,gsm,alac,pcm_dvd,pcm_bluray,ilbc,truehd,twinvq,dvaudio,dca,cook
     --enable-decoder=png,bmp
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
-    --enable-bsf=h264_mp4toannexb
+    --enable-bsf=h264_mp4toannexb,extract_extradata
     --enable-protocol=file
     --enable-cross-compile
     --enable-shared
@@ -163,16 +163,16 @@ FF_CONFIG_OPTIONS="
     --disable-sdl2
     --disable-bzlib
     --disable-lzma
-    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo,ac3
-    --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a,adts
-    --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo
-    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus,ac3
-    --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9
-    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb,ac3
+    --enable-demuxer=mp3,aac,ape,flac,ogg,wav,mov,mpegts,amr,amrnb,amrwb,matroska,flv,mpegps,asf,asf_o,srt,h264,webvtt,av3a,avi,mpegvideo,ac3,gsm,gsm_ms,amv,smjpeg,thp,xa,adx,dtk,afc,psxstr,dts,caf,aiff,au
+    --enable-muxer=mp4,h264,ipod,amr,mpegts,mp3,wav,flac,av3a,adts,ogg
+    --enable-parser=h263,h264,mpeg4video,vp8,vp9,mpegvideo,mjpeg
+    --enable-parser=mpegaudio,aac,aac_latm,av3a,amr,opus,ac3,gsm,gsm_ms,ilbc,cook,dca,dvaudio
+    --enable-decoder=h263,h264,mpeg2video,mpeg4,vp8,vp9,wmv3,msvideo1,mjpeg,cinepak,mpeg1video,dvvideo,rawvideo
+    --enable-decoder=mp2,mp3,mp3float,aac,aac_latm,ape,flac,vorbis,opus,amrnb,amrwb,ac3,gsm_ms,wmav1,wmav2,wmapro,adpcm_mtaf,adpcm_ima_wav,adpcm_ms,adpcm_ima_qt,adpcm_ima_dk3,adpcm_ima_dk4,adpcm_ima_ws,adpcm_ima_smjpeg,adpcm_ima_dat4,adpcm_ima_amv,adpcm_ima_apc,adpcm_ima_iss,adpcm_ima_oki,adpcm_ima_rad,adpcm_adx,adpcm_afc,adpcm_aica,adpcm_ct,adpcm_dtk,adpcm_g722,adpcm_g726,adpcm_g726le,adpcm_psx,adpcm_sbpro_2,adpcm_sbpro_3,adpcm_sbpro_4,adpcm_thp,adpcm_thp_le,adpcm_xa,adpcm_yamaha,gsm,alac,pcm_dvd,pcm_bluray,ilbc,truehd,twinvq,dvaudio,dca,cook
     --enable-decoder=png,bmp
     --enable-encoder=aac,aac_latm,opus,flac
     --enable-encoder=mpeg4,h263
-    --enable-bsf=h264_mp4toannexb
+    --enable-bsf=h264_mp4toannexb,extract_extradata
     --enable-protocol=file
     --enable-lsp
     --enable-filter=crop,transpose,vflip,hflip
@@ -201,6 +201,8 @@ fi
 
 sed -i 's/HAVE_SYSCTL 1/HAVE_SYSCTL 0/g' config.h
 sed -i 's/HAVE_SYSCTL=yes/!HAVE_SYSCTL=yes/g' ./ffbuild/config.mak
+sed -i 's/CONFIG_LIBDRM 1/CONFIG_LIBDRM 0/g' config.h
+sed -i 's/CONFIG_LIBDRM=yes/!CONFIG_LIBDRM=yes/g' ./ffbuild/config.mak
 sed -i 's/HAVE_GLOB 1/HAVE_GLOB 0/g' config.h
 sed -i 's/HAVE_GLOB=yes/!HAVE_GLOB=yes/g' config.h
 sed -i 's/HAVE_GMTIME_R 1/HAVE_GMTIME_R 0/g' config.h

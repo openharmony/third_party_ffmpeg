@@ -35,6 +35,12 @@
 
 #define FLV_VIDEO_FRAMETYPE_OFFSET   4
 
+/* Extended VideoTagHeader
+ * defined in reference link:
+ * https://github.com/veovera/enhanced-rtmp/blob/main/enhanced-rtmp-v1.pdf
+ * */
+#define FLV_IS_EX_HEADER          0x80
+
 /* bitmasks to isolate specific values */
 #define FLV_AUDIO_CHANNEL_MASK    0x01
 #define FLV_AUDIO_SAMPLESIZE_MASK 0x02
@@ -42,11 +48,7 @@
 #define FLV_AUDIO_CODECID_MASK    0xf0
 
 #define FLV_VIDEO_CODECID_MASK    0x0f
-#ifdef OHOS_H265_DEMUXER
 #define FLV_VIDEO_FRAMETYPE_MASK  0x70
-#else
-#define FLV_VIDEO_FRAMETYPE_MASK  0xf0
-#endif
 
 #define AMF_END_OF_OBJECT         0x09
 
@@ -119,7 +121,6 @@ enum {
 #endif
 };
 
-#ifdef OHOS_H265_DEMUXER
 enum {
     PacketTypeSequenceStart         = 0,
     PacketTypeCodedFrames           = 1,
@@ -128,7 +129,6 @@ enum {
     PacketTypeMetadata              = 4,
     PacketTypeMPEG2TSSequenceStart  = 5,
 };
-#endif
 
 enum {
     FLV_FRAME_KEY            = 1 << FLV_VIDEO_FRAMETYPE_OFFSET, ///< key frame (for AVC, a seekable frame)

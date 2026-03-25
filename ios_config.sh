@@ -164,6 +164,7 @@ ${FFMPEG_PATH}/configure ${FF_CONFIG_OPTIONS}
 fi
 sed -i '' 's/HAVE_SYSCTL 1/HAVE_SYSCTL 0/g' config.h
 sed -i '' 's/HAVE_SYSCTL=yes/!HAVE_SYSCTL=yes/g' ./ffbuild/config.mak
+sed -i '' 's/HAVE_FAST_FLOAT16 1/HAVE_FAST_FLOAT16 0/g' config.h
 sed -i '' 's/HAVE_GLOB 1/HAVE_GLOB 0/g' config.h
 sed -i '' 's/HAVE_GLOB=yes/!HAVE_GLOB=yes/g' config.h
 sed -i '' 's/HAVE_GMTIME_R 1/HAVE_GMTIME_R 0/g' config.h

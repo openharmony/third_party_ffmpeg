@@ -1,7 +1,7 @@
 {
     "name": "@ohos/ffmpeg",
     "description": "FFmpeg is the leading multimedia framework, able to decode, encode, transcode, mux, demux, stream, filter and play pretty much anything that humans and machines have created.",
-    "version": "5.1.4",
+    "version": "7.1.1",
     "license": "LGPL V2.1/LGPL V3.0/GPL V2.0/GPL V3.0",
     "publishAs": "code-segment",
     "segment": {
@@ -17,11 +17,15 @@
         "features": [
             "ffmpeg_enable_codec_rm",
             "ffmpeg_enable_codec_rv",
-            "ffmpeg_enable_codec_cook",
+            "ffmpeg_enable_codec_eac3",
             "ffmpeg_enable_demuxer_lrc",
             "ffmpeg_enable_demuxer_sami",
             "ffmpeg_enable_demuxer_ass",
-            "ffmpeg_enable_demuxer_sup"
+            "ffmpeg_enable_demuxer_sup",
+            "ffmpeg_enable_codec_vc1",
+            "ffmpeg_enable_codec_cavs",
+            "ffmpeg_enable_demuxer_dtshd",
+            "ffmpeg_enable_demuxer_truehd"
         ],
         "adapted_system_type": [ "standard" ],
         "rom": "",
