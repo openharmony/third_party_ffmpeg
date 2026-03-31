@@ -3047,7 +3047,7 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
     AVStream *st;
 
-    if (c->fc->nb_streams < 1)
+    if (c->fc->nb_streams < 1 || atom.size == 8) // size 8 = header only (4 bytes size + 4 bytes type), no data
         return 0;
     st = c->fc->streams[c->fc->nb_streams - 1];
 
@@ -3071,7 +3071,7 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
             break;
         }
     }
-    if (parse != NULL) {
+    if (parse != NULL && subAtom.type != MKTAG('t','r','e','f')) {
         int err = parse(c, pb, subAtom);
         if (err < 0) {
             c->atom_depth--;
@@ -3083,21 +3083,25 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         c->atom_depth--;
         return 0;
     }
-    if (id_count > 1000) { // Avoid abnormal resource data causing stack overflow
+    if (id_count > 1000) { // max track reference count to prevent stack overflow
         av_log(c->fc, AV_LOG_ERROR, "id_count %d exceeds max, skipping\n", id_count);
         avio_skip(pb, subAtom.size - 8);
         c->atom_depth--;
         return 0;
     }
-    int track_ids[id_count];
-    uint32_t total_size = id_count * sizeof(int32_t);
+    int *track_ids = av_malloc(id_count * sizeof(int)); // track id array
+    if (!track_ids) {
+        c->atom_depth--;
+        return AVERROR(ENOMEM);
+    }
     for (uint32_t i = 0; i < id_count; i++) {
         int track_id = (int)avio_rb32(pb);
         track_ids[i] = track_id - 1;
     }
     if (subAtom.type == MKTAG('c','d','s','c')) {
-        char *metaKeyStr = av_malloc(16);
+        char *metaKeyStr = av_malloc(16); // 16 bytes enough for max int32 string + null
         if (!metaKeyStr) {
+            av_free(track_ids);
             c->atom_depth--;
             return AVERROR(ENOMEM);
         }
@@ -3106,16 +3110,26 @@ static int mov_read_tref(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         av_dict_set(&st->metadata, "src_track_id", metaKeyStr, 0);
         av_freep(&metaKeyStr);
     }
-    char result[total_size];
+    // 12 = max digits of int32 (-2147483648) + 1 comma, +1 for null terminator
+    char *result = av_malloc(id_count * 12 + 1);
+    if (!result) {
+        av_free(track_ids);
+        c->atom_depth--;
+        return AVERROR(ENOMEM);
+    }
     result[0] = '\0';
     for (uint32_t i = 0; i < id_count; i++) {
-        int ret = snprintf(result + strlen(result), sizeof(result) - strlen(result), "%d,", track_ids[i]);
+        int ret = snprintf(result + strlen(result), id_count * 12 + 1 - strlen(result), "%d,", track_ids[i]);
         if (ret < 0) {
+            av_free(track_ids);
+            av_free(result);
             c->atom_depth--;
             return AVERROR(ENOMEM);
         }
     }
     av_dict_set(&st->metadata, "reference_track_ids", result, 0);
+    av_free(track_ids);
+    av_free(result);
     c->atom_depth--;
     return 0;
 }
