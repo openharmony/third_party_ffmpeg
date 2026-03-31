@@ -1544,6 +1544,12 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
                 sti->parser->flags |= PARSER_FLAG_ONCE;
             else if (sti->need_parsing == AVSTREAM_PARSE_FULL_RAW)
                 sti->parser->flags |= PARSER_FLAG_USE_CODEC_TS;
+#ifdef OHOS_OPT_COMPAT
+            if (s->iformat->name && !strncmp(s->iformat->name, "asf", strlen("asf")) &&
+                st->codecpar->codec_id == AV_CODEC_ID_H264) {
+                sti->parser->flags &= 0x0000;
+            }
+#endif
         }
 
         if (!sti->need_parsing || !sti->parser) {
