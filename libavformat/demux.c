@@ -346,7 +346,13 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
     }
 
     /* e.g. AVFMT_NOFILE formats will not have an AVIOContext */
+#ifdef OHOS_OPT_COMPAT
+    AVDictionaryEntry *entry = av_dict_get(s->metadata, "fast_init", NULL, 0);
+    int is_parse = (entry == NULL || !strcmp(entry->value, "0"));
+    if (is_parse && s->pb)
+#else
     if (s->pb)
+#endif
         ff_id3v2_read_dict(s->pb, &si->id3v2_meta, ID3v2_DEFAULT_MAGIC, &id3v2_extra_meta);
 
     if (ffifmt(s->iformat)->read_header)

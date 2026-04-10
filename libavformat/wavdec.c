@@ -425,6 +425,11 @@ static int wav_read_header(AVFormatContext *s)
     if (!st)
         return AVERROR(ENOMEM);
 
+#ifdef OHOS_OPT_COMPAT
+    AVDictionaryEntry *entry = av_dict_get(s->metadata, "fast_init", NULL, 0);
+    int fast_init = (entry && !strcmp(entry->value, "1"));
+    int need_parse = 1;
+#endif
     for (;;) {
         AVStream *vst;
         size         = next_tag(pb, &tag, wav->rifx);
@@ -432,6 +437,24 @@ static int wav_read_header(AVFormatContext *s)
 
         if (avio_feof(pb))
             break;
+#ifdef OHOS_OPT_COMPAT
+        need_parse = 1;
+        if (fast_init) {
+            switch (tag) {
+                case MKTAG('b', 'e', 'x', 't'):
+                case MKTAG('L', 'I', 'S', 'T'):
+                case MKTAG('l', 'i', 's', 't'):
+                case MKTAG('I', 'D', '3', ' '):
+                case MKTAG('i', 'd', '3', ' '):
+                case MKTAG('c', 'u', 'e', ' '):
+                    need_parse = 0;
+                    break;
+                default:
+                    break;
+            }
+        }
+        if (need_parse) {
+#endif
 
         switch (tag) {
         case MKTAG('f', 'm', 't', ' '):
@@ -478,6 +501,11 @@ static int wav_read_header(AVFormatContext *s)
              */
             if (!(pb->seekable & AVIO_SEEKABLE_NORMAL) || (!(rf64 && !bw64) && !size))
                 goto break_loop;
+#ifdef OHOS_OPT_COMPAT
+            if (fast_init) {
+                goto break_loop;
+            }
+#endif
             break;
         case MKTAG('f', 'a', 'c', 't'):
             if (!sample_count)
@@ -603,6 +631,9 @@ static int wav_read_header(AVFormatContext *s)
             break;
         }
 
+#ifdef OHOS_OPT_COMPAT
+        }
+#endif
         /* seek to next tag unless we know that we'll run into EOF */
         if ((avio_size(pb) > 0 && next_tag_ofs >= avio_size(pb)) ||
             wav_seek_tag(wav, pb, next_tag_ofs, SEEK_SET) < 0) {

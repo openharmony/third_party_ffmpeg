@@ -389,7 +389,13 @@ static int mp3_read_header(AVFormatContext *s)
     ffiocontext(s->pb)->maxsize = -1;
     off = avio_tell(s->pb);
 
+#ifdef OHOS_OPT_COMPAT
+    AVDictionaryEntry *entry = av_dict_get(s->metadata, "fast_init", NULL, 0);
+    int is_parse = (entry == NULL || !strcmp(entry->value, "0"));
+    if (is_parse && !av_dict_count(s->metadata))
+#else
     if (!av_dict_count(s->metadata))
+#endif
         ff_id3v1_read(s);
 
     if (s->pb->seekable & AVIO_SEEKABLE_NORMAL)
