@@ -349,7 +349,8 @@ int avformat_open_input(AVFormatContext **ps, const char *filename,
 #ifdef OHOS_OPT_COMPAT
     AVDictionaryEntry *entry = av_dict_get(s->metadata, "fast_init", NULL, 0);
     int is_parse = (entry == NULL || !strcmp(entry->value, "0"));
-    if (is_parse && s->pb)
+    int is_support = !strcmp(s->iformat->name, "mp3") || !strcmp(s->iformat->name, "wav");
+    if ((is_parse || (!is_parse && !is_support)) && s->pb)
 #else
     if (s->pb)
 #endif
