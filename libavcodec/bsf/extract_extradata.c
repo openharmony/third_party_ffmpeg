@@ -380,6 +380,10 @@ static const struct {
     { AV_CODEC_ID_VC1,        extract_extradata_vc1     },
     { AV_CODEC_ID_VVC,        extract_extradata_h2645   },
 #endif
+#ifdef OHOS_FLV_MUXER
+    { AV_CODEC_ID_H264,       extract_extradata_h2645   },
+    { AV_CODEC_ID_HEVC,       extract_extradata_h2645   },
+#endif
 };
 
 static int extract_extradata_init(AVBSFContext *ctx)

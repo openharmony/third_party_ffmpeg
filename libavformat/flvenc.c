@@ -882,6 +882,12 @@ static int flv_write_header(AVFormatContext *s)
     }
 
     for (i = 0; i < s->nb_streams; i++) {
+#ifdef OHOS_FLV_MUXER
+        if (s->stream[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO &&
+            s->stream[i]->codecpar->extradata_size == 0) {
+            continue;
+        }
+#endif
         flv_write_codec_header(s, s->streams[i]->codecpar, 0);
     }
 

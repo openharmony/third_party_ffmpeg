@@ -1300,7 +1300,7 @@ ohos_source_set("ffmpeg_dynamic") {
     # "//third_party/ffmpeg/libavformat/flic.c",
     "//third_party/ffmpeg/libavformat/flvdec.c",
 
-    # "//third_party/ffmpeg/libavformat/flvenc.c",
+    "//third_party/ffmpeg/libavformat/flvenc.c",
     "//third_party/ffmpeg/libavformat/format.c",
 
     # "//third_party/ffmpeg/libavformat/framecrcenc.c",
