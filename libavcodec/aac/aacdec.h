@@ -406,6 +406,9 @@ typedef struct AACDecProc {
     void (*sbr_apply)(AACDecContext *ac, ChannelElement *che,
                       int id_aac, void /* INTFLOAT */ *L, void /* INTFLOAT */ *R);
     void (*sbr_ctx_close)(ChannelElement *che);
+#ifdef OHOS_OPT_COMPAT
+    void (*sbr_flush)(ChannelElement *che);
+#endif
 } AACDecProc;
 
 /**

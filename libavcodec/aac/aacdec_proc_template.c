@@ -444,5 +444,8 @@ static av_cold void AAC_RENAME(aac_proc_init)(AACDecProc *aac_proc)
     SET(sbr_decode_extension);
     SET(sbr_apply);
     SET(sbr_ctx_close);
+#ifdef OHOS_OPT_COMPAT
+    SET(sbr_flush);
+#endif
 #undef SET
 }

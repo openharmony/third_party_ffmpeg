@@ -105,6 +105,12 @@ void ff_aac_sbr_apply(AACDecContext *ac, ChannelElement *che,
 void ff_aac_sbr_apply_fixed(AACDecContext *ac, ChannelElement *che,
                             int id_aac, void /* int */ *L, void /* int */ *R);
 
+#ifdef OHOS_OPT_COMPAT
+/** Flush SBR state to avoid noise after seeking in HE-AAC. */
+void ff_aac_sbr_flush(ChannelElement *che);
+void ff_aac_sbr_flush_fixed(ChannelElement *che);
+#endif
+
 FF_VISIBILITY_POP_HIDDEN
 
 #endif /* AVCODEC_AACSBR_H */
