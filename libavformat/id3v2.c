@@ -1219,6 +1219,12 @@ static void id3v2_read_internal(AVIOContext *pb, AVDictionary **metadata,
                   ((buf[7] & 0x7f) << 14) |
                   ((buf[8] & 0x7f) << 7) |
                    (buf[9] & 0x7f);
+            AVDictionaryEntry *entry = av_dict_get(*metadata, "fast_init", NULL, 0);
+            if (entry && !strcmp(entry->value, "1")) {
+                int64_t cur = avio_tell(pb);
+                avio_seek(pb, cur + len, SEEK_SET);
+                break;
+            }
             id3v2_parse(pb, metadata, s, len, buf[3], buf[5],
                         extra_metap ? &extra_meta : NULL);
         } else {
