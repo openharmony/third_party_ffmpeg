@@ -221,6 +221,13 @@ static int raw_av3a_parse(AVCodecParserContext *s, AVCodecContext *avctx, const 
     return buf_size;
 }
 
+#ifdef OHOS_FLV_MUXER
+int ff_av3a_header_parse_ext(const uint8_t *buf, const int buf_size, AATFHeaderInfo *hdf)
+{
+    return ff_av3a_header_parse(buf, buf_size, hdf);
+}
+#endif
+
 const AVCodecParser ff_av3a_parser = {
     .codec_ids = { AV_CODEC_ID_AVS3DA },
     .priv_data_size = sizeof(Av3aParseContext),
