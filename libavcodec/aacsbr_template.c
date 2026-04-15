@@ -67,6 +67,30 @@ static void sbr_turnoff(SpectralBandReplication *sbr) {
     memset(&sbr->spectrum_params, -1, sizeof(SpectrumParameters));
 }
 
+#ifdef OHOS_OPT_COMPAT
+/** Flush SBR state to avoid noise after seeking in HE-AAC. */
+void AAC_RENAME(ff_aac_sbr_flush)(ChannelElement *che)
+{
+    SpectralBandReplication *sbr = get_sbr(che);
+    if (!sbr)
+        return;
+
+    memset(&sbr->data[0], 0, sizeof(SBRData));
+    memset(&sbr->data[1], 0, sizeof(SBRData));
+
+    sbr->data[0].synthesis_filterbank_samples_offset = SBR_SYNTHESIS_BUF_SIZE - (1280 - 128);
+    sbr->data[1].synthesis_filterbank_samples_offset = SBR_SYNTHESIS_BUF_SIZE - (1280 - 128);
+
+    sbr->data[0].e_a[1] = -1;
+    sbr->data[1].e_a[1] = -1;
+
+    memset(&sbr->spectrum_params, -1, sizeof(SpectrumParameters));
+    sbr->reset = 0;
+    sbr->start = 0;
+    sbr->ready_for_dequant = 0;
+}
+#endif
+
 av_cold int AAC_RENAME(ff_aac_sbr_ctx_alloc_init)(AACDecContext *ac,
                                                   ChannelElement **che, int id_aac)
 {
