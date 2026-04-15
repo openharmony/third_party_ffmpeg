@@ -34,6 +34,9 @@
 #include "libavcodec/vvc.h"
 
 #include "hevc/hevc.h"
+#ifdef OHOS_FLV_MUXER
+#include "av3a.h"
+#endif
 
 typedef struct ExtractExtradataContext {
     const AVClass *class;
@@ -360,6 +363,53 @@ static int extract_extradata_mpeg4(AVBSFContext *ctx, AVPacket *pkt,
     return 0;
 }
 
+#ifdef OHOS_FLV_MUXER
+typedef struct {
+    uint8_t audio_codec_id;
+    uint8_t sampling_frequency_index;
+    uint8_t nn_type;
+    uint8_t content_type;
+    uint8_t channel_number_index;
+    uint8_t number_objects;
+    uint8_t hoa_order;
+    uint8_t resolution_index;
+    uint16_t total_bitrate_kbps;
+} Av3aExtradata;
+
+extern int ff_av3a_header_parse_ext(const uint8_t *buf, const int buf_size, AATFHeaderInfo *hdf);
+
+static int extract_extradata_avs3da(AVBSFContext *ctx, AVPacket *pkt, uint8_t **data, int *size)
+{
+    int ret;
+    Av3aExtradata extradata;
+    AATFHeaderInfo hdf;
+    if (!pkt || !pkt->data || pkt->size < AV3A_MAX_NBYTES_HEADER) {
+        return AVERROR_INVALIDDATA;
+    }
+    if ((ret = ff_av3a_header_parse_ext(pkt->data, AV3A_MAX_NBYTES_HEADER, &hdf)) < 0) {
+        return ret;
+    }
+    /* extradata */
+    extradata.audio_codec_id           = hdf.audio_codec_id;
+    extradata.sampling_frequency_index = hdf.sampling_frequency_index;
+    extradata.nn_type                  = hdf.nn_type;
+    extradata.content_type             = hdf.content_type;
+    extradata.channel_number_index     = hdf.channel_number_index;
+    extradata.number_objects           = hdf.nb_objects;
+    extradata.hoa_order                = hdf.hoa_order;
+    extradata.resolution_index         = hdf.resolution_index;
+    extradata.total_bitrate_kbps       = (uint16_t) (hdf.total_bitrate / 1000);
+    *data = av_malloc(sizeof(Av3aExtradata) + AV_INPUT_BUFFER_PADDING_SIZE);
+    if (!(*data)) {
+        return AVERROR(ENOMEM);
+    }
+    memset((*data) + sizeof(Av3aExtradata), 0, AV_INPUT_BUFFER_PADDING_SIZE);
+    *size = sizeof(Av3aExtradata);
+    memcpy(*data, &extradata, sizeof(Av3aExtradata));
+    return 0;
+}
+#endif
+
 static const struct {
     enum AVCodecID id;
     int (*extract)(AVBSFContext *ctx, AVPacket *pkt,
@@ -383,6 +433,7 @@ static const struct {
 #ifdef OHOS_FLV_MUXER
     { AV_CODEC_ID_H264,       extract_extradata_h2645   },
     { AV_CODEC_ID_HEVC,       extract_extradata_h2645   },
+    { AV_CODEC_ID_AVS3DA,     extract_extradata_avs3da  },
 #endif
 };
 
@@ -454,6 +505,9 @@ static const enum AVCodecID codec_ids[] = {
     AV_CODEC_ID_MPEG4,
     AV_CODEC_ID_VC1,
     AV_CODEC_ID_VVC,
+#ifdef OHOS_FLV_MUXER
+    AV_CODEC_ID_AVS3DA,
+#endif
     AV_CODEC_ID_NONE,
 };
 

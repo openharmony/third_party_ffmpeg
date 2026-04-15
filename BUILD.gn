@@ -201,6 +201,7 @@ config("ffmpeg_config") {
     "-DOHOS_MP4_GLTF_MUXER",
     "-DOHOS_LIVE_FLV",
     "-DOHOS_MTS_SEEK_COMPAT",
+    "-DOHOS_FLV_MUXER",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
