@@ -6858,7 +6858,9 @@ static int mov_read_mdcv(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     sc->mastering->has_luminance = 1;
     sc->mastering->has_primaries = 1;
-
+#ifdef OHOS_OPT_COMPAT
+    av_dict_set(&c->fc->streams[c->fc->nb_streams - 1]->metadata, "is_hdr", "1", 0);
+#endif
     return 0;
 }
 
@@ -6924,7 +6926,9 @@ static int mov_read_clli(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 
     sc->coll->MaxCLL  = avio_rb16(pb);
     sc->coll->MaxFALL = avio_rb16(pb);
-
+#ifdef OHOS_OPT_COMPAT
+    av_dict_set(&c->fc->streams[c->fc->nb_streams - 1]->metadata, "is_hdr", "1", 0);
+#endif
     return 0;
 }
 
