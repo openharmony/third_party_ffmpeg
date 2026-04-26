@@ -8754,7 +8754,12 @@ static int cenc_filter(MOVContext *mov, AVStream* st, MOVStreamContext *sc, AVPa
     AVEncryptionInfo *encrypted_sample;
     int encrypted_index, ret;
 
+#ifdef OHOS_DRM
+    frag_stream_info = get_frag_stream_info(&mov->frag_index, mov->frag_index.current, sc->id);
+#else
     frag_stream_info = get_frag_stream_info_from_pkt(&mov->frag_index, pkt, sc->id);
+#endif
+
     encrypted_index = current_index;
     encryption_index = NULL;
     if (frag_stream_info) {
