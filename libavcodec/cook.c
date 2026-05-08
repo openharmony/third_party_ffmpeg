@@ -1229,14 +1229,14 @@ static av_cold int cook_decode_init(AVCodecContext *avctx)
             return AVERROR_PATCHWELCOME;
         }
         if (q->subpacket[s].subbands == 0) {
-            if (q->subpacket[s].joint_stereo &&
-                q->subpacket[s].js_subband_start > q->subpacket[s].subbands) {
-                    av_log(avctx, AV_LOG_ERROR, "js_subband_start %d > subbands %d \n",
-                        q->subpacket[s].js_subband_start, q->subpacket[s].subbands);
-                        return AVERROR_INVALIDDATA;
-                }
             avpriv_request_sample(avctx, "subbands = 0");
             return AVERROR_PATCHWELCOME;
+        }
+        if (q->subpacket[s].joint_stereo &&
+            q->subpacket[s].js_subband_start > q->subpacket[s].subbands) {
+            av_log(avctx, AV_LOG_ERROR, "js_subband_start %d > subbands %d \n",
+                q->subpacket[s].js_subband_start, q->subpacket[s].subbands);
+            return AVERROR_INVALIDDATA;
         }
         q->subpacket[s].gains1.now      = q->subpacket[s].gain_1;
         q->subpacket[s].gains1.previous = q->subpacket[s].gain_2;
