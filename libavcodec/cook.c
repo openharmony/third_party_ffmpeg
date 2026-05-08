@@ -1230,7 +1230,7 @@ static av_cold int cook_decode_init(AVCodecContext *avctx)
         }
         if (q->subpacket[s].subbands == 0) {
             if (q->subpacket[s].joint_stereo &&
-                q->subpacket[s].js_subband_start > q->subpacket[s].subband_coef_sign) {
+                q->subpacket[s].js_subband_start > q->subpacket[s].subbands) {
                     av_log(avctx, AV_LOG_ERROR, "js_subband_start %d > subbands %d \n",
                         q->subpacket[s].js_subband_start, q->subpacket[s].subbands);
                         return AVERROR_INVALIDDATA;
