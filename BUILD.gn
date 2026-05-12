@@ -202,6 +202,7 @@ config("ffmpeg_config") {
     "-DOHOS_LIVE_FLV",
     "-DOHOS_MTS_SEEK_COMPAT",
     "-DOHOS_FLV_MUXER",
+    "-DOHOS_H264_DECODER",
   ]
   if (use_musl) {
     cflags += [ "-Wno-bool-operation" ]
