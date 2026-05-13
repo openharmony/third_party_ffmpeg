@@ -1293,7 +1293,7 @@ static int h264_select_output_frame(H264Context *h)
     cur->mmco_reset = h->mmco_reset;
     h->mmco_reset = 0;
 
-#ifdef OHOS_H264_DECODER
+#ifdef OHOS_H264_OUTPUT_DECODE_ORDER
     if (h->output_in_decode_order) {
         h->next_output_pic = h->cur_pic_ptr;
         if (h->cur_pic_ptr->poc != INT_MIN) {

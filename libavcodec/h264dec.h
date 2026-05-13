@@ -505,7 +505,7 @@ typedef struct H264Context {
      */
     int prev_interlaced_frame;
 
-#ifdef OHOS_H264_DECODER
+#ifdef OHOS_H264_OUTPUT_DECODE_ORDER
     /**
      * enable the decoder to output frames in decoding order
      */

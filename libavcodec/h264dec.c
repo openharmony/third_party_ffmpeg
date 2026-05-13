@@ -1111,7 +1111,7 @@ static const AVOption h264_options[] = {
     { "x264_build", "Assume this x264 version if no x264 version found in any SEI", OFFSET(x264_build), AV_OPT_TYPE_INT, {.i64 = -1}, -1, INT_MAX, VD },
     { "skip_gray", "Do not return gray gap frames", OFFSET(skip_gray), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VD },
     { "noref_gray", "Avoid using gray gap frames as references", OFFSET(noref_gray), AV_OPT_TYPE_BOOL, {.i64 = 1}, 0, 1, VD },
-#ifdef OHOS_H264_DECODER
+#ifdef OHOS_H264_OUTPUT_DECODE_ORDER
     { "output_decode_order", "Output frames in decode order (NAL order)", OFFSET(output_in_decode_order), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VD },
 #endif
     { NULL },
