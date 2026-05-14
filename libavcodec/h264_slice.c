@@ -1293,6 +1293,17 @@ static int h264_select_output_frame(H264Context *h)
     cur->mmco_reset = h->mmco_reset;
     h->mmco_reset = 0;
 
+#ifdef OHOS_H264_OUTPUT_DECODE_ORDER
+    if (h->output_in_decode_order) {
+        h->next_output_pic = h->cur_pic_ptr;
+        if (h->cur_pic_ptr->poc != INT_MIN) {
+            h->next_outputed_poc = h->cur_pic_ptr->poc;
+        }
+        av_log(h->avctx, AV_LOG_DEBUG, "Output in decode order: poc=%d\n", h->cur_pic_ptr->poc);
+        return 0;
+    }
+#endif
+
     if (sps->bitstream_restriction_flag ||
         h->avctx->strict_std_compliance >= FF_COMPLIANCE_STRICT) {
         h->avctx->has_b_frames = FFMAX(h->avctx->has_b_frames, sps->num_reorder_frames);

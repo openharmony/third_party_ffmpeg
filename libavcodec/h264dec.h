@@ -505,6 +505,13 @@ typedef struct H264Context {
      */
     int prev_interlaced_frame;
 
+#ifdef OHOS_H264_OUTPUT_DECODE_ORDER
+    /**
+     * enable the decoder to output frames in decoding order
+     */
+    int output_in_decode_order;
+#endif
+
     /**
      * Are the SEI recovery points looking valid.
      */
