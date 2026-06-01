@@ -1,9 +1,10 @@
 [
     {
         "Name": "FFmpeg",
-        "License": "LGPL V2.1",
+        "License": "LGPL-2.1-or-later",
         "License File": "COPYING.LGPLv2.1",
         "Version Number": "7.1.1",
+        "owner": "suruoyan1@huawei.com",
         "Upstream URL": "http://www.ffmpeg.org/",
         "Description": "FFmpeg is the leading multimedia framework, able to decode, encode, transcode, mux, demux, stream, filter and play pretty much anything that humans and machines have created.",
         "Dependencies": ""
