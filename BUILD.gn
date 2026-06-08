@@ -214,6 +214,7 @@ config("libohosffmpeg_public_config") {
   include_dirs = [ "//third_party/ffmpeg" ]
 }
 ohos_source_set("ffmpeg_dynamic") {
+  branch_protector_ret = "pac_ret"
   sources = [
     # "//third_party/ffmpeg/libavcodec/012v.c",
     # "//third_party/ffmpeg/libavcodec/4xm.c",
