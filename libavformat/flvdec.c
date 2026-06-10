@@ -35,6 +35,10 @@
 #include "libavutil/intfloat.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/mastering_display_metadata.h"
+#ifdef OHOS_AV3A_DEMUXER
+#include "libavcodec/av3a.h"
+#include "libavcodec/get_bits.h"
+#endif
 #include "avformat.h"
 #include "demux.h"
 #include "internal.h"
@@ -67,6 +71,20 @@ typedef struct FLVMetaVideoColor {
     uint64_t max_fall;
     FLVMasteringMeta mastering_meta;
 } FLVMetaVideoColor;
+
+#ifdef OHOS_AV3A_DEMUXER
+typedef struct FLVAv3aFormatContext {
+    uint8_t audio_codec_id;
+    uint8_t sampling_frequency_index;
+    uint8_t nn_type;
+    uint8_t content_type;
+    uint8_t channel_number_index;
+    uint8_t number_objects;
+    uint8_t hoa_order;
+    uint8_t resolution_index;
+    uint16_t total_bitrate_kbps;
+} FLVAv3aFormatContext;
+#endif
 
 typedef struct FLVContext {
     const AVClass *class; ///< Class for private options.
@@ -226,6 +244,11 @@ static int flv_same_audio_codec(AVCodecParameters *apar, int flags)
     if (!apar->codec_id && !apar->codec_tag)
         return 1;
 
+#ifdef OHOS_AV3A_DEMUXER
+    if (flags == FLV_AUDIO_VIVID_HEADER)
+        return apar->codec_id == AV_CODEC_ID_AVS3DA;
+#endif
+
     if (apar->bits_per_coded_sample != bits_per_coded_sample)
         return 0;
 
@@ -297,6 +320,11 @@ static void flv_set_audio_codec(AVFormatContext *s, AVStream *astream,
         apar->codec_id    = AV_CODEC_ID_SPEEX;
         apar->sample_rate = 16000;
         break;
+#ifdef OHOS_AV3A_DEMUXER
+    case FLV_AUDIO_VIVID_CODECID << FLV_AUDIO_CODECID_OFFSET:
+        apar->codec_id = AV_CODEC_ID_AVS3DA;
+        break;
+#endif
     case FLV_CODECID_MP3:
         apar->codec_id      = AV_CODEC_ID_MP3;
         ffstream(astream)->need_parsing = AVSTREAM_PARSE_FULL;
@@ -942,6 +970,178 @@ static int flv_queue_extradata(FLVContext *flv, AVIOContext *pb, int stream,
     return 0;
 }
 
+#ifdef OHOS_AV3A_DEMUXER
+static int flv_set_av3a_channel_layout(AVCodecParameters *par, int content_type,
+                                       int channel_number_index, int nb_channels,
+                                       int nb_objects, int hoa_order)
+{
+    int total_channels = nb_channels + nb_objects;
+
+    if (content_type == AV3A_AMBISONIC_TYPE) {
+        av_channel_layout_uninit(&par->ch_layout);
+        par->ch_layout.order       = AV_CHANNEL_ORDER_AMBISONIC;
+        par->ch_layout.nb_channels = (hoa_order + 1) * (hoa_order + 1);
+        return 0;
+    }
+
+    if (total_channels <= 0)
+        return AVERROR_INVALIDDATA;
+
+    AVChannelCustom *map = av_calloc(total_channels, sizeof(*map));
+    if (!map)
+        return AVERROR(ENOMEM);
+
+    if (content_type != AV3A_OBJECT_BASED_TYPE) {
+        if (channel_number_index < 0 ||
+            channel_number_index >= AV3A_CHANNEL_LAYOUT_SIZE ||
+            nb_channels != ff_av3a_channels_map_table[channel_number_index].channels ||
+            !ff_av3a_channels_map_table[channel_number_index].channel_layout) {
+            av_free(map);
+            return AVERROR_INVALIDDATA;
+        }
+        for (int i = 0; i < nb_channels; i++)
+            map[i].id = ff_av3a_channels_map_table[channel_number_index].channel_layout[i];
+    }
+
+    for (int i = nb_channels; i < total_channels; i++)
+        map[i].id = AV3A_CH_AUDIO_OBJECT;
+
+    av_channel_layout_uninit(&par->ch_layout);
+    par->ch_layout.order       = AV_CHANNEL_ORDER_CUSTOM;
+    par->ch_layout.nb_channels = total_channels;
+    par->ch_layout.u.map       = map;
+    return 0;
+}
+
+static int flv_parse_av3a_dca3(AVFormatContext *s, AVStream *st,
+                               const uint8_t *data, int size,
+                               FLVAv3aFormatContext *av3afmtctx)
+{
+    if (st == NULL || st->codecpar == NULL) {
+        return AVERROR_INVALIDDATA;
+    }
+    AVCodecParameters *par = st->codecpar;
+    GetBitContext gb;
+    int ret;
+    int audio_codec_id, sampling_frequency_index, nn_type, content_type;
+    int channel_number_index = CHANNEL_CONFIG_UNKNOWN;
+    int nb_channels = 0, nb_objects = 0, hoa_order = 0;
+    int bitrate_kbps, resolution_index;
+
+    if (size < AV3A_DCA3_BOX_MIN_SIZE || size > AV3A_DCA3_BOX_MAX_SIZE)
+        return AVERROR_INVALIDDATA;
+
+    ret = init_get_bits8(&gb, data, size);
+    if (ret < 0)
+        return ret;
+
+    audio_codec_id = get_bits(&gb, 4);
+    if (audio_codec_id != AV3A_LOSSY_CODEC_ID)
+        return AVERROR_INVALIDDATA;
+
+    par->codec_id   = AV_CODEC_ID_AVS3DA;
+    par->frame_size = AV3A_AUDIO_FRAME_SIZE;
+
+    sampling_frequency_index = get_bits(&gb, 4);
+    if (sampling_frequency_index < 0 || sampling_frequency_index >= AV3A_FS_TABLE_SIZE)
+        return AVERROR_INVALIDDATA;
+    par->sample_rate = ff_av3a_sampling_rate_table[sampling_frequency_index];
+
+    nn_type = get_bits(&gb, 3);
+    if (nn_type < AV3A_BASELINE_NN_TYPE || nn_type > AV3A_LC_NN_TYPE)
+        return AVERROR_INVALIDDATA;
+
+    skip_bits(&gb, 1); /* reserved */
+    content_type = get_bits(&gb, 4);
+
+    switch (content_type) {
+    case AV3A_CHANNEL_BASED_TYPE:
+        if (get_bits_left(&gb) < 8)
+            return AVERROR_INVALIDDATA;
+        channel_number_index = get_bits(&gb, 7);
+        skip_bits(&gb, 1); /* reserved */
+        if (channel_number_index < CHANNEL_CONFIG_MONO ||
+            channel_number_index > CHANNEL_CONFIG_MC_7_1_4 ||
+            channel_number_index == CHANNEL_CONFIG_MC_10_2 ||
+            channel_number_index == CHANNEL_CONFIG_MC_22_2)
+            return AVERROR_INVALIDDATA;
+        nb_channels = ff_av3a_channels_map_table[channel_number_index].channels;
+        break;
+    case AV3A_OBJECT_BASED_TYPE:
+        if (get_bits_left(&gb) < 8)
+            return AVERROR_INVALIDDATA;
+        nb_objects = get_bits(&gb, 7);
+        skip_bits(&gb, 1); /* reserved */
+        if (nb_objects < 1)
+            return AVERROR_INVALIDDATA;
+        break;
+    case AV3A_CHANNEL_OBJECT_TYPE:
+        if (get_bits_left(&gb) < 16)
+            return AVERROR_INVALIDDATA;
+        channel_number_index = get_bits(&gb, 7);
+        skip_bits(&gb, 1); /* reserved */
+        if (channel_number_index < CHANNEL_CONFIG_STEREO ||
+            channel_number_index > CHANNEL_CONFIG_MC_7_1_4 ||
+            channel_number_index == CHANNEL_CONFIG_MC_10_2 ||
+            channel_number_index == CHANNEL_CONFIG_MC_22_2)
+            return AVERROR_INVALIDDATA;
+        nb_channels = ff_av3a_channels_map_table[channel_number_index].channels;
+        nb_objects = get_bits(&gb, 7);
+        skip_bits(&gb, 1); /* reserved */
+        if (nb_objects < 1)
+            return AVERROR_INVALIDDATA;
+        break;
+    case AV3A_AMBISONIC_TYPE:
+        if (get_bits_left(&gb) < 4)
+            return AVERROR_INVALIDDATA;
+        hoa_order = get_bits(&gb, 4);
+        if (hoa_order < AV3A_AMBISONIC_FIRST_ORDER ||
+            hoa_order > AV3A_AMBISONIC_THIRD_ORDER)
+            return AVERROR_INVALIDDATA;
+        nb_channels = (hoa_order + 1) * (hoa_order + 1);
+        break;
+    default:
+        return AVERROR_INVALIDDATA;
+    }
+
+    if (get_bits_left(&gb) < 18)
+        return AVERROR_INVALIDDATA;
+    bitrate_kbps = get_bits(&gb, 16);
+    if (bitrate_kbps <= 0)
+        return AVERROR_INVALIDDATA;
+    par->bit_rate = (int64_t)bitrate_kbps * 1000;
+
+    resolution_index = get_bits(&gb, 2);
+    if (resolution_index < 0 || resolution_index >= AV3A_RESOLUTION_TABLE_SIZE)
+        return AVERROR_INVALIDDATA;
+    par->format = ff_av3a_sample_format_map_table[resolution_index].sample_format;
+    par->bits_per_raw_sample = ff_av3a_sample_format_map_table[resolution_index].resolution;
+    par->bits_per_coded_sample = ff_av3a_sample_format_map_table[resolution_index].resolution;
+
+    ret = flv_set_av3a_channel_layout(par, content_type, channel_number_index,
+                                      nb_channels, nb_objects, hoa_order);
+    if (ret < 0)
+        return ret;
+
+    if (av3afmtctx) {
+        av3afmtctx->audio_codec_id           = audio_codec_id;
+        av3afmtctx->sampling_frequency_index = sampling_frequency_index;
+        av3afmtctx->nn_type                  = nn_type;
+        av3afmtctx->content_type             = content_type;
+        av3afmtctx->channel_number_index     = channel_number_index;
+        av3afmtctx->number_objects           = nb_objects;
+        av3afmtctx->hoa_order                = hoa_order;
+        av3afmtctx->resolution_index         = resolution_index;
+        av3afmtctx->total_bitrate_kbps       = (uint16_t)bitrate_kbps;
+    }
+
+    av_log(s, AV_LOG_DEBUG,
+           "Audio Vivid dca3: sample_rate=%d channels=%d objects=%d bitrate=%"PRId64"\n",
+           par->sample_rate, par->ch_layout.nb_channels, nb_objects, par->bit_rate);
+    return 0;
+}
+#endif
+
 static void clear_index_entries(AVFormatContext *s, int64_t pos)
 {
     av_log(s, AV_LOG_WARNING,
@@ -1228,8 +1428,15 @@ static int flv_read_packet(AVFormatContext *s, AVPacket *pkt)
     int orig_size;
     int enhanced_flv = 0;
     uint32_t video_codec_id = 0;
+#ifdef OHOS_AV3A_DEMUXER
+    int audio_vivid_packet_type = -1;
+#endif
 
 retry:
+#ifdef OHOS_AV3A_DEMUXER
+    audio_vivid_packet_type = -1;
+#endif
+
     /* pkt size is repeated at end. skip it */
     pos  = avio_tell(s->pb);
     type = (avio_r8(s->pb) & 0x1F);
@@ -1271,6 +1478,22 @@ retry:
         stream_type = FLV_STREAM_TYPE_AUDIO;
         flags    = avio_r8(s->pb);
         size--;
+#ifdef OHOS_AV3A_DEMUXER
+        if (flags == FLV_AUDIO_VIVID_HEADER) {
+            int audio_codec_id;
+            if (size < 3) {
+                ret = AVERROR_INVALIDDATA;
+                goto leave;
+            }
+            audio_codec_id = avio_rb16(s->pb);
+            audio_vivid_packet_type = avio_r8(s->pb);
+            size -= 3;
+            if (audio_codec_id != FLV_AUDIO_VIVID_CODECID) {
+                avpriv_request_sample(s, "Extended audio codec (%x)", audio_codec_id);
+                goto skip;
+            }
+        }
+#endif
     } else if (type == FLV_TAG_TYPE_VIDEO) {
         stream_type = FLV_STREAM_TYPE_VIDEO;
         flags    = avio_r8(s->pb);
@@ -1421,20 +1644,36 @@ retry_duration:
 
     if (stream_type == FLV_STREAM_TYPE_AUDIO) {
         int bits_per_coded_sample;
-        channels = (flags & FLV_AUDIO_CHANNEL_MASK) == FLV_STEREO ? 2 : 1;
-        sample_rate = 44100 << ((flags & FLV_AUDIO_SAMPLERATE_MASK) >>
-                                FLV_AUDIO_SAMPLERATE_OFFSET) >> 3;
-        bits_per_coded_sample = (flags & FLV_AUDIO_SAMPLESIZE_MASK) ? 16 : 8;
-        if (!av_channel_layout_check(&st->codecpar->ch_layout) ||
-            !st->codecpar->sample_rate ||
-            !st->codecpar->bits_per_coded_sample) {
-            av_channel_layout_default(&st->codecpar->ch_layout, channels);
-            st->codecpar->sample_rate           = sample_rate;
-            st->codecpar->bits_per_coded_sample = bits_per_coded_sample;
+#ifdef OHOS_AV3A_DEMUXER
+        if (flags == FLV_AUDIO_VIVID_HEADER) {
+            channels = st->codecpar->ch_layout.nb_channels;
+            sample_rate = st->codecpar->sample_rate;
+            bits_per_coded_sample = st->codecpar->bits_per_coded_sample;
+        } else
+#endif
+        {
+            channels = (flags & FLV_AUDIO_CHANNEL_MASK) == FLV_STEREO ? 2 : 1;
+            sample_rate = 44100 << ((flags & FLV_AUDIO_SAMPLERATE_MASK) >>
+                                    FLV_AUDIO_SAMPLERATE_OFFSET) >> 3;
+            bits_per_coded_sample = (flags & FLV_AUDIO_SAMPLESIZE_MASK) ? 16 : 8;
+            if (!av_channel_layout_check(&st->codecpar->ch_layout) ||
+                !st->codecpar->sample_rate ||
+                !st->codecpar->bits_per_coded_sample) {
+                av_channel_layout_default(&st->codecpar->ch_layout, channels);
+                st->codecpar->sample_rate           = sample_rate;
+                st->codecpar->bits_per_coded_sample = bits_per_coded_sample;
+            }
         }
         if (!st->codecpar->codec_id) {
+#ifdef OHOS_AV3A_DEMUXER
+            flv_set_audio_codec(s, st, st->codecpar,
+                                flags == FLV_AUDIO_VIVID_HEADER ?
+                                (FLV_AUDIO_VIVID_CODECID << FLV_AUDIO_CODECID_OFFSET) :
+                                (flags & FLV_AUDIO_CODECID_MASK));
+#else
             flv_set_audio_codec(s, st, st->codecpar,
                                 flags & FLV_AUDIO_CODECID_MASK);
+#endif
             flv->last_sample_rate =
             sample_rate           = st->codecpar->sample_rate;
             flv->last_channels    =
@@ -1447,7 +1686,15 @@ retry_duration:
             }
             par->sample_rate = sample_rate;
             par->bits_per_coded_sample = bits_per_coded_sample;
-            flv_set_audio_codec(s, st, par, flags & FLV_AUDIO_CODECID_MASK);
+#ifdef OHOS_AV3A_DEMUXER
+            flv_set_audio_codec(s, st, par,
+                                flags == FLV_AUDIO_VIVID_HEADER ?
+                                (FLV_AUDIO_VIVID_CODECID << FLV_AUDIO_CODECID_OFFSET) :
+                                (flags & FLV_AUDIO_CODECID_MASK));
+#else
+            flv_set_audio_codec(s, st, par,
+                                flags & FLV_AUDIO_CODECID_MASK);
+#endif
             sample_rate = par->sample_rate;
             avcodec_parameters_free(&par);
         }
@@ -1461,6 +1708,54 @@ retry_duration:
     } else if (stream_type == FLV_STREAM_TYPE_DATA) {
         st->codecpar->codec_id = AV_CODEC_ID_NONE; // Opaque AMF data
     }
+
+#ifdef OHOS_AV3A_DEMUXER
+    if (st->codecpar->codec_id == AV_CODEC_ID_AVS3DA) {
+        if (audio_vivid_packet_type == AudioPacketTypeSequenceStart) {
+            uint8_t *dca3 = NULL;
+            FLVAv3aFormatContext av3afmtctx = { 0 };
+
+            if (size < AV3A_DCA3_BOX_MIN_SIZE || size > AV3A_DCA3_BOX_MAX_SIZE) {
+                ret = AVERROR_INVALIDDATA;
+                goto leave;
+            }
+
+            dca3 = av_mallocz(size + AV_INPUT_BUFFER_PADDING_SIZE);
+            if (!dca3) {
+                ret = AVERROR(ENOMEM);
+                goto leave;
+            }
+
+            ret = avio_read(s->pb, dca3, size);
+            if (ret < 0) {
+                av_free(dca3);
+                goto leave;
+            }
+            if (ret != size) {
+                av_free(dca3);
+                ret = AVERROR_INVALIDDATA;
+                goto leave;
+            }
+
+            ret = flv_parse_av3a_dca3(s, st, dca3, size, &av3afmtctx);
+            av_free(dca3);
+            if (ret < 0) {
+                goto leave;
+            }
+
+            ffstream(st)->need_context_update = 1;
+            flv->last_sample_rate = st->codecpar->sample_rate;
+            flv->last_channels    = st->codecpar->ch_layout.nb_channels;
+            ret = FFERROR_REDO;
+            goto leave;
+        } else if (audio_vivid_packet_type != AudioPacketTypeCodedFrames) {
+            avpriv_request_sample(s, "Audio Vivid packet type (%d)", audio_vivid_packet_type);
+            goto skip;
+        }
+        channels = st->codecpar->ch_layout.nb_channels;
+        sample_rate = st->codecpar->sample_rate;
+    }
+#endif
 
     if (st->codecpar->codec_id == AV_CODEC_ID_AAC ||
         st->codecpar->codec_id == AV_CODEC_ID_H264 ||
