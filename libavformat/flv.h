@@ -50,6 +50,11 @@
 #define FLV_VIDEO_CODECID_MASK    0x0f
 #define FLV_VIDEO_FRAMETYPE_MASK  0x70
 
+#ifdef OHOS_AV3A_DEMUXER
+#define FLV_AUDIO_VIVID_HEADER    0x9f
+#define FLV_AUDIO_VIVID_CODECID   17
+#endif
+
 #define AMF_END_OF_OBJECT         0x09
 
 #define KEYFRAMES_TAG            "keyframes"
@@ -129,6 +134,13 @@ enum {
     PacketTypeMetadata              = 4,
     PacketTypeMPEG2TSSequenceStart  = 5,
 };
+
+#ifdef OHOS_AV3A_DEMUXER
+enum {
+    AudioPacketTypeSequenceStart = 0,
+    AudioPacketTypeCodedFrames   = 1,
+};
+#endif
 
 enum {
     FLV_FRAME_KEY            = 1 << FLV_VIDEO_FRAMETYPE_OFFSET, ///< key frame (for AVC, a seekable frame)
