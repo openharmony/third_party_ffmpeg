@@ -8154,6 +8154,7 @@ static int mov_read_pssh_ex(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     AV_DrmInfo side_data_node;
     AV_DrmInfo *old_side_data = NULL;
     AV_DrmInfo *new_side_data = NULL;
+    const AVPacketSideData *sd;
     uint8_t pssh_buf[AV_DRM_MAX_DRM_PSSH_LEN];
     size_t old_side_data_size = 0;
     uint32_t old_side_data_count = 0;
@@ -8180,8 +8181,12 @@ static int mov_read_pssh_ex(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         return 0;
     }
 
-    old_side_data = (AV_DrmInfo *)av_stream_get_side_data(st, AV_PKT_DATA_ENCRYPTION_INIT_INFO, &old_side_data_size);
-    if ((old_side_data != NULL) && (old_side_data_size != 0)) {
+    sd = av_packet_side_data_get(st->codecpar->coded_side_data,
+                                 st->codecpar->nb_coded_side_data,
+                                 AV_PKT_DATA_ENCRYPTION_INIT_INFO);
+    if (sd && sd->size > 0) {
+        old_side_data = (AV_DrmInfo *)sd->data;
+        old_side_data_size = sd->size;
         old_side_data_count = old_side_data_size / sizeof(AV_DrmInfo);
         pssh_exist_flag = mov_is_exist_pssh(old_side_data, old_side_data_count, side_data_node);
     }
@@ -8189,9 +8194,11 @@ static int mov_read_pssh_ex(MOVContext *c, AVIOContext *pb, MOVAtom atom)
         new_side_data = (AV_DrmInfo *)av_mallocz(sizeof(AV_DrmInfo) * (old_side_data_count + 1));
         if (new_side_data != NULL) {
             mov_copy_drm_info(new_side_data, old_side_data, old_side_data_count, side_data_node);
-            ret = av_stream_add_side_data(st, AV_PKT_DATA_ENCRYPTION_INIT_INFO, (uint8_t *)new_side_data,
-                (size_t)(sizeof(AV_DrmInfo) * (old_side_data_count + 1)));
-            if (ret < 0)
+            if (!av_packet_side_data_add(&st->codecpar->coded_side_data,
+                                         &st->codecpar->nb_coded_side_data,
+                                         AV_PKT_DATA_ENCRYPTION_INIT_INFO,
+                                         (uint8_t *)new_side_data,
+                                         sizeof(AV_DrmInfo) * (old_side_data_count + 1), 0))
                 av_free(new_side_data);
         }
     }
