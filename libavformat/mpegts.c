@@ -794,13 +794,13 @@ static void mpegts_drm_copy_cenc_info(AV_DrmCencInfo *dest, AV_DrmCencInfo *src,
 static void mpegts_avstream_set_cenc_info(AVStream *avstream, AV_DrmCencInfo *info)
 {
     ff_mutex_lock(&g_mpegts_mutex);
-    AV_DrmCencInfo *cenc_info = (AV_DrmCencInfo *)av_packet_side_data_new(
+    AVPacketSideData *sd = av_packet_side_data_new(
         &avstream->codecpar->coded_side_data,
         &avstream->codecpar->nb_coded_side_data,
         AV_PKT_DATA_ENCRYPTION_INFO,
         sizeof(AV_DrmCencInfo), 0);
-    if (cenc_info != NULL) {
-        mpegts_drm_copy_cenc_info(cenc_info, info, 1); // 1:true
+    if (sd != NULL) {
+        mpegts_drm_copy_cenc_info((AV_DrmCencInfo *)sd->data, info, 1); // 1:true
     }
     ff_mutex_unlock(&g_mpegts_mutex);
     return;
