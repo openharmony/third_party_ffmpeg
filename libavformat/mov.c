@@ -8147,54 +8147,70 @@ static void mov_copy_drm_info(AV_DrmInfo *new_side_data, const AV_DrmInfo *old_s
     return;
 }
 
+static int mov_read_pssh_data(MOVContext *c, AVIOContext *pb, MOVAtom atom,
+                              uint8_t *pssh_buf, AV_DrmInfo *side_data_node)
+{
+    if (atom.size <= 0 || atom.size > (AV_DRM_MAX_DRM_PSSH_LEN - MOV_DRM_PSSH_TITLE_LEN))
+        return 0;
+
+    memset(pssh_buf, 0, AV_DRM_MAX_DRM_PSSH_LEN);
+    AV_WB32(pssh_buf, atom.size + MOV_DRM_PSSH_TITLE_LEN);
+    memcpy(pssh_buf + sizeof(uint32_t), g_pssh_title_buf, sizeof(g_pssh_title_buf));
+
+    if (ffio_read_size(pb, pssh_buf + MOV_DRM_PSSH_TITLE_LEN, atom.size) < 0) {
+        av_log(c->fc, AV_LOG_ERROR, "Failed to read the pssh data\n");
+        return 0;
+    }
+    if (mov_set_drm_info(pssh_buf, atom.size + MOV_DRM_PSSH_TITLE_LEN, side_data_node) != 0) {
+        av_log(c->fc, AV_LOG_ERROR, "Failed to set drm info\n");
+        return 0;
+    }
+    return 1;
+}
+
 static int mov_read_pssh_ex(MOVContext *c, AVIOContext *pb, MOVAtom atom)
 {
-    int ret = 0;
     AVStream *st;
     AV_DrmInfo side_data_node;
-    AV_DrmInfo *old_side_data = NULL;
-    AV_DrmInfo *new_side_data = NULL;
+    AV_DrmInfo *old_side_data = NULL, *new_side_data = NULL;
+    const AVPacketSideData *sd;
     uint8_t pssh_buf[AV_DRM_MAX_DRM_PSSH_LEN];
     size_t old_side_data_size = 0;
     uint32_t old_side_data_count = 0;
     int pssh_exist_flag = 0;
-    if ((c == NULL) || (c->fc == NULL) || (c->fc->nb_streams < 1) || (c->fc->streams == NULL) || (pb == NULL) ||
-        (atom.size > (AV_DRM_MAX_DRM_PSSH_LEN - MOV_DRM_PSSH_TITLE_LEN)) || (atom.size <= 0)) {
-        return 0;
-    }
-    st = c->fc->streams[c->fc->nb_streams-1];
-    if (st == NULL) {
-        return 0;
-    }
 
-    memset(pssh_buf, 0, sizeof(pssh_buf));
-    AV_WB32(pssh_buf, (atom.size + MOV_DRM_PSSH_TITLE_LEN));
-    memcpy(pssh_buf + sizeof(uint32_t), g_pssh_title_buf, sizeof(g_pssh_title_buf));
-
-    if ((ret = ffio_read_size(pb, pssh_buf + MOV_DRM_PSSH_TITLE_LEN, atom.size)) < 0) {
-        av_log(c->fc, AV_LOG_ERROR, "Failed to read the pssh data\n");
+    if (!c || !c->fc || !c->fc->streams || c->fc->nb_streams < 1 || !pb)
         return 0;
-    }
-    if ((ret = mov_set_drm_info(pssh_buf, (uint32_t)(atom.size + MOV_DRM_PSSH_TITLE_LEN), &side_data_node)) != 0) {
-        av_log(c->fc, AV_LOG_ERROR, "Failed to set drm info\n");
-        return 0;
-    }
 
-    old_side_data = (AV_DrmInfo *)av_stream_get_side_data(st, AV_PKT_DATA_ENCRYPTION_INIT_INFO, &old_side_data_size);
-    if ((old_side_data != NULL) && (old_side_data_size != 0)) {
+    st = c->fc->streams[c->fc->nb_streams - 1];
+    if (!st || !mov_read_pssh_data(c, pb, atom, pssh_buf, &side_data_node))
+        return 0;
+
+    sd = av_packet_side_data_get(st->codecpar->coded_side_data,
+                                 st->codecpar->nb_coded_side_data,
+                                 AV_PKT_DATA_ENCRYPTION_INIT_INFO);
+    if (sd && sd->size > 0) {
+        old_side_data = (AV_DrmInfo *)sd->data;
+        old_side_data_size = sd->size;
         old_side_data_count = old_side_data_size / sizeof(AV_DrmInfo);
         pssh_exist_flag = mov_is_exist_pssh(old_side_data, old_side_data_count, side_data_node);
     }
-    if (pssh_exist_flag == 0) {
-        new_side_data = (AV_DrmInfo *)av_mallocz(sizeof(AV_DrmInfo) * (old_side_data_count + 1));
-        if (new_side_data != NULL) {
-            mov_copy_drm_info(new_side_data, old_side_data, old_side_data_count, side_data_node);
-            ret = av_stream_add_side_data(st, AV_PKT_DATA_ENCRYPTION_INIT_INFO, (uint8_t *)new_side_data,
-                (size_t)(sizeof(AV_DrmInfo) * (old_side_data_count + 1)));
-            if (ret < 0)
-                av_free(new_side_data);
-        }
-    }
+
+    if (pssh_exist_flag)
+        return 0;
+
+    new_side_data = (AV_DrmInfo *)av_mallocz(sizeof(AV_DrmInfo) * (old_side_data_count + 1));
+    if (!new_side_data)
+        return 0;
+
+    mov_copy_drm_info(new_side_data, old_side_data, old_side_data_count, side_data_node);
+    if (!av_packet_side_data_add(&st->codecpar->coded_side_data,
+                                 &st->codecpar->nb_coded_side_data,
+                                 AV_PKT_DATA_ENCRYPTION_INIT_INFO,
+                                 (uint8_t *)new_side_data,
+                                 sizeof(AV_DrmInfo) * (old_side_data_count + 1), 0))
+        av_free(new_side_data);
+
     return 0;
 }
 #endif

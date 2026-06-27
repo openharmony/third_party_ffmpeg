@@ -414,13 +414,17 @@ static void mpegts_avstream_set_drm_info(AVStream *avstream, AV_DrmInfo *info)
 {
     AV_DrmInfo *old_side_data = NULL;
     AV_DrmInfo *new_side_data = NULL;
+    const AVPacketSideData *sd;
     size_t old_side_data_size = 0;
     uint32_t old_side_data_count = 0;
     int pssh_exist_flag = 0;
     ff_mutex_lock(&g_mpegts_drm_info_mutex);
-    old_side_data = (AV_DrmInfo *)av_stream_get_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INIT_INFO,
-        &old_side_data_size);
-    if ((old_side_data != NULL) && (old_side_data_size != 0)) {
+    sd = av_packet_side_data_get(avstream->codecpar->coded_side_data,
+                                 avstream->codecpar->nb_coded_side_data,
+                                 AV_PKT_DATA_ENCRYPTION_INIT_INFO);
+    if (sd && sd->size > 0) {
+        old_side_data = (AV_DrmInfo *)sd->data;
+        old_side_data_size = sd->size;
         old_side_data_count = old_side_data_size / sizeof(AV_DrmInfo);
         pssh_exist_flag = mpegts_avstream_is_exist_pssh(old_side_data, old_side_data_count, info);
     }
@@ -428,9 +432,11 @@ static void mpegts_avstream_set_drm_info(AVStream *avstream, AV_DrmInfo *info)
         new_side_data = (AV_DrmInfo *)av_mallocz(sizeof(AV_DrmInfo) * (old_side_data_count + 1));
         if (new_side_data != NULL) {
             mpegts_avstream_copy_drm_info(new_side_data, old_side_data, old_side_data_count, info);
-            int ret = av_stream_add_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INIT_INFO, (uint8_t *)new_side_data,
-                (size_t)(sizeof(AV_DrmInfo) * (old_side_data_count + 1)));
-            if (ret < 0)
+            if (!av_packet_side_data_add(&avstream->codecpar->coded_side_data,
+                                         &avstream->codecpar->nb_coded_side_data,
+                                         AV_PKT_DATA_ENCRYPTION_INIT_INFO,
+                                         (uint8_t *)new_side_data,
+                                         sizeof(AV_DrmInfo) * (old_side_data_count + 1), 0))
                 av_free(new_side_data);
         }
     }
@@ -788,10 +794,13 @@ static void mpegts_drm_copy_cenc_info(AV_DrmCencInfo *dest, AV_DrmCencInfo *src,
 static void mpegts_avstream_set_cenc_info(AVStream *avstream, AV_DrmCencInfo *info)
 {
     ff_mutex_lock(&g_mpegts_mutex);
-    AV_DrmCencInfo *cenc_info = (AV_DrmCencInfo *)av_stream_new_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INFO,
-        (size_t)(sizeof(AV_DrmCencInfo)));
-    if (cenc_info != NULL) {
-        mpegts_drm_copy_cenc_info(cenc_info, info, 1); // 1:true
+    AVPacketSideData *sd = av_packet_side_data_new(
+        &avstream->codecpar->coded_side_data,
+        &avstream->codecpar->nb_coded_side_data,
+        AV_PKT_DATA_ENCRYPTION_INFO,
+        sizeof(AV_DrmCencInfo), 0);
+    if (sd != NULL) {
+        mpegts_drm_copy_cenc_info((AV_DrmCencInfo *)sd->data, info, 1); // 1:true
     }
     ff_mutex_unlock(&g_mpegts_mutex);
     return;
@@ -816,10 +825,15 @@ static int mpegts_drm_get_cenc_info(AVStream *avstream, enum AVCodecID codec_id,
     size_t cenc_info_size = 0;
     AV_DrmCencInfo *cenc_info_store = NULL;
 
+    const AVPacketSideData *sd;
+
     ff_mutex_lock(&g_mpegts_mutex);
-    cenc_info_store = (AV_DrmCencInfo *)av_stream_get_side_data(avstream, AV_PKT_DATA_ENCRYPTION_INFO,
-        &cenc_info_size);
-    if ((cenc_info_store != NULL) && (cenc_info_size != 0)) {
+    sd = av_packet_side_data_get(avstream->codecpar->coded_side_data,
+                                 avstream->codecpar->nb_coded_side_data,
+                                 AV_PKT_DATA_ENCRYPTION_INFO);
+    if (sd && sd->size > 0) {
+        cenc_info_store = (AV_DrmCencInfo *)sd->data;
+        cenc_info_size = sd->size;
         mpegts_drm_copy_cenc_info(cenc_info, cenc_info_store, 0);
     } else {
         ff_mutex_unlock(&g_mpegts_mutex);
