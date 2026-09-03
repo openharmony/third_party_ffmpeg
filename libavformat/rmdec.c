@@ -707,6 +707,9 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
         int mlti_id;
         *pos= avio_tell(pb) - 3;
         if(rm->remaining_len > 0){
+#ifdef OHOS_OPT_COMPAT
+            original_pos = avio_tell(pb);
+#endif
             num= rm->current_stream;
             mlti_id = 0;
             len= rm->remaining_len;
@@ -773,6 +776,10 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
                 av_log(s, AV_LOG_ERROR, "rm_sync error, len=%d,"
                     "cur_pos=%"PRId64", file_size=%"PRId64", file_remain_len=%"PRId64"\n",
                     len, avio_tell(pb), file_size, file_remain_len);
+                if (rm->remaining_len > 0) {
+                    original_pos++;
+                    rm->remaining_len--;
+                }
                 avio_seek(pb, original_pos, SEEK_SET);
                 continue;
             }
@@ -792,6 +799,10 @@ static int rm_sync(AVFormatContext *s, int64_t *timestamp, int *flags, int *stre
                 if (len2 < 0 || len_tmp < 0 || len_tmp > file_remain_len || (type == 3 && len2 > len_tmp)) {
                     av_log(s, AV_LOG_ERROR, "rm_sync err, len2=%d, file_remain_len=%"PRId64", type=%d, len_tmp=%d\n",
                         len2, file_remain_len, type, len_tmp);
+                    if (rm->remaining_len > 0) {
+                        original_pos++;
+                        rm->remaining_len--;
+                    }
                     avio_seek(pb, original_pos, SEEK_SET);
                     continue;
                 }
