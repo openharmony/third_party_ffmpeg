@@ -1419,8 +1419,8 @@ static av_cold int sws_init_single_context(SwsContext *c, SwsFilter *srcFilter,
     if (!srcFilter)
         srcFilter = &dummyFilter;
 
-    c->lumXInc      = (((int64_t)srcW << 16) + (dstW >> 1)) / dstW;
-    c->lumYInc      = (((int64_t)srcH << 16) + (dstH >> 1)) / dstH;
+    int64_t lumXInc = (((int64_t)srcW << 16) + (dstW >> 1)) / dstW;
+    int64_t lumYInc = (((int64_t)srcH << 16) + (dstH >> 1)) / dstH;
     c->dstFormatBpp = av_get_bits_per_pixel(desc_dst);
     c->srcFormatBpp = av_get_bits_per_pixel(desc_src);
     c->vRounder     = 4 * 0x0001000100010001ULL;
@@ -1591,8 +1591,8 @@ static av_cold int sws_init_single_context(SwsContext *c, SwsFilter *srcFilter,
     } else
         c->canMMXEXTBeUsed = 0;
 
-    c->chrXInc = (((int64_t)c->chrSrcW << 16) + (c->chrDstW >> 1)) / c->chrDstW;
-    c->chrYInc = (((int64_t)c->chrSrcH << 16) + (c->chrDstH >> 1)) / c->chrDstH;
+    int64_t chrXInc = (((int64_t)c->chrSrcW << 16) + (c->chrDstW >> 1)) / c->chrDstW;
+    int64_t chrYInc = (((int64_t)c->chrSrcH << 16) + (c->chrDstH >> 1)) / c->chrDstH;
 
     /* Match pixel 0 of the src to pixel 0 of dst and match pixel n-2 of src
      * to pixel n-2 of dst, but only for the FAST_BILINEAR mode otherwise do
@@ -1603,15 +1603,27 @@ static av_cold int sws_init_single_context(SwsContext *c, SwsFilter *srcFilter,
      * some special code for the first and last pixel */
     if (flags & SWS_FAST_BILINEAR) {
         if (c->canMMXEXTBeUsed) {
-            c->lumXInc += 20;
-            c->chrXInc += 20;
+            lumXInc += 20;
+            chrXInc += 20;
         }
         // we don't use the x86 asm scaler if MMX is available
         else if (INLINE_MMX(cpu_flags) && c->dstBpc <= 14) {
-            c->lumXInc = ((int64_t)(srcW       - 2) << 16) / (dstW       - 2) - 20;
-            c->chrXInc = ((int64_t)(c->chrSrcW - 2) << 16) / (c->chrDstW - 2) - 20;
+            lumXInc = ((int64_t)(srcW - 2) << 16) / (dstW - 2) - 20;
+            chrXInc = ((int64_t)(c->chrSrcW - 2) << 16) / (c->chrDstW - 2) - 20;
         }
     }
+    if (chrXInc < 10 || chrXInc > INT_MAX ||
+        chrYInc < 10 || chrYInc > INT_MAX ||
+        lumXInc < 10 || lumXInc > INT_MAX ||
+        lumYInc < 10 || lumYInc > INT_MAX) {
+        return AVERROR_PATCHWELCOME;
+    }
+
+    c->lumXInc = lumXInc;
+    c->lumYInc = lumYInc;
+    c->chrXInc = chrXInc;
+    c->chrYInc = chrYInc;
+
 
     // hardcoded for now
     c->gamma_value = 2.2;
@@ -1895,14 +1907,17 @@ static av_cold int sws_init_single_context(SwsContext *c, SwsFilter *srcFilter,
                                 PPC_ALTIVEC(cpu_flags) ? 8 :
                                 have_neon(cpu_flags)   ? 2 : 1;
 
-        if ((ret = initFilter(&c->vLumFilter, &c->vLumFilterPos, &c->vLumFilterSize,
+        ret = initFilter(&c->vLumFilter, &c->vLumFilterPos, &c->vLumFilterSize,
                        c->lumYInc, srcH, dstH, filterAlign, (1 << 12),
                        (flags & SWS_BICUBLIN) ? (flags | SWS_BICUBIC) : flags,
                        cpu_flags, srcFilter->lumV, dstFilter->lumV,
                        c->param,
                        get_local_pos(c, 0, 0, 1),
-                       get_local_pos(c, 0, 0, 1))) < 0)
+                       get_local_pos(c, 0, 0, 1));
+        int usecascade = (ret == RETCODE_USE_CASCADE);
+        if (ret < 0 && !usecascade) {
             goto fail;
+        }
         if ((ret = initFilter(&c->vChrFilter, &c->vChrFilterPos, &c->vChrFilterSize,
                        c->chrYInc, c->chrSrcH, c->chrDstH,
                        filterAlign, (1 << 12),
@@ -1913,6 +1928,10 @@ static av_cold int sws_init_single_context(SwsContext *c, SwsFilter *srcFilter,
                        get_local_pos(c, c->chrDstVSubSample, c->dst_v_chr_pos, 1))) < 0)
 
             goto fail;
+        if (usecascade) {
+            ret = RETCODE_USE_CASCADE;
+            goto fail;
+        }
 
 #if HAVE_ALTIVEC
         c->vYCoeffsBank = av_malloc_array(c->dstH, c->vLumFilterSize * sizeof(*c->vYCoeffsBank));
