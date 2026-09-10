@@ -579,17 +579,25 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         /* get a packet to be submitted to the next thread */
         av_packet_unref(fctx->next_pkt);
         ret = ff_decode_get_packet(avctx, fctx->next_pkt);
-        if (ret < 0 && ret != AVERROR_EOF)
-            goto finish;
+        if (ret < 0 && ret != AVERROR_EOF) {
+            if (ret == AVERROR(EAGAIN) && fctx->next_decoding == fctx->next_finished) {
+                goto finish;
+            }
+            if (ret != AVERROR(EAGAIN)) {
+                goto finish;
+            }
+        }
 
-        ret = submit_packet(&fctx->threads[fctx->next_decoding], avctx,
-                            fctx->next_pkt);
-        if (ret < 0)
-             goto finish;
+        if (ret >= 0 || ret == AVERROR_EOF) {
+            ret = submit_packet(&fctx->threads[fctx->next_decoding], avctx,
+                                fctx->next_pkt);
+            if (ret < 0)
+                goto finish;
+        }
 
-        /* do not return any frames until all threads have something to do */
+        /* without input to submit, still collect leftover frames */
         if (fctx->next_decoding != fctx->next_finished &&
-            !avctx->internal->draining)
+            !avctx->internal->draining && ret >= 0)
             continue;
 
         p                   = &fctx->threads[fctx->next_finished];
