@@ -583,10 +583,12 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         if (input_ret < 0 && input_ret != AVERROR_EOF) {
             /* non-EAGAIN errors are fatal */
             if (input_ret != AVERROR(EAGAIN)) {
+                ret = input_ret;
                 goto finish;
             }
             /* EAGAIN with no leftover frames in pipeline: exit */
             if (fctx->next_decoding == fctx->next_finished) {
+                ret = input_ret;
                 goto finish;
             }
             /* EAGAIN with leftover frames: fall through to collect them */
@@ -606,6 +608,12 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
 
         p                   = &fctx->threads[fctx->next_finished];
         fctx->next_finished = (fctx->next_finished + 1) % avctx->thread_count;
+
+        /* EAGAIN fallthrough: skip expensive ops if the thread has nothing to collect */
+        if (input_ret == AVERROR(EAGAIN) &&
+            atomic_load(&p->state) == STATE_INPUT_READY &&
+            p->df.nb_f == 0 && p->result == 0)
+            continue;
 
         if (atomic_load(&p->state) != STATE_INPUT_READY) {
             pthread_mutex_lock(&p->progress_mutex);
@@ -635,6 +643,7 @@ finish:
     async_lock(fctx);
     return ret;
 }
+
 
 void ff_thread_report_progress(ThreadFrame *f, int n, int field)
 {
