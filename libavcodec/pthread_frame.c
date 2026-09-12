@@ -575,45 +575,27 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
     /* submit packets to threads while there are no buffered results to return */
     while (!fctx->df.nb_f && !fctx->result) {
         PerThreadContext *p;
-        int input_ret;
 
         /* get a packet to be submitted to the next thread */
         av_packet_unref(fctx->next_pkt);
-        input_ret = ff_decode_get_packet(avctx, fctx->next_pkt);
-        if (input_ret < 0 && input_ret != AVERROR_EOF) {
-            /* non-EAGAIN errors are fatal */
-            if (input_ret != AVERROR(EAGAIN)) {
-                ret = input_ret;
-                goto finish;
-            }
-            /* EAGAIN with no leftover frames in pipeline: exit */
-            if (fctx->next_decoding == fctx->next_finished) {
-                ret = input_ret;
-                goto finish;
-            }
-            /* EAGAIN with leftover frames: fall through to collect them */
+        ret = ff_decode_get_packet(avctx, fctx->next_pkt);
+        if (ret < 0 && ret != AVERROR_EOF) {
+            frame->opaque = (fctx->next_decoding != fctx->next_finished) ? (void *)(intptr_t)1 : NULL;
+            goto finish;
         }
 
-        if (input_ret >= 0 || input_ret == AVERROR_EOF) {
-            ret = submit_packet(&fctx->threads[fctx->next_decoding], avctx,
-                                fctx->next_pkt);
-            if (ret < 0)
-                goto finish;
-        }
+        ret = submit_packet(&fctx->threads[fctx->next_decoding], avctx,
+                            fctx->next_pkt);
+        if (ret < 0)
+             goto finish;
 
-        /* without input to submit, still collect leftover frames */
+        /* do not return any frames until all threads have something to do */
         if (fctx->next_decoding != fctx->next_finished &&
-            !avctx->internal->draining && input_ret >= 0)
+            !avctx->internal->draining)
             continue;
 
         p                   = &fctx->threads[fctx->next_finished];
         fctx->next_finished = (fctx->next_finished + 1) % avctx->thread_count;
-
-        /* EAGAIN fallthrough: skip expensive ops if the thread has nothing to collect */
-        if (input_ret == AVERROR(EAGAIN) &&
-            atomic_load(&p->state) == STATE_INPUT_READY &&
-            p->df.nb_f == 0 && p->result == 0)
-            continue;
 
         if (atomic_load(&p->state) != STATE_INPUT_READY) {
             pthread_mutex_lock(&p->progress_mutex);
@@ -643,6 +625,7 @@ finish:
     async_lock(fctx);
     return ret;
 }
+
 
 void ff_thread_report_progress(ThreadFrame *f, int n, int field)
 {
