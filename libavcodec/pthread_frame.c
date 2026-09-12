@@ -626,7 +626,6 @@ finish:
     return ret;
 }
 
-
 void ff_thread_report_progress(ThreadFrame *f, int n, int field)
 {
     PerThreadContext *p;
