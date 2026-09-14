@@ -582,9 +582,11 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         ret = ff_decode_get_packet(avctx, fctx->next_pkt);
         if (ret < 0 && ret != AVERROR_EOF) {
             frame->opaque = (fctx->next_decoding != fctx->next_finished) ? (void *)(intptr_t)1 : NULL;
-            if (fctx->force_drain && ret == AVERROR(EAGAIN) &&
-                fctx->next_decoding != fctx->next_finished)
+            if (fctx->force_drain && ret == AVERROR(EAGAIN) && fctx->next_decoding != fctx->next_finished) {
+                av_log(avctx, AV_LOG_DEBUG, "force_drain: collecting frame nd=%d nf=%d\n",
+                       fctx->next_decoding, fctx->next_finished);
                 goto drain_collect;
+            }
             goto finish;
         }
 
@@ -599,9 +601,6 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
             continue;
 
 drain_collect:
-        av_log(avctx, AV_LOG_DEBUG,
-               "force_drain: collecting frame nd=%d nf=%d\n",
-               fctx->next_decoding, fctx->next_finished);
         p                   = &fctx->threads[fctx->next_finished];
         fctx->next_finished = (fctx->next_finished + 1) % avctx->thread_count;
 
@@ -617,9 +616,8 @@ drain_collect:
         p->result    = 0;
         if (p->df.nb_f)
             FFSWAP(DecodedFrames, fctx->df, p->df);
-        if (fctx->next_decoding == fctx->next_finished) {
-            av_log(avctx, AV_LOG_INFO,
-                   "force_drain: cleared, nd=nf=%d\n", fctx->next_decoding);
+        if (fctx->force_drain != 0 && fctx->next_decoding == fctx->next_finished) {
+            av_log(avctx, AV_LOG_INFO, "force_drain: cleared, nd=nf=%d\n", fctx->next_decoding);
             fctx->force_drain = 0;
         }
     }
