@@ -149,6 +149,7 @@ typedef struct FrameThreadContext {
 
     int next_decoding;             ///< The next context to submit a packet to.
     int next_finished;             ///< The next context to return output from.
+    int force_drain;               ///< Drain leftover frames in pipeline when EAGAIN.
 
     /* hwaccel state for thread-unsafe hwaccels is temporarily stored here in
      * order to transfer its ownership to the next decoding thread without the
@@ -581,6 +582,9 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         ret = ff_decode_get_packet(avctx, fctx->next_pkt);
         if (ret < 0 && ret != AVERROR_EOF) {
             frame->opaque = (fctx->next_decoding != fctx->next_finished) ? (void *)(intptr_t)1 : NULL;
+            if (fctx->force_drain && ret == AVERROR(EAGAIN) &&
+                fctx->next_decoding != fctx->next_finished)
+                goto drain_collect;
             goto finish;
         }
 
@@ -594,6 +598,10 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
             !avctx->internal->draining)
             continue;
 
+drain_collect:
+        av_log(avctx, AV_LOG_DEBUG,
+               "force_drain: collecting frame nd=%d nf=%d\n",
+               fctx->next_decoding, fctx->next_finished);
         p                   = &fctx->threads[fctx->next_finished];
         fctx->next_finished = (fctx->next_finished + 1) % avctx->thread_count;
 
@@ -609,6 +617,11 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         p->result    = 0;
         if (p->df.nb_f)
             FFSWAP(DecodedFrames, fctx->df, p->df);
+        if (fctx->next_decoding == fctx->next_finished) {
+            av_log(avctx, AV_LOG_INFO,
+                   "force_drain: cleared, nd=nf=%d\n", fctx->next_decoding);
+            fctx->force_drain = 0;
+        }
     }
 
     /* a thread may return multiple frames AND an error
@@ -1115,4 +1128,15 @@ int ff_thread_get_packet(AVCodecContext *avctx, AVPacket *pkt)
     }
 
     return avctx->internal->draining ? AVERROR_EOF : AVERROR(EAGAIN);
+}
+
+void avcodec_set_force_drain(AVCodecContext *avctx, int enable)
+{
+    FrameThreadContext *fctx = avctx->internal->thread_ctx;
+    if (fctx) {
+        av_log(avctx, AV_LOG_INFO,
+               "force_drain: set=%d, nd=%d, nf=%d\n",
+               enable, fctx->next_decoding, fctx->next_finished);
+        fctx->force_drain = enable;
+    }
 }
