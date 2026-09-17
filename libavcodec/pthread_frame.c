@@ -614,7 +614,7 @@ drain_collect:
         if (p->df.nb_f)
             FFSWAP(DecodedFrames, fctx->df, p->df);
         if (fctx->force_drain != 0 && fctx->next_decoding == fctx->next_finished) {
-            av_log(avctx, AV_LOG_INFO, "force_drain: cleared, nd=nf=%d\n", fctx->next_decoding);
+            av_log(avctx, AV_LOG_INFO, "force-drain: cleared, nd=nf=%d\n", fctx->next_decoding);
             fctx->force_drain = 0;
         }
     }
@@ -1129,8 +1129,7 @@ void avcodec_set_force_drain(AVCodecContext *avctx, int enable)
 {
     FrameThreadContext *fctx = avctx->internal->thread_ctx;
     if (fctx) {
-        av_log(avctx, AV_LOG_INFO,
-               "force_drain: set=%d, nd=%d, nf=%d\n",
+        av_log(avctx, AV_LOG_INFO, "force-drain: set=%d, nd=%d, nf=%d\n",
                enable, fctx->next_decoding, fctx->next_finished);
         fctx->force_drain = enable;
     }
