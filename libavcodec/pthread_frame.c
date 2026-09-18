@@ -613,7 +613,7 @@ drain_collect:
         p->result    = 0;
         if (p->df.nb_f)
             FFSWAP(DecodedFrames, fctx->df, p->df);
-        if (fctx->force_drain != 0 && fctx->next_decoding == fctx->next_finished) {
+        if (fctx->force_drain && fctx->next_decoding == fctx->next_finished) {
             av_log(avctx, AV_LOG_INFO, "force-drain: cleared, nd=nf=%d\n", fctx->next_decoding);
             fctx->force_drain = 0;
         }
