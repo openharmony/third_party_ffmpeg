@@ -107,22 +107,4 @@ int ff_decode_receive_frame_internal(struct AVCodecContext *avctx, AVFrame *fram
  */
 int ff_thread_get_packet(struct AVCodecContext *avctx, AVPacket *pkt);
 
-/**
- * Enable or disable force drain mode for frame threading.
- *
- * When enabled and ff_thread_receive_frame() returns AVERROR(EAGAIN)
- * while there are still leftover frames in the worker-thread pipeline,
- * it will drain those frames instead of returning EAGAIN immediately.
- * This allows the caller to collect all decoded frames without sending
- * a flush (NULL) packet, keeping the decoder state (reference frames,
- * DPB, etc.) intact for continued decoding.
- *
- * The flag is automatically cleared once all leftover frames have been
- * collected (i.e. when next_decoding == next_finished).
- *
- * @param avctx  the codec context using frame threading
- * @param enable 1 to enable force drain, 0 to disable
- */
-void avcodec_set_force_drain(struct AVCodecContext *avctx, int enable);
-
 #endif // AVCODEC_AVCODEC_INTERNAL_H

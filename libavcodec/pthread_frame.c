@@ -1128,7 +1128,7 @@ int ff_thread_get_packet(AVCodecContext *avctx, AVPacket *pkt)
 void avcodec_set_force_drain(AVCodecContext *avctx, int enable)
 {
     FrameThreadContext *fctx = avctx->internal->thread_ctx;
-    if (fctx) {
+    if (fctx && fctx->next_decoding != fctx->next_finished) {
         av_log(avctx, AV_LOG_INFO, "force-drain: set=%d, nd=%d, nf=%d\n",
                enable, fctx->next_decoding, fctx->next_finished);
         fctx->force_drain = enable;
