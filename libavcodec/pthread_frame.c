@@ -581,7 +581,6 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         av_packet_unref(fctx->next_pkt);
         ret = ff_decode_get_packet(avctx, fctx->next_pkt);
         if (ret < 0 && ret != AVERROR_EOF) {
-            frame->opaque = (fctx->next_decoding != fctx->next_finished) ? (void *)(intptr_t)1 : NULL;
             if (fctx->force_drain && ret == AVERROR(EAGAIN) && fctx->next_decoding != fctx->next_finished) {
                 av_log(avctx, AV_LOG_DEBUG, "collect frame nd=%d nf=%d\n", fctx->next_decoding, fctx->next_finished);
                 goto drain_collect;
