@@ -1004,6 +1004,7 @@ void ff_thread_flush(AVCodecContext *avctx)
     }
 
     fctx->next_decoding = fctx->next_finished = 0;
+    fctx->force_drain = 0;
     fctx->prev_thread = NULL;
 
     decoded_frames_flush(&fctx->df);
