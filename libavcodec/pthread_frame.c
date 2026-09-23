@@ -603,6 +603,7 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         /* do not return any frames until all threads have something to do */
         if (fctx->next_decoding != fctx->next_finished &&
             !avctx->internal->draining)
+            continue;
 
 #ifdef OHOS_H264_ONE_IN_ONE_OUT
 drain_collect:
