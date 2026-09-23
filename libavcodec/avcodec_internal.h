@@ -107,6 +107,7 @@ int ff_decode_receive_frame_internal(struct AVCodecContext *avctx, AVFrame *fram
  */
 int ff_thread_get_packet(struct AVCodecContext *avctx, AVPacket *pkt);
 
+#ifdef OHOS_H264_ONE_IN_ONE_OUT
 /**
  * Enable or disable force drain mode for frame threading.
  *
@@ -124,5 +125,6 @@ int ff_thread_get_packet(struct AVCodecContext *avctx, AVPacket *pkt);
  * @param enable 1 to enable force drain, 0 to disable
  */
 void avcodec_set_force_drain(struct AVCodecContext *avctx, int enable);
+#endif
 
 #endif // AVCODEC_AVCODEC_INTERNAL_H

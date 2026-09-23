@@ -149,7 +149,9 @@ typedef struct FrameThreadContext {
 
     int next_decoding;             ///< The next context to submit a packet to.
     int next_finished;             ///< The next context to return output from.
+#ifdef OHOS_H264_ONE_IN_ONE_OUT
     int force_drain;               ///< Drain leftover frames in pipeline when EAGAIN.
+#endif
 
     /* hwaccel state for thread-unsafe hwaccels is temporarily stored here in
      * order to transfer its ownership to the next decoding thread without the
@@ -580,6 +582,7 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         /* get a packet to be submitted to the next thread */
         av_packet_unref(fctx->next_pkt);
         ret = ff_decode_get_packet(avctx, fctx->next_pkt);
+#ifdef OHOS_H264_ONE_IN_ONE_OUT
         if (ret < 0 && ret != AVERROR_EOF) {
             if (fctx->force_drain && ret == AVERROR(EAGAIN) && fctx->next_decoding != fctx->next_finished) {
                 av_log(avctx, AV_LOG_DEBUG, "collect frame nd=%d nf=%d\n", fctx->next_decoding, fctx->next_finished);
@@ -587,16 +590,23 @@ int ff_thread_receive_frame(AVCodecContext *avctx, AVFrame *frame)
             }
             goto finish;
         }
+#else
+        if (ret < 0 && ret != AVERROR_EOF)
+            goto finish;
+#endif
 
-        ret = submit_packet(&fctx->threads[fctx->next_decoding], avctx, fctx->next_pkt);
+        ret = submit_packet(&fctx->threads[fctx->next_decoding], avctx,
+                            fctx->next_pkt);
         if (ret < 0)
              goto finish;
 
         /* do not return any frames until all threads have something to do */
-        if (fctx->next_decoding != fctx->next_finished && !avctx->internal->draining)
-            continue;
+        if (fctx->next_decoding != fctx->next_finished &&
+            !avctx->internal->draining)
 
+#ifdef OHOS_H264_ONE_IN_ONE_OUT
 drain_collect:
+#endif
         p                   = &fctx->threads[fctx->next_finished];
         fctx->next_finished = (fctx->next_finished + 1) % avctx->thread_count;
 
@@ -612,10 +622,12 @@ drain_collect:
         p->result    = 0;
         if (p->df.nb_f)
             FFSWAP(DecodedFrames, fctx->df, p->df);
+#ifdef OHOS_H264_ONE_IN_ONE_OUT
         if (fctx->force_drain && fctx->next_decoding == fctx->next_finished) {
             av_log(avctx, AV_LOG_INFO, "force-drain: cleared, nd=nf=%d\n", fctx->next_decoding);
             fctx->force_drain = 0;
         }
+#endif
     }
 
     /* a thread may return multiple frames AND an error
@@ -1004,7 +1016,9 @@ void ff_thread_flush(AVCodecContext *avctx)
     }
 
     fctx->next_decoding = fctx->next_finished = 0;
+#ifdef OHOS_H264_ONE_IN_ONE_OUT
     fctx->force_drain = 0;
+#endif
     fctx->prev_thread = NULL;
 
     decoded_frames_flush(&fctx->df);
@@ -1125,6 +1139,7 @@ int ff_thread_get_packet(AVCodecContext *avctx, AVPacket *pkt)
     return avctx->internal->draining ? AVERROR_EOF : AVERROR(EAGAIN);
 }
 
+#ifdef OHOS_H264_ONE_IN_ONE_OUT
 void avcodec_set_force_drain(AVCodecContext *avctx, int enable)
 {
     FrameThreadContext *fctx = avctx->internal->thread_ctx;
@@ -1134,3 +1149,4 @@ void avcodec_set_force_drain(AVCodecContext *avctx, int enable)
         fctx->force_drain = enable;
     }
 }
+#endif
